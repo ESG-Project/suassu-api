@@ -1,0 +1,11 @@
+version: "2"
+sql:
+  - engine: "postgresql"
+    schema: "internal/infra/db/sqlc/schema_user.sql"
+    queries: "internal/infra/db/sqlc/queries"
+    gen:
+      go:
+        package: "sqlcgen"
+        out: "internal/infra/db/sqlc/gen"
+        emit_json_tags: true
+        emit_interface: false
