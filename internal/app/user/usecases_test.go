@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/stretchr/testify/require"
 )
 
-type fakeRepo struct{ saved *user.Entity }
+type fakeRepo struct{ saved *domainuser.User }
 
-func (f *fakeRepo) Create(ctx context.Context, u user.Entity) error { f.saved = &u; return nil }
-func (f *fakeRepo) GetByEmail(context.Context, string) (user.Entity, error) {
-	return user.Entity{}, nil
+func (f *fakeRepo) Create(ctx context.Context, u *domainuser.User) error { f.saved = u; return nil }
+func (f *fakeRepo) GetByEmail(context.Context, string) (*domainuser.User, error) {
+	return nil, nil
 }
-func (f *fakeRepo) List(context.Context, int32, int32) ([]user.Entity, error) { return nil, nil }
+func (f *fakeRepo) List(context.Context, int32, int32) ([]*domainuser.User, error) { return nil, nil }
 
 type fakeHasher struct{}
 

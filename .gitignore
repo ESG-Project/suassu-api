@@ -44,7 +44,26 @@ Thumbs.db
 # Build output
 bin/
 dist/
+build/
 
 # Temporary files
 tmp/
 temp/
+
+# Go specific
+api
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# SQLC generated files (if any)
+internal/infra/db/sqlc/gen/*.go
+
+# Coverage reports
+coverage.txt
+coverage.html
+
+# Air live reload (if using)
+tmp/

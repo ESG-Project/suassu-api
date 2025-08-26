@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/google/uuid"
 )
 
@@ -35,28 +36,36 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 	}
 
 	id := uuid.NewString()
-	err = s.repo.Create(ctx, Entity{
-		ID:           id,
-		Name:         in.Name,
-		Email:        in.Email,
-		PasswordHash: hash,
-		Document:     in.Document,
-		Phone:        in.Phone,
-		AddressID:    in.AddressID,
-		RoleID:       in.RoleID,
-		EnterpriseID: in.EnterpriseID,
-	})
+	user := domainuser.NewUser(id, in.Name, in.Email, hash, in.Document, in.EnterpriseID)
+
+	// Set optional fields
+	if in.Phone != nil {
+		user.SetPhone(in.Phone)
+	}
+	if in.AddressID != nil {
+		user.SetAddressID(in.AddressID)
+	}
+	if in.RoleID != nil {
+		user.SetRoleID(in.RoleID)
+	}
+
+	// Validate user before saving
+	if err := user.Validate(); err != nil {
+		return "", err
+	}
+
+	err = s.repo.Create(ctx, user)
 	return id, err
 }
 
-func (s *Service) GetByEmail(ctx context.Context, email string) (Entity, error) {
+func (s *Service) GetByEmail(ctx context.Context, email string) (*domainuser.User, error) {
 	if email == "" {
-		return Entity{}, errors.New("email is required")
+		return nil, errors.New("email is required")
 	}
 	return s.repo.GetByEmail(ctx, email)
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int32) ([]Entity, error) {
+func (s *Service) List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}

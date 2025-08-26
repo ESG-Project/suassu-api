@@ -9,13 +9,14 @@ import (
 	"strconv"
 
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/go-chi/chi/v5"
 )
 
 type Service interface {
 	Create(ctx context.Context, in appuser.CreateInput) (string, error)
-	GetByEmail(ctx context.Context, email string) (appuser.Entity, error)
-	List(ctx context.Context, limit, offset int32) ([]appuser.Entity, error)
+	GetByEmail(ctx context.Context, email string) (*domainuser.User, error)
+	List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error)
 }
 
 func Routes(svc Service) chi.Router {

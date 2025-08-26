@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 
-	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
 
@@ -26,7 +26,7 @@ type UserRepo struct{ q *sqlc.Queries }
 
 func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{q: sqlc.New(db)} }
 
-func (r *UserRepo) Create(ctx context.Context, u appuser.Entity) error {
+func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	return r.q.CreateUser(ctx, sqlc.CreateUserParams{
 		ID:           u.ID,
 		Name:         u.Name,
@@ -40,25 +40,36 @@ func (r *UserRepo) Create(ctx context.Context, u appuser.Entity) error {
 	})
 }
 
-func (r *UserRepo) GetByEmail(ctx context.Context, email string) (appuser.Entity, error) {
+func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domainuser.User, error) {
 	row, err := r.q.GetUserByEmail(ctx, email)
 	if err != nil {
-		return appuser.Entity{}, err
+		return nil, err
 	}
-	return appuser.Entity{
-		ID:           row.ID,
-		Name:         row.Name,
-		Email:        row.Email,
-		PasswordHash: row.PasswordHash, // alias do SELECT
-		Document:     row.Document,
-		Phone:        fromNullString(row.Phone),
-		AddressID:    fromNullString(row.AddressID),
-		RoleID:       fromNullString(row.RoleID),
-		EnterpriseID: row.EnterpriseID,
-	}, nil
+
+	user := domainuser.NewUser(
+		row.ID,
+		row.Name,
+		row.Email,
+		row.PasswordHash, // alias do SELECT
+		row.Document,
+		row.EnterpriseID,
+	)
+
+	// Set optional fields
+	if row.Phone.Valid {
+		user.SetPhone(&row.Phone.String)
+	}
+	if row.AddressID.Valid {
+		user.SetAddressID(&row.AddressID.String)
+	}
+	if row.RoleID.Valid {
+		user.SetRoleID(&row.RoleID.String)
+	}
+
+	return user, nil
 }
 
-func (r *UserRepo) List(ctx context.Context, limit, offset int32) ([]appuser.Entity, error) {
+func (r *UserRepo) List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error) {
 	rows, err := r.q.ListUsers(ctx, sqlc.ListUsersParams{
 		Limit:  limit,
 		Offset: offset,
@@ -66,19 +77,30 @@ func (r *UserRepo) List(ctx context.Context, limit, offset int32) ([]appuser.Ent
 	if err != nil {
 		return nil, err
 	}
-	out := make([]appuser.Entity, 0, len(rows))
+
+	out := make([]*domainuser.User, 0, len(rows))
 	for _, row := range rows {
-		out = append(out, appuser.Entity{
-			ID:           row.ID,
-			Name:         row.Name,
-			Email:        row.Email,
-			PasswordHash: row.PasswordHash,
-			Document:     row.Document,
-			Phone:        fromNullString(row.Phone),
-			AddressID:    fromNullString(row.AddressID),
-			RoleID:       fromNullString(row.RoleID),
-			EnterpriseID: row.EnterpriseID,
-		})
+		user := domainuser.NewUser(
+			row.ID,
+			row.Name,
+			row.Email,
+			row.PasswordHash,
+			row.Document,
+			row.EnterpriseID,
+		)
+
+		// Set optional fields
+		if row.Phone.Valid {
+			user.SetPhone(&row.Phone.String)
+		}
+		if row.AddressID.Valid {
+			user.SetAddressID(&row.AddressID.String)
+		}
+		if row.RoleID.Valid {
+			user.SetRoleID(&row.RoleID.String)
+		}
+
+		out = append(out, user)
 	}
 	return out, nil
 }

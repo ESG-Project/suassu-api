@@ -1,23 +1,15 @@
 package user
 
-import "context"
+import (
+	"context"
 
-type Entity struct {
-	ID           string
-	Name         string
-	Email        string
-	PasswordHash string
-	Document     string
-	Phone        *string
-	AddressID    *string
-	RoleID       *string
-	EnterpriseID string
-}
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+)
 
 type Repo interface {
-	Create(ctx context.Context, u Entity) error
-	GetByEmail(ctx context.Context, email string) (Entity, error)
-	List(ctx context.Context, limit, offset int32) ([]Entity, error)
+	Create(ctx context.Context, u *domainuser.User) error
+	GetByEmail(ctx context.Context, email string) (*domainuser.User, error)
+	List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error)
 }
 
 type Hasher interface {

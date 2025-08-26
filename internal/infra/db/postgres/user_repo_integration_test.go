@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	pg "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	_ "github.com/jackc/pgx/v5/stdlib"
@@ -43,7 +43,7 @@ func TestUserRepo_CreateAndGet(t *testing.T) {
 	CREATE TABLE "User" (
 	  id text PRIMARY KEY,
 	  name text NOT NULL,
-	  email text NOT NULL UNIQUE,
+	  email text NOT NULL,
 	  password text NOT NULL,
 	  document text NOT NULL,
 	  phone text,
@@ -59,10 +59,7 @@ func TestUserRepo_CreateAndGet(t *testing.T) {
 	cctx, cancel := context.WithTimeout(ctx, 5*time.Second)
 	defer cancel()
 
-	u := appuser.Entity{
-		ID: "u1", Name: "Ana", Email: "ana@ex.com", PasswordHash: "HASH",
-		Document: "123", EnterpriseID: "e1",
-	}
+	u := domainuser.NewUser("u1", "Ana", "ana@ex.com", "HASH", "123", "e1")
 	require.NoError(t, repo.Create(cctx, u))
 
 	got, err := repo.GetByEmail(cctx, "ana@ex.com")

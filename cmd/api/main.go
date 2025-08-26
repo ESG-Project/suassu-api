@@ -4,8 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"net/http"
-	"os"
-	"os/signal"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,61 +12,58 @@ import (
 	"go.uber.org/zap"
 
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	"github.com/ESG-Project/suassu-api/internal/config"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/auth"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
+	// 1) Config
+	cfg, err := config.Load()
+	if err != nil {
+		panic(err)
+	}
+	logger, _ := config.BuildLogger(cfg)
 	defer logger.Sync()
 
-	port := getenv("HTTP_PORT", "8080")
-	dsn := os.Getenv("DB_DSN")
-	if dsn == "" {
-		dsn = os.Getenv("DATABASE_URL")
-	}
-	if dsn == "" {
-		logger.Fatal("missing DB_DSN or DATABASE_URL")
-	}
-
-	db, err := sql.Open("pgx", dsn)
+	// 2) DB
+	ctx := context.Background()
+	db, err := config.OpenPostgres(ctx, cfg)
 	if err != nil {
-		logger.Fatal("db open", zap.Error(err))
+		logger.Fatal("db open/ping", zap.Error(err))
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	if err := db.PingContext(ctx); err != nil {
-		logger.Fatal("db ping", zap.Error(err))
-	}
+	defer func(db *sql.DB) { _ = db.Close() }(db)
 
+	// 3) Dependencies
 	userRepo := postgres.NewUserRepo(db)
 	hasher := auth.NewBCrypt()
 	userSvc := appuser.NewService(userRepo, hasher)
 
+	// 4) HTTP router
 	r := chi.NewRouter()
-	r.Use(middleware.RequestID, middleware.RealIP, middleware.Recoverer, middleware.Timeout(30*time.Second))
+	r.Use(
+		middleware.RequestID,
+		middleware.RealIP,
+		middleware.Recoverer,
+		middleware.Timeout(30*time.Second),
+	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
-
 	r.Route("/api/v1", func(v1 chi.Router) {
-		v1.Mount("/users", userhttp.Routes(userSvc)) // rotas no plural
+		v1.Mount("/users", userhttp.Routes(userSvc))
 	})
 
-	srv := &http.Server{Addr: ":" + port, Handler: r}
-	go func() {
-		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Fatal("listen", zap.Error(err))
-		}
-	}()
-	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
-	<-c
-	_ = srv.Shutdown(context.Background())
-}
-
-func getenv(k, d string) string {
-	if v := os.Getenv(k); v != "" {
-		return v
+	// 5) Server
+	srv := &http.Server{
+		Addr:         ":" + cfg.HTTPPort,
+		Handler:      r,
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 15 * time.Second,
+		IdleTimeout:  60 * time.Second,
 	}
-	return d
+
+	logger.Info("server starting", zap.String("port", cfg.HTTPPort))
+	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		logger.Fatal("server error", zap.Error(err))
+	}
 }

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
@@ -21,10 +22,10 @@ type fakeSvc struct {
 func (f *fakeSvc) Create(ctx context.Context, in appuser.CreateInput) (string, error) {
 	return f.createdID, nil
 }
-func (f *fakeSvc) GetByEmail(context.Context, string) (appuser.Entity, error) {
-	return appuser.Entity{}, nil
+func (f *fakeSvc) GetByEmail(context.Context, string) (*domainuser.User, error) {
+	return nil, nil
 }
-func (f *fakeSvc) List(context.Context, int32, int32) ([]appuser.Entity, error) { return nil, nil }
+func (f *fakeSvc) List(context.Context, int32, int32) ([]*domainuser.User, error) { return nil, nil }
 
 func TestPOST_Users_Create(t *testing.T) {
 	svc := &fakeSvc{createdID: "uuid-1"}
