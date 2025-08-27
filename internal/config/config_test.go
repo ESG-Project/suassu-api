@@ -1,8 +1,12 @@
 package config
 
 import (
+	"context"
 	"os"
 	"testing"
+	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestLoad(t *testing.T) {
@@ -155,4 +159,50 @@ func TestGetEnvHelpers(t *testing.T) {
 	if got := getint("INVALID_INT", 200); got != 200 {
 		t.Errorf("getint() = %v, want %v", got, 200)
 	}
+}
+
+func TestOpenPostgres(t *testing.T) {
+	t.Run("invalid DSN", func(t *testing.T) {
+		cfg := &Config{DBDSN: "invalid://dsn"}
+		ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer cancel()
+
+		db, err := OpenPostgres(ctx, cfg)
+		require.Error(t, err)
+		require.Nil(t, db)
+	})
+
+	t.Run("timeout context", func(t *testing.T) {
+		cfg := &Config{DBDSN: "postgres://user:pass@localhost:5432/db"}
+		ctx, cancel := context.WithTimeout(context.Background(), 1*time.Millisecond)
+		defer cancel()
+
+		db, err := OpenPostgres(ctx, cfg)
+		require.Error(t, err)
+		require.Nil(t, db)
+	})
+}
+
+func TestBuildLogger(t *testing.T) {
+	t.Run("default config", func(t *testing.T) {
+		cfg := &Config{}
+		logger, err := BuildLogger(cfg)
+		require.NoError(t, err)
+		require.NotNil(t, logger)
+	})
+
+	t.Run("custom log level", func(t *testing.T) {
+		cfg := &Config{LogLevel: "debug"}
+		logger, err := BuildLogger(cfg)
+		require.NoError(t, err)
+		require.NotNil(t, logger)
+	})
+
+	t.Run("invalid log level", func(t *testing.T) {
+		cfg := &Config{LogLevel: "invalid-level"}
+		logger, err := BuildLogger(cfg)
+		// Deve fallback para info sem erro
+		require.NoError(t, err)
+		require.NotNil(t, logger)
+	})
 }
