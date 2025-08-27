@@ -47,6 +47,7 @@ func main() {
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
 	authSvc := appauth.NewService(userRepo, hasher, jwtIssuer)
+	authH := authhttp.NewHandler(authSvc)
 
 	// 4) HTTP router
 	r := chi.NewRouter()
@@ -58,8 +59,19 @@ func main() {
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Route("/api/v1", func(v1 chi.Router) {
-		v1.Mount("/auth", authhttp.Routes(authSvc))
+		v1.Route("/auth", func(auth chi.Router) {
+			// público
+			auth.Group(func(pub chi.Router) {
+				authH.RegisterPublic(pub)
+			})
+			// privado
+			auth.Group(func(priv chi.Router) {
+				priv.Use(httpmw.AuthJWT(jwtIssuer))
+				authH.RegisterPrivate(priv)
+			})
+		})
 
+		// demais rotas protegidas
 		v1.Group(func(priv chi.Router) {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Mount("/users", userhttp.Routes(userSvc))
