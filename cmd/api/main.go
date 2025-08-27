@@ -18,6 +18,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
 	infraauth "github.com/ESG-Project/suassu-api/internal/infra/auth"
 )
@@ -59,7 +60,11 @@ func main() {
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Route("/api/v1", func(v1 chi.Router) {
 		v1.Mount("/auth", authhttp.Routes(authSvc))
-		v1.Mount("/users", userhttp.Routes(userSvc))
+
+		v1.Group(func(priv chi.Router) {
+			priv.Use(httpmw.AuthJWT(jwtIssuer))
+			priv.Mount("/users", userhttp.Routes(userSvc))
+		})
 	})
 
 	// 5) Server
