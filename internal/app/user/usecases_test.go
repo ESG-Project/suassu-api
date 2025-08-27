@@ -16,7 +16,9 @@ func (f *fakeRepo) Create(ctx context.Context, u *domainuser.User) error { f.sav
 func (f *fakeRepo) GetByEmail(context.Context, string) (*domainuser.User, error) {
 	return nil, nil
 }
-func (f *fakeRepo) List(context.Context, int32, int32) ([]*domainuser.User, error) { return nil, nil }
+func (f *fakeRepo) List(context.Context, string, int32, int32) ([]*domainuser.User, error) {
+	return nil, nil
+}
 
 type fakeHasher struct{}
 
@@ -31,7 +33,7 @@ func TestService_Create(t *testing.T) {
 	repo := &fakeRepo{}
 	svc := user.NewService(repo, fakeHasher{})
 
-	id, err := svc.Create(ctx, user.CreateInput{
+	id, err := svc.Create(ctx, "ent-1", user.CreateInput{
 		Name: "Ana", Email: "ana@ex.com", Password: "123",
 		Document: "999", EnterpriseID: "ent-1",
 	})

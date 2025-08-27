@@ -43,7 +43,7 @@ func (f *fakeRepo) Create(ctx context.Context, u *user.User) error {
 	return nil
 }
 
-func (f *fakeRepo) List(ctx context.Context, limit, offset int32) ([]*user.User, error) {
+func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*user.User, error) {
 	users := make([]*user.User, 0, len(f.users))
 	for _, u := range f.users {
 		users = append(users, u)
