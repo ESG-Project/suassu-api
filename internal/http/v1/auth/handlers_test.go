@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
@@ -26,7 +27,7 @@ type fakeAuthService struct {
 
 func (f *fakeAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error) {
 	if f.err != nil {
-		return appauth.SignInOutput{}, f.err
+		return appauth.SignInOutput{}, apperr.New(apperr.CodeUnauthorized, "invalid credentials")
 	}
 	return appauth.SignInOutput{AccessToken: f.token}, nil
 }
@@ -119,7 +120,7 @@ func TestAuth_Login_InvalidBody(t *testing.T) {
 
 	router.ServeHTTP(rr, req)
 
-	require.Equal(t, http.StatusBadRequest, rr.Code)
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
 }
 
 func TestAuth_Login_InvalidCredentials(t *testing.T) {

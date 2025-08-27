@@ -105,7 +105,7 @@ func TestAuthJWT_Simple(t *testing.T) {
 		router.ServeHTTP(w, req)
 
 		require.Equal(t, http.StatusUnauthorized, w.Code)
-		require.Contains(t, w.Body.String(), "missing bearer token")
+		require.Contains(t, w.Body.String(), "bearer token required")
 	})
 
 	// Teste com token inválido

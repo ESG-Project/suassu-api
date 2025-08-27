@@ -4,13 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
@@ -26,7 +26,7 @@ type fakeSvc struct {
 func (f *fakeSvc) Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error) {
 	// Simula a validação do serviço real
 	if in.Name == "" || in.Email == "" || in.Password == "" || in.Document == "" || enterpriseID == "" {
-		return "", errors.New("missing required fields")
+		return "", apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 	return f.createdID, nil
 }
@@ -158,7 +158,7 @@ func TestPOST_Users_Create_InvalidBody(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
 }
 
 func TestPOST_Users_Create_MissingRequiredFields(t *testing.T) {
