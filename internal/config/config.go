@@ -21,6 +21,12 @@ type Config struct {
 
 	// Log
 	LogLevel string // debug|info|warn|error
+
+	// JWT
+	JWTSecret       string // HMAC secret
+	JWTIssuer       string
+	JWTAudience     string
+	JWTAccessTTLMin int // minutos (ex: 15)
 }
 
 // Load lê variáveis de ambiente e aplica defaults sensatos.
@@ -36,7 +42,13 @@ func Load() (*Config, error) {
 		DBConnMaxIdleMS: getint("DB_CONN_MAX_IDLE_MS", 60000),  // 1min
 		DBConnMaxLifeMS: getint("DB_CONN_MAX_LIFE_MS", 300000), // 5min
 		LogLevel:        strings.ToLower(getenv("LOG_LEVEL", "info")),
+
+		JWTSecret:       getenv("JWT_SECRET", "dev-secret-change-me"),
+		JWTIssuer:       getenv("JWT_ISSUER", "suassu-api"),
+		JWTAudience:     getenv("JWT_AUDIENCE", "suassu-clients"),
+		JWTAccessTTLMin: getint("JWT_ACCESS_TTL_MIN", 15),
 	}
+
 	if cfg.DBDSN == "" {
 		cfg.DBDSN = getenv("DATABASE_URL", "")
 	}
@@ -45,6 +57,9 @@ func Load() (*Config, error) {
 	if cfg.AppEnv == "prod" {
 		if cfg.DBDSN == "" {
 			return nil, errors.New("missing DB_DSN/DATABASE_URL in prod")
+		}
+		if cfg.JWTSecret == "" || cfg.JWTSecret == "dev-secret-change-me" {
+			return nil, errors.New("missing strong JWT_SECRET in prod")
 		}
 	}
 	if cfg.HTTPPort == "" {

@@ -14,4 +14,5 @@ type Repo interface {
 
 type Hasher interface {
 	Hash(pw string) (string, error)
+	Compare(hash, plain string) error
 }

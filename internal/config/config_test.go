@@ -72,8 +72,9 @@ func TestLoad(t *testing.T) {
 		{
 			name: "prod validation - with DB_DSN",
 			env: map[string]string{
-				"APP_ENV": "prod",
-				"DB_DSN":  "postgres://user:pass@localhost:5432/db",
+				"APP_ENV":    "prod",
+				"DB_DSN":     "postgres://user:pass@localhost:5432/db",
+				"JWT_SECRET": "strong-secret-for-production",
 			},
 			check: func(cfg *Config) bool {
 				return cfg.AppEnv == "prod" && cfg.DBDSN != ""

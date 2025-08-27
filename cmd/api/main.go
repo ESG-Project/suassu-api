@@ -16,6 +16,10 @@ import (
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/auth"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
+
+	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
+	infraauth "github.com/ESG-Project/suassu-api/internal/infra/auth"
 )
 
 func main() {
@@ -40,6 +44,10 @@ func main() {
 	hasher := auth.NewBCrypt()
 	userSvc := appuser.NewService(userRepo, hasher)
 
+	// JWT e Auth
+	jwtIssuer := infraauth.NewJWT(cfg)
+	authSvc := appauth.NewService(userRepo, hasher, jwtIssuer)
+
 	// 4) HTTP router
 	r := chi.NewRouter()
 	r.Use(
@@ -50,6 +58,7 @@ func main() {
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Route("/api/v1", func(v1 chi.Router) {
+		v1.Mount("/auth", authhttp.Routes(authSvc))
 		v1.Mount("/users", userhttp.Routes(userSvc))
 	})
 

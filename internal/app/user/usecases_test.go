@@ -20,7 +20,8 @@ func (f *fakeRepo) List(context.Context, int32, int32) ([]*domainuser.User, erro
 
 type fakeHasher struct{}
 
-func (fakeHasher) Hash(pw string) (string, error) { return "HASH_" + pw, nil }
+func (fakeHasher) Hash(pw string) (string, error)   { return "HASH_" + pw, nil }
+func (fakeHasher) Compare(hash, plain string) error { return nil }
 
 func TestService_Create(t *testing.T) {
 	t.Parallel()
