@@ -62,7 +62,7 @@ func TestUserRepo_CreateAndGet(t *testing.T) {
 	u := domainuser.NewUser("u1", "Ana", "ana@ex.com", "HASH", "123", "e1")
 	require.NoError(t, repo.Create(cctx, u))
 
-	got, err := repo.GetByEmail(cctx, "ana@ex.com")
+	got, err := repo.GetByEmailForAuth(cctx, "ana@ex.com")
 	require.NoError(t, err)
 	require.Equal(t, "Ana", got.Name)
 	require.Equal(t, "HASH", got.PasswordHash)

@@ -13,7 +13,10 @@ import (
 type fakeRepo struct{ saved *domainuser.User }
 
 func (f *fakeRepo) Create(ctx context.Context, u *domainuser.User) error { f.saved = u; return nil }
-func (f *fakeRepo) GetByEmail(context.Context, string) (*domainuser.User, error) {
+func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
+	return nil, nil
+}
+func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
 	return nil, nil
 }
 func (f *fakeRepo) List(context.Context, string, int32, int32) ([]*domainuser.User, error) {

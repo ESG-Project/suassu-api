@@ -31,13 +31,6 @@ func newFakeRepo() *fakeRepo {
 	}
 }
 
-func (f *fakeRepo) GetByEmail(ctx context.Context, email string) (*user.User, error) {
-	if u, exists := f.users[email]; exists {
-		return u, nil
-	}
-	return nil, errors.New("user not found")
-}
-
 func (f *fakeRepo) Create(ctx context.Context, u *user.User) error {
 	f.users[u.Email] = u
 	return nil
@@ -49,6 +42,20 @@ func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit, offset 
 		users = append(users, u)
 	}
 	return users, nil
+}
+
+func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*user.User, error) {
+	if u, exists := f.users[email]; exists {
+		return u, nil
+	}
+	return nil, errors.New("user not found")
+}
+
+func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*user.User, error) {
+	if u, exists := f.users[email]; exists {
+		return u, nil
+	}
+	return nil, errors.New("user not found")
 }
 
 type fakeHasher struct{}
