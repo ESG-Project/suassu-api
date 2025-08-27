@@ -64,23 +64,23 @@ docker-build-nocache: ## Constrói a imagem Docker sem cache
 	docker build --no-cache -t suassu-api .
 
 .PHONY: docker-up
-docker-up: ## Inicia apenas a aplicação Go
+docker-up: ## Inicia o docker
 	docker-compose up -d
 
 .PHONY: docker-down
-docker-down: ## Para a aplicação Go
+docker-down: ## Para o docker
 	docker-compose down
 
 .PHONY: docker-logs
-docker-logs: ## Mostra logs da aplicação
+docker-logs: ## Mostra logs do docker
 	docker-compose logs -f api
 
 .PHONY: docker-stats
-docker-stats: ## Mostra stats da aplicação
+docker-stats: ## Mostra stats do docker
 	docker stats
 
 .PHONY: docker-restart
-docker-restart: ## Reinicia a aplicação
+docker-restart: ## Reinicia o docker
 	docker-compose restart api
 
 .PHONY: docker-clean
