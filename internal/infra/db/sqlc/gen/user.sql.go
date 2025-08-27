@@ -64,6 +64,7 @@ SELECT id,
   "enterpriseId" AS enterprise_id
 FROM "User"
 WHERE email = $1
+LIMIT 1
 `
 
 type GetUserByEmailRow struct {
@@ -106,13 +107,15 @@ SELECT id,
   "roleId" AS role_id,
   "enterpriseId" AS enterprise_id
 FROM "User"
+WHERE "enterpriseId" = $1
 ORDER BY name ASC
-LIMIT $1 OFFSET $2
+LIMIT $2 OFFSET $3
 `
 
 type ListUsersParams struct {
-	Limit  int32 `json:"limit"`
-	Offset int32 `json:"offset"`
+	EnterpriseId string `json:"enterpriseId"`
+	Limit        int32  `json:"limit"`
+	Offset       int32  `json:"offset"`
 }
 
 type ListUsersRow struct {
@@ -128,7 +131,7 @@ type ListUsersRow struct {
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, listUsers, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listUsers, arg.EnterpriseId, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}

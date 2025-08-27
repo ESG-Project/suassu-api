@@ -22,7 +22,8 @@ SELECT id,
   "roleId" AS role_id,
   "enterpriseId" AS enterprise_id
 FROM "User"
-WHERE email = $1;
+WHERE email = $1
+LIMIT 1;
 -- name: ListUsers :many
 SELECT id,
   name,
@@ -34,5 +35,6 @@ SELECT id,
   "roleId" AS role_id,
   "enterpriseId" AS enterprise_id
 FROM "User"
+WHERE "enterpriseId" = $1
 ORDER BY name ASC
-LIMIT $1 OFFSET $2;
+LIMIT $2 OFFSET $3;

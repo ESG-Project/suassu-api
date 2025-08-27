@@ -69,10 +69,11 @@ func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domainuser.Us
 	return user, nil
 }
 
-func (r *UserRepo) List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error) {
+func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*domainuser.User, error) {
 	rows, err := r.q.ListUsers(ctx, sqlc.ListUsersParams{
-		Limit:  limit,
-		Offset: offset,
+		EnterpriseId: enterpriseID,
+		Limit:        limit,
+		Offset:       offset,
 	})
 	if err != nil {
 		return nil, err

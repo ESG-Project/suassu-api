@@ -26,8 +26,8 @@ type CreateInput struct {
 	EnterpriseID string
 }
 
-func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
-	if in.Name == "" || in.Email == "" || in.Password == "" || in.Document == "" || in.EnterpriseID == "" {
+func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInput) (string, error) {
+	if in.Name == "" || in.Email == "" || in.Password == "" || in.Document == "" || enterpriseID == "" {
 		return "", errors.New("missing required fields")
 	}
 	hash, err := s.hasher.Hash(in.Password)
@@ -36,7 +36,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 	}
 
 	id := uuid.NewString()
-	user := domainuser.NewUser(id, in.Name, in.Email, hash, in.Document, in.EnterpriseID)
+	user := domainuser.NewUser(id, in.Name, in.Email, hash, in.Document, enterpriseID)
 
 	// Set optional fields
 	if in.Phone != nil {
@@ -65,12 +65,22 @@ func (s *Service) GetByEmail(ctx context.Context, email string) (*domainuser.Use
 	return s.repo.GetByEmail(ctx, email)
 }
 
-func (s *Service) List(ctx context.Context, limit, offset int32) ([]*domainuser.User, error) {
+func (s *Service) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]domainuser.User, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}
 	if offset < 0 {
 		offset = 0
 	}
-	return s.repo.List(ctx, limit, offset)
+	users, err := s.repo.List(ctx, enterpriseID, limit, offset)
+	if err != nil {
+		return nil, err
+	}
+
+	// Converter ponteiros para valores
+	result := make([]domainuser.User, len(users))
+	for i, user := range users {
+		result[i] = *user
+	}
+	return result, nil
 }

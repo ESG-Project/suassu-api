@@ -74,6 +74,7 @@ func main() {
 		// demais rotas protegidas
 		v1.Group(func(priv chi.Router) {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
+			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
 		})
 	})
