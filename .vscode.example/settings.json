@@ -1,0 +1,16 @@
+{
+  "go.buildFlags": ["-tags=integration"],
+  "go.testFlags": ["-tags=integration"],
+  "go.lintFlags": ["-tags=integration"],
+  "go.vetFlags": ["-tags=integration"],
+
+  "[sql]": {
+    "editor.defaultFormatter": "mtxr.sqltools",
+    "editor.formatOnSave": true,
+    "editor.tabSize": 2
+  },
+
+  // (opcionais) deixe o formatador mais “conservador”
+  "sql-formatter.uppercase": true,
+  "sql-formatter.linesBetweenQueries": 1
+}
