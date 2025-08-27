@@ -75,6 +75,10 @@ docker-down: ## Para a aplicação Go
 docker-logs: ## Mostra logs da aplicação
 	docker-compose logs -f api
 
+.PHONY: docker-stats
+docker-stats: ## Mostra stats da aplicação
+	docker stats
+
 .PHONY: docker-restart
 docker-restart: ## Reinicia a aplicação
 	docker-compose restart api
