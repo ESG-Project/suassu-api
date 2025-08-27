@@ -7,7 +7,9 @@ import (
 	"strconv"
 
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -24,13 +26,13 @@ func Routes(svc Service) chi.Router {
 	r.Post("/", func(w http.ResponseWriter, req *http.Request) {
 		enterpriseID := httpmw.EnterpriseID(req.Context())
 		if enterpriseID == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			httperr.Handle(w, req, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
 			return
 		}
 
 		var in appuser.CreateInput
 		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
-			http.Error(w, "invalid body", http.StatusBadRequest)
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
 			return
 		}
 
@@ -38,7 +40,7 @@ func Routes(svc Service) chi.Router {
 
 		id, err := svc.Create(req.Context(), enterpriseID, in)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusUnprocessableEntity)
+			httperr.Handle(w, req, err)
 			return
 		}
 		writeJSON(w, http.StatusCreated, map[string]string{"id": id})
@@ -48,7 +50,7 @@ func Routes(svc Service) chi.Router {
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		enterpriseID := httpmw.EnterpriseID(req.Context())
 		if enterpriseID == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			httperr.Handle(w, req, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
 			return
 		}
 
@@ -57,7 +59,7 @@ func Routes(svc Service) chi.Router {
 
 		users, err := svc.List(req.Context(), enterpriseID, limit, offset)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusInternalServerError)
+			httperr.Handle(w, req, err)
 			return
 		}
 

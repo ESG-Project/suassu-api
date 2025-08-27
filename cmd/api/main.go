@@ -17,6 +17,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	httperr "github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
 	infraauth "github.com/ESG-Project/suassu-api/internal/infra/auth"
@@ -30,6 +31,7 @@ func main() {
 	}
 	logger, _ := config.BuildLogger(cfg)
 	defer logger.Sync()
+	httperr.SetLogger(logger)
 
 	// 2) DB
 	ctx := context.Background()

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/google/uuid"
 )
@@ -28,7 +29,7 @@ type CreateInput struct {
 
 func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInput) (string, error) {
 	if in.Name == "" || in.Email == "" || in.Password == "" || in.Document == "" || enterpriseID == "" {
-		return "", errors.New("missing required fields")
+		return "", apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 	hash, err := s.hasher.Hash(in.Password)
 	if err != nil {
@@ -51,7 +52,7 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 
 	// Validate user before saving
 	if err := user.Validate(); err != nil {
-		return "", err
+		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
 	}
 
 	err = s.repo.Create(ctx, user)

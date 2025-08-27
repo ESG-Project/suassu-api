@@ -57,11 +57,11 @@ test-coverage: ## Roda todos os testes com cobertura
 
 .PHONY: docker-build
 docker-build: ## Constrói a imagem Docker
-	docker build -t suassu-api .
+	docker-compose build
 
 .PHONY: docker-build-nocache
 docker-build-nocache: ## Constrói a imagem Docker sem cache
-	docker build --no-cache -t suassu-api .
+	docker-compose build --no-cache
 
 .PHONY: docker-up
 docker-up: ## Inicia o docker

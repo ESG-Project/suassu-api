@@ -4,6 +4,7 @@ import (
 	"context"
 
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
 )
 
@@ -42,14 +43,14 @@ type SignInOutput struct {
 func (s *Service) SignIn(ctx context.Context, in SignInInput) (SignInOutput, error) {
 	u, err := s.users.GetByEmailForAuth(ctx, in.Email)
 	if err != nil {
-		return SignInOutput{}, err
+		return SignInOutput{}, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
 	}
 	if err := s.hasher.Compare(u.PasswordHash, in.Password); err != nil {
-		return SignInOutput{}, err
+		return SignInOutput{}, apperr.New(apperr.CodeUnauthorized, "invalid credentials")
 	}
 	tok, err := s.tokens.NewAccessToken(u)
 	if err != nil {
-		return SignInOutput{}, err
+		return SignInOutput{}, apperr.Wrap(err, apperr.CodeInternal, "failed to generate token")
 	}
 	return SignInOutput{AccessToken: tok}, nil
 }

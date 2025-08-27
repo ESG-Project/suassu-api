@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
+	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 )
 
 // chave de contexto tipada para evitar colisões
@@ -18,7 +20,7 @@ func RequireEnterprise(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		claims, ok := ClaimsFromCtx(r.Context())
 		if !ok || claims.EnterpriseID == "" {
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			httperr.Handle(w, r, apperr.New(apperr.CodeForbidden, "enterprise access required"))
 			return
 		}
 		ctx := context.WithValue(r.Context(), enterpriseKey, claims.EnterpriseID)

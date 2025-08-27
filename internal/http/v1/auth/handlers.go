@@ -6,6 +6,8 @@ import (
 	"net/http"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
+	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
 )
@@ -39,12 +41,12 @@ func (h *Handler) RegisterPrivate(r chi.Router) {
 func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 	var in appauth.SignInInput
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		http.Error(w, "invalid body", http.StatusBadRequest)
+		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "invalid request body"))
 		return
 	}
 	out, err := h.svc.SignIn(r.Context(), in)
 	if err != nil {
-		http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		httperr.Handle(w, r, err)
 		return
 	}
 	writeJSON(w, http.StatusOK, out)
@@ -53,7 +55,7 @@ func (h *Handler) login(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	claims, ok := httpmw.ClaimsFromCtx(r.Context())
 	if !ok {
-		http.Error(w, "unauthorized", http.StatusUnauthorized)
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]any{

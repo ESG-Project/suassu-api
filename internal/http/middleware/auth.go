@@ -6,6 +6,8 @@ import (
 	"strings"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
+	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 )
 
 type claimsKeyType string
@@ -17,13 +19,13 @@ func AuthJWT(tokens appauth.TokenIssuer) func(http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authz := r.Header.Get("Authorization")
 			if !strings.HasPrefix(authz, "Bearer ") {
-				http.Error(w, "missing bearer token", http.StatusUnauthorized)
+				httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "bearer token required"))
 				return
 			}
 			raw := strings.TrimPrefix(authz, "Bearer ")
 			parsed, err := tokens.Parse(raw)
 			if err != nil {
-				http.Error(w, "invalid token", http.StatusUnauthorized)
+				httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "invalid token"))
 				return
 			}
 			ctx := context.WithValue(r.Context(), claimsKey, parsed)
