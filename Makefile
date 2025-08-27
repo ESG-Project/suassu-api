@@ -2,7 +2,6 @@
 # Suassu API — Makefile
 # ===========================
 
-GO  ?= go
 PKG ?= ./...
 
 .PHONY: help
@@ -22,7 +21,7 @@ help: ## Mostra esta ajuda
 # ===========================
 .PHONY: run
 run: ## Executa o projeto
-	$(GO) run cmd/main.go
+	go run cmd/api/main.go
 
 # ===========================
 # section: Qualidade
@@ -30,11 +29,11 @@ run: ## Executa o projeto
 
 .PHONY: lint
 lint: ## Roda go vet
-	$(GO) vet $(PKG)
+	go vet $(PKG)
 
 .PHONY: tidy
 tidy: ## Ajusta go.mod/go.sum
-	$(GO) mod tidy
+	go mod tidy
 
 # ===========================
 # section: Testes
@@ -42,8 +41,8 @@ tidy: ## Ajusta go.mod/go.sum
 
 .PHONY: test
 test: ## Roda todos os testes
-	$(GO) test $(PKG) -race
+	go test $(PKG) -race
 
 .PHONY: test-coverage
 test-coverage: ## Roda todos os testes com cobertura
-	$(GO) test $(PKG) -race -cover
+	go test $(PKG) -race -cover
