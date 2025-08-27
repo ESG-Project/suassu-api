@@ -14,7 +14,6 @@ import (
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/auth"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
@@ -42,7 +41,7 @@ func main() {
 
 	// 3) Dependencies
 	userRepo := postgres.NewUserRepo(db)
-	hasher := auth.NewBCrypt()
+	hasher := infraauth.NewBCrypt()
 	userSvc := appuser.NewService(userRepo, hasher)
 
 	// JWT e Auth
