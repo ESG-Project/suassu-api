@@ -8,8 +8,9 @@ import (
 
 type Repo interface {
 	Create(ctx context.Context, u *domainuser.User) error
-	GetByEmail(ctx context.Context, email string) (*domainuser.User, error)
 	List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*domainuser.User, error)
+	GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) // Para operações de negócio (com filtro de tenant)
+	GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error)                       // Para autenticação (sem filtro de tenant)
 }
 
 type Hasher interface {

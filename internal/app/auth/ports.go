@@ -40,7 +40,7 @@ type SignInOutput struct {
 }
 
 func (s *Service) SignIn(ctx context.Context, in SignInInput) (SignInOutput, error) {
-	u, err := s.users.GetByEmail(ctx, in.Email)
+	u, err := s.users.GetByEmailForAuth(ctx, in.Email)
 	if err != nil {
 		return SignInOutput{}, err
 	}

@@ -52,7 +52,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
-const getUserByEmail = `-- name: GetUserByEmail :one
+const getUserByEmailForAuth = `-- name: GetUserByEmailForAuth :one
 SELECT id,
   name,
   email,
@@ -67,7 +67,7 @@ WHERE email = $1
 LIMIT 1
 `
 
-type GetUserByEmailRow struct {
+type GetUserByEmailForAuthRow struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
 	Email        string         `json:"email"`
@@ -79,9 +79,59 @@ type GetUserByEmailRow struct {
 	EnterpriseID string         `json:"enterprise_id"`
 }
 
-func (q *Queries) GetUserByEmail(ctx context.Context, email string) (GetUserByEmailRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmail, email)
-	var i GetUserByEmailRow
+func (q *Queries) GetUserByEmailForAuth(ctx context.Context, email string) (GetUserByEmailForAuthRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmailForAuth, email)
+	var i GetUserByEmailForAuthRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Document,
+		&i.Phone,
+		&i.AddressID,
+		&i.RoleID,
+		&i.EnterpriseID,
+	)
+	return i, err
+}
+
+const getUserByEmailInTenant = `-- name: GetUserByEmailInTenant :one
+SELECT id,
+  name,
+  email,
+  password AS password_hash,
+  document,
+  phone,
+  "addressId" AS address_id,
+  "roleId" AS role_id,
+  "enterpriseId" AS enterprise_id
+FROM "User"
+WHERE "enterpriseId" = $1
+  AND email = $2
+LIMIT 1
+`
+
+type GetUserByEmailInTenantParams struct {
+	EnterpriseId string `json:"enterpriseId"`
+	Email        string `json:"email"`
+}
+
+type GetUserByEmailInTenantRow struct {
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Document     string         `json:"document"`
+	Phone        sql.NullString `json:"phone"`
+	AddressID    sql.NullString `json:"address_id"`
+	RoleID       sql.NullString `json:"role_id"`
+	EnterpriseID string         `json:"enterprise_id"`
+}
+
+func (q *Queries) GetUserByEmailInTenant(ctx context.Context, arg GetUserByEmailInTenantParams) (GetUserByEmailInTenantRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByEmailInTenant, arg.EnterpriseId, arg.Email)
+	var i GetUserByEmailInTenantRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,

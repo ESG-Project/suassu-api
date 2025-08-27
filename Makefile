@@ -23,6 +23,10 @@ help: ## Mostra esta ajuda
 run: ## Executa o projeto
 	go run cmd/api/main.go
 
+.PHONY: sqlc
+sqlc: ## Gera código sqlc
+	sqlc generate
+
 # ===========================
 # section: Qualidade
 # ===========================

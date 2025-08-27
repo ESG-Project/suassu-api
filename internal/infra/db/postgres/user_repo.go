@@ -31,42 +31,13 @@ func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 		ID:           u.ID,
 		Name:         u.Name,
 		Email:        u.Email,
-		Password:     u.PasswordHash, // coluna "password"
+		Password:     u.PasswordHash,
 		Document:     u.Document,
 		Phone:        toNullString(u.Phone),
 		AddressId:    toNullString(u.AddressID),
 		RoleId:       toNullString(u.RoleID),
 		EnterpriseId: u.EnterpriseID,
 	})
-}
-
-func (r *UserRepo) GetByEmail(ctx context.Context, email string) (*domainuser.User, error) {
-	row, err := r.q.GetUserByEmail(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-
-	user := domainuser.NewUser(
-		row.ID,
-		row.Name,
-		row.Email,
-		row.PasswordHash, // alias do SELECT
-		row.Document,
-		row.EnterpriseID,
-	)
-
-	// Set optional fields
-	if row.Phone.Valid {
-		user.SetPhone(&row.Phone.String)
-	}
-	if row.AddressID.Valid {
-		user.SetAddressID(&row.AddressID.String)
-	}
-	if row.RoleID.Valid {
-		user.SetRoleID(&row.RoleID.String)
-	}
-
-	return user, nil
 }
 
 func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*domainuser.User, error) {
@@ -104,4 +75,66 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit, offset 
 		out = append(out, user)
 	}
 	return out, nil
+}
+
+// GetByEmailForAuth - específico para autenticação (sem filtro de tenant)
+func (r *UserRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
+	row, err := r.q.GetUserByEmailForAuth(ctx, email)
+	if err != nil {
+		return nil, err
+	}
+
+	user := domainuser.NewUser(
+		row.ID,
+		row.Name,
+		row.Email,
+		row.PasswordHash,
+		row.Document,
+		row.EnterpriseID,
+	)
+
+	// Set optional fields
+	if row.Phone.Valid {
+		user.SetPhone(&row.Phone.String)
+	}
+	if row.AddressID.Valid {
+		user.SetAddressID(&row.AddressID.String)
+	}
+	if row.RoleID.Valid {
+		user.SetRoleID(&row.RoleID.String)
+	}
+
+	return user, nil
+}
+
+// GetByEmailInTenant - para operações de negócio (com filtro de tenant)
+func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID string) (*domainuser.User, error) {
+	row, err := r.q.GetUserByEmailInTenant(ctx, sqlc.GetUserByEmailInTenantParams{
+		EnterpriseId: enterpriseID,
+		Email:        email,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	user := domainuser.NewUser(
+		row.ID,
+		row.Name,
+		row.Email,
+		row.PasswordHash,
+		row.Document,
+		row.EnterpriseID,
+	)
+
+	if row.Phone.Valid {
+		user.SetPhone(&row.Phone.String)
+	}
+	if row.AddressID.Valid {
+		user.SetAddressID(&row.AddressID.String)
+	}
+	if row.RoleID.Valid {
+		user.SetRoleID(&row.RoleID.String)
+	}
+
+	return user, nil
 }

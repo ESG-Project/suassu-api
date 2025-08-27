@@ -11,19 +11,6 @@ INSERT INTO "User" (
     "enterpriseId"
   )
 VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9);
--- name: GetUserByEmail :one
-SELECT id,
-  name,
-  email,
-  password AS password_hash,
-  document,
-  phone,
-  "addressId" AS address_id,
-  "roleId" AS role_id,
-  "enterpriseId" AS enterprise_id
-FROM "User"
-WHERE email = $1
-LIMIT 1;
 -- name: ListUsers :many
 SELECT id,
   name,
@@ -38,3 +25,30 @@ FROM "User"
 WHERE "enterpriseId" = $1
 ORDER BY name ASC
 LIMIT $2 OFFSET $3;
+-- name: GetUserByEmailInTenant :one
+SELECT id,
+  name,
+  email,
+  password AS password_hash,
+  document,
+  phone,
+  "addressId" AS address_id,
+  "roleId" AS role_id,
+  "enterpriseId" AS enterprise_id
+FROM "User"
+WHERE "enterpriseId" = $1
+  AND email = $2
+LIMIT 1;
+-- name: GetUserByEmailForAuth :one
+SELECT id,
+  name,
+  email,
+  password AS password_hash,
+  document,
+  phone,
+  "addressId" AS address_id,
+  "roleId" AS role_id,
+  "enterpriseId" AS enterprise_id
+FROM "User"
+WHERE email = $1
+LIMIT 1;
