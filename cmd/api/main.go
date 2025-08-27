@@ -56,7 +56,7 @@ func main() {
 	r.Use(
 		middleware.RequestID,
 		middleware.RealIP,
-		middleware.Recoverer,
+		httpmw.RecoveryWithLogger(logger),
 		middleware.Timeout(30*time.Second),
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
