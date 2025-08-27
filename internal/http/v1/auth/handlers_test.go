@@ -1,230 +1,200 @@
 package authhttp_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
-	"github.com/ESG-Project/suassu-api/internal/domain/user"
+	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
 )
 
-// Mock service para teste
-type mockAuthService struct {
-	shouldFail bool
-	failReason string
+/*** FAKES ***/
+
+type fakeAuthService struct {
+	token string
+	err   error
 }
 
-func (m *mockAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error) {
-	if m.shouldFail {
-		return appauth.SignInOutput{}, errors.New(m.failReason)
+func (f *fakeAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error) {
+	if f.err != nil {
+		return appauth.SignInOutput{}, f.err
 	}
-	return appauth.SignInOutput{AccessToken: "fake-token-123"}, nil
+	return appauth.SignInOutput{AccessToken: f.token}, nil
 }
 
-// Mock repo e hasher para criar o service real
-type mockUserRepo struct {
-	users map[string]*user.User
+// fakeTokenIssuer implementa appauth.TokenIssuer.
+// Aqui corrigimos a assinatura de NewAccessToken para aceitar domain.User.
+type fakeTokenIssuer struct {
+	expect string
+	claims appauth.Claims
+	err    error
 }
 
-func newMockUserRepo() *mockUserRepo {
-	return &mockUserRepo{
-		users: map[string]*user.User{
-			"teste@exemplo.com": user.NewUser(
-				"user-123",
-				"Usuário Teste",
-				"teste@exemplo.com",
-				"HASH_senha123",
-				"12345678901",
-				"empresa-teste",
-			),
-		},
+func (f *fakeTokenIssuer) NewAccessToken(_ *domainuser.User) (string, error) {
+	// não usado nos testes deste arquivo
+	return "unused", nil
+}
+func (f *fakeTokenIssuer) Parse(token string) (appauth.Claims, error) {
+	if f.err != nil {
+		return appauth.Claims{}, f.err
 	}
-}
-
-func (m *mockUserRepo) GetByEmail(ctx context.Context, email string) (*user.User, error) {
-	if u, exists := m.users[email]; exists {
-		return u, nil
+	if token != f.expect {
+		return appauth.Claims{}, errors.New("invalid token")
 	}
-	return nil, errors.New("user not found")
+	return f.claims, nil
 }
 
-func (m *mockUserRepo) Create(ctx context.Context, u *user.User) error {
-	m.users[u.Email] = u
-	return nil
-}
+/*** HELPERS ***/
 
-func (m *mockUserRepo) List(ctx context.Context, limit, offset int32) ([]*user.User, error) {
-	users := make([]*user.User, 0, len(m.users))
-	for _, u := range m.users {
-		users = append(users, u)
-	}
-	return users, nil
-}
-
-type mockHasher struct{}
-
-func (m *mockHasher) Hash(pw string) (string, error) {
-	return "HASH_" + pw, nil
-}
-
-func (m *mockHasher) Compare(hash, plain string) error {
-	expectedHash := "HASH_" + plain
-	if hash == expectedHash {
-		return nil
-	}
-	return errors.New("password mismatch")
-}
-
-type mockTokenIssuer struct {
-	shouldFail bool
-}
-
-func (m *mockTokenIssuer) NewAccessToken(u *user.User) (string, error) {
-	if m.shouldFail {
-		return "", errors.New("token generation failed")
-	}
-	return "fake-token-123", nil
-}
-
-func (m *mockTokenIssuer) Parse(token string) (appauth.Claims, error) {
-	return appauth.Claims{}, errors.New("not implemented in mock")
-}
-
-func TestAuthRoutes_Login(t *testing.T) {
-	tests := []struct {
-		name           string
-		body           string
-		setupService   func() *appauth.Service
-		expectedStatus int
-		expectedBody   map[string]interface{}
-		checkHeaders   func(t *testing.T, w *httptest.ResponseRecorder)
-	}{
-		{
-			name: "OK - credenciais válidas",
-			body: `{"email":"teste@exemplo.com","password":"senha123"}`,
-			setupService: func() *appauth.Service {
-				repo := newMockUserRepo()
-				hasher := &mockHasher{}
-				tokens := &mockTokenIssuer{shouldFail: false}
-				return appauth.NewService(repo, hasher, tokens)
-			},
-			expectedStatus: http.StatusOK,
-			expectedBody: map[string]interface{}{
-				"accessToken": "fake-token-123",
-			},
-			checkHeaders: func(t *testing.T, w *httptest.ResponseRecorder) {
-				require.Equal(t, "application/json", w.Header().Get("Content-Type"))
-			},
-		},
-		{
-			name: "Body inválido - JSON quebrado",
-			body: `{"email":"teste@exemplo.com","password":"senha123"`,
-			setupService: func() *appauth.Service {
-				repo := newMockUserRepo()
-				hasher := &mockHasher{}
-				tokens := &mockTokenIssuer{shouldFail: false}
-				return appauth.NewService(repo, hasher, tokens)
-			},
-			expectedStatus: http.StatusBadRequest,
-			expectedBody:   nil,
-			checkHeaders:   func(t *testing.T, w *httptest.ResponseRecorder) {},
-		},
-		{
-			name: "Credenciais inválidas - email não encontrado",
-			body: `{"email":"inexistente@exemplo.com","password":"senha123"}`,
-			setupService: func() *appauth.Service {
-				repo := newMockUserRepo()
-				hasher := &mockHasher{}
-				tokens := &mockTokenIssuer{shouldFail: false}
-				return appauth.NewService(repo, hasher, tokens)
-			},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   nil,
-			checkHeaders:   func(t *testing.T, w *httptest.ResponseRecorder) {},
-		},
-		{
-			name: "Credenciais inválidas - senha incorreta",
-			body: `{"email":"teste@exemplo.com","password":"senha_errada"}`,
-			setupService: func() *appauth.Service {
-				repo := newMockUserRepo()
-				hasher := &mockHasher{}
-				tokens := &mockTokenIssuer{shouldFail: false}
-				return appauth.NewService(repo, hasher, tokens)
-			},
-			expectedStatus: http.StatusUnauthorized,
-			expectedBody:   nil,
-			checkHeaders:   func(t *testing.T, w *httptest.ResponseRecorder) {},
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			// Setup
-			svc := tt.setupService()
-			router := chi.NewRouter()
-			router.Mount("/auth", authhttp.Routes(svc))
-
-			// Create request
-			req := httptest.NewRequest("POST", "/auth/login", strings.NewReader(tt.body))
-			req.Header.Set("Content-Type", "application/json")
-
-			// Create response recorder
-			w := httptest.NewRecorder()
-
-			// Execute
-			router.ServeHTTP(w, req)
-
-			// Assertions
-			require.Equal(t, tt.expectedStatus, w.Code)
-
-			if tt.expectedBody != nil {
-				var response map[string]interface{}
-				err := json.NewDecoder(w.Body).Decode(&response)
-				require.NoError(t, err)
-
-				for key, expectedValue := range tt.expectedBody {
-					require.Equal(t, expectedValue, response[key])
-				}
-			}
-
-			// Check headers
-			tt.checkHeaders(t, w)
-
-			// Verify no sensitive data is exposed
-			bodyStr := w.Body.String()
-			require.NotContains(t, bodyStr, "PasswordHash")
-			require.NotContains(t, bodyStr, "password")
+func newAuthRouterPublic(svc *fakeAuthService) http.Handler {
+	h := authhttp.NewHandler(svc)
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(v1 chi.Router) {
+		v1.Route("/auth", func(auth chi.Router) {
+			auth.Group(func(pub chi.Router) {
+				h.RegisterPublic(pub) // POST /api/v1/auth/login
+			})
 		})
-	}
+	})
+	return r
 }
 
-func TestAuthRoutes_Me(t *testing.T) {
-	t.Run("Not implemented endpoint", func(t *testing.T) {
-		// Setup
-		repo := newMockUserRepo()
-		hasher := &mockHasher{}
-		tokens := &mockTokenIssuer{shouldFail: false}
-		svc := appauth.NewService(repo, hasher, tokens)
-
-		router := chi.NewRouter()
-		router.Mount("/auth", authhttp.Routes(svc))
-
-		// Create request
-		req := httptest.NewRequest("GET", "/auth/me", nil)
-		w := httptest.NewRecorder()
-
-		// Execute
-		router.ServeHTTP(w, req)
-
-		// Assertions
-		require.Equal(t, http.StatusNotImplemented, w.Code)
+func newAuthRouterPrivate(tokenIssuer *fakeTokenIssuer) http.Handler {
+	h := authhttp.NewHandler(&fakeAuthService{})
+	r := chi.NewRouter()
+	r.Route("/api/v1", func(v1 chi.Router) {
+		v1.Route("/auth", func(auth chi.Router) {
+			auth.Group(func(priv chi.Router) {
+				priv.Use(httpmw.AuthJWT(tokenIssuer))
+				h.RegisterPrivate(priv) // GET /api/v1/auth/me
+			})
+		})
 	})
+	return r
+}
+
+/*** TESTES ***/
+
+func TestAuth_Login_OK(t *testing.T) {
+	svc := &fakeAuthService{token: "token-ok"}
+	router := newAuthRouterPublic(svc)
+
+	body := map[string]any{
+		"email":    "ana@ex.com",
+		"password": "123",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+	var resp struct {
+		AccessToken string `json:"accessToken"`
+	}
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Equal(t, "token-ok", resp.AccessToken)
+}
+
+func TestAuth_Login_InvalidBody(t *testing.T) {
+	svc := &fakeAuthService{token: "token-ok"}
+	router := newAuthRouterPublic(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewBufferString("{bad json"))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusBadRequest, rr.Code)
+}
+
+func TestAuth_Login_InvalidCredentials(t *testing.T) {
+	svc := &fakeAuthService{err: errors.New("invalid credentials")}
+	router := newAuthRouterPublic(svc)
+
+	body := map[string]any{
+		"email":    "ana@ex.com",
+		"password": "wrong",
+	}
+	b, _ := json.Marshal(body)
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+func TestAuth_Me_OK(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{
+			Subject:      "u1",
+			Email:        "ana@ex.com",
+			Name:         "Ana",
+			EnterpriseID: "ent-1",
+			RoleID:       nil,
+		},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer good-token")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Equal(t, "u1", resp["sub"])
+	require.Equal(t, "ana@ex.com", resp["email"])
+	require.Equal(t, "Ana", resp["name"])
+	require.Equal(t, "ent-1", resp["enterpriseId"])
+}
+
+func TestAuth_Me_Unauthorized_NoHeader(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{Subject: "u1"},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+func TestAuth_Me_Unauthorized_BadToken(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{Subject: "u1"},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/me", nil)
+	req.Header.Set("Authorization", "Bearer bad-token")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnauthorized, rr.Code)
 }
