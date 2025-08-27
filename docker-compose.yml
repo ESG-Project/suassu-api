@@ -1,0 +1,19 @@
+services:
+  # Aplicação Go
+  api:
+    container_name: suassu-api-container
+    image: suassu-api
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    networks:
+      - suassu-network
+    restart: unless-stopped
+
+networks:
+  suassu-network:
+    driver: bridge

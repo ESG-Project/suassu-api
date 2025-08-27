@@ -50,3 +50,36 @@ test: ## Roda todos os testes
 .PHONY: test-coverage
 test-coverage: ## Roda todos os testes com cobertura
 	go test $(PKG) -race -cover
+
+# ===========================
+# section: Docker
+# ===========================
+
+.PHONY: docker-build
+docker-build: ## Constrói a imagem Docker
+	docker build -t suassu-api .
+
+.PHONY: docker-build-nocache
+docker-build-nocache: ## Constrói a imagem Docker sem cache
+	docker build --no-cache -t suassu-api .
+
+.PHONY: docker-up
+docker-up: ## Inicia apenas a aplicação Go
+	docker-compose up -d
+
+.PHONY: docker-down
+docker-down: ## Para a aplicação Go
+	docker-compose down
+
+.PHONY: docker-logs
+docker-logs: ## Mostra logs da aplicação
+	docker-compose logs -f api
+
+.PHONY: docker-restart
+docker-restart: ## Reinicia a aplicação
+	docker-compose restart api
+
+.PHONY: docker-clean
+docker-clean: ## Remove containers, imagens e volumes não utilizados
+	docker system prune -f
+	docker volume prune -f

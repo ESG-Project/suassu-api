@@ -1,0 +1,70 @@
+# Arquivos de sistema
+.DS_Store
+Thumbs.db
+
+# Arquivos de IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Arquivos de build e binários
+bin/
+dist/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Arquivos de teste
+*.test
+*.out
+coverage.txt
+coverage.html
+
+# Arquivos de log
+*.log
+logs/
+
+# Arquivos temporários
+tmp/
+temp/
+
+# Arquivos de configuração local
+.env
+.env.local
+.env.*.local
+
+# Arquivos de cache
+.cache/
+
+# Arquivos de documentação
+docs/
+*.md
+!README.md
+
+# Arquivos de migração (serão copiados separadamente se necessário)
+# test/migrations/
+
+# Arquivos Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Arquivos Git
+.git/
+.gitignore
+
+# Arquivos de CI/CD
+.github/
+.gitlab-ci.yml
+.travis.yml
+
+# Arquivos de backup
+*.bak
+*.backup
+
+# Arquivos de lock
+package-lock.json
+yarn.lock
