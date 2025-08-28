@@ -6,6 +6,7 @@ import (
 
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
 
@@ -59,16 +60,21 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 	return id, err
 }
 
-func (s *Service) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]domainuser.User, error) {
+func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
+	if email == "" {
+		return nil, errors.New("email is required")
+	}
+	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
+}
+
+func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}
-	if offset < 0 {
-		offset = 0
-	}
-	users, err := s.repo.List(ctx, enterpriseID, limit, offset)
+
+	users, pageInfo, err := s.repo.List(ctx, enterpriseID, limit, after)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
 	// Converter ponteiros para valores
@@ -76,12 +82,5 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit, offset i
 	for i, user := range users {
 		result[i] = *user
 	}
-	return result, nil
-}
-
-func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
-	if email == "" {
-		return nil, errors.New("email is required")
-	}
-	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
+	return result, &pageInfo, nil
 }

@@ -22,13 +22,24 @@ func Handle(w http.ResponseWriter, r *http.Request, err error) {
 		return
 	}
 
+	reqID := chimw.GetReqID(r.Context())
 	status := mapStatus(apperr.CodeOf(err), err)
+
+	// Monta payload padronizado
 	payload := map[string]any{
 		"error": map[string]any{
 			"code":    string(apperr.CodeOf(err)),
 			"message": publicMessage(err),
 		},
-		"requestId": chimw.GetReqID(r.Context()),
+		"meta": map[string]any{
+			"requestId": reqID,
+		},
+	}
+
+	// Anexa details quando existir (ex.: validação campo a campo)
+	var ae *apperr.Error
+	if errors.As(err, &ae) && ae.Fields != nil {
+		payload["error"].(map[string]any)["details"] = ae.Fields
 	}
 
 	// log estruturado (sem vazar sensíveis)
@@ -36,19 +47,18 @@ func Handle(w http.ResponseWriter, r *http.Request, err error) {
 		fields := []zap.Field{
 			zap.String("code", string(apperr.CodeOf(err))),
 			zap.Int("status", status),
-			zap.String("request_id", chimw.GetReqID(r.Context())),
+			zap.String("request_id", reqID),
 		}
-		var ae *apperr.Error
-		if errors.As(err, &ae) && ae.Fields != nil {
+		if ae != nil && ae.Fields != nil {
 			fields = append(fields, zap.Any("fields", ae.Fields))
 		}
 		logger.Error("http_error", append(fields, zap.Error(err))...)
 	}
 
-	writeJSON(w, status, payload)
+	writeJSON(w, status, reqID, payload)
 }
 
-func mapStatus(code apperr.Code, err error) int {
+func mapStatus(code apperr.Code, _ error) int {
 	switch code {
 	case apperr.CodeInvalid:
 		return http.StatusUnprocessableEntity // 422
@@ -68,7 +78,7 @@ func mapStatus(code apperr.Code, err error) int {
 }
 
 func publicMessage(err error) string {
-	// Mensagens amigáveis/curtas; evite vazar detalhes internos
+	// Mensagens amigáveis e curtas
 	var ae *apperr.Error
 	if errors.As(err, &ae) && ae.Msg != "" {
 		return ae.Msg
@@ -76,8 +86,12 @@ func publicMessage(err error) string {
 	return http.StatusText(mapStatus(apperr.CodeOf(err), err))
 }
 
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
+func writeJSON(w http.ResponseWriter, status int, reqID string, v any) {
+	// Opcional: propagar X-Request-ID no header para o gateway/clients
+	if reqID != "" {
+		w.Header().Set("X-Request-ID", reqID)
+	}
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }

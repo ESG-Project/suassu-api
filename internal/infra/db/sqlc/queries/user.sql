@@ -23,8 +23,16 @@ SELECT id,
   "enterpriseId" AS enterprise_id
 FROM "User"
 WHERE "enterpriseId" = $1
-ORDER BY name ASC
-LIMIT $2 OFFSET $3;
+  AND (
+    email > $3
+    OR (
+      email = $3
+      AND id > $4
+    )
+  )
+ORDER BY email ASC,
+  id ASC
+LIMIT $2;
 -- name: GetUserByEmailInTenant :one
 SELECT id,
   name,

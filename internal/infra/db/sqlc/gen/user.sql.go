@@ -158,14 +158,23 @@ SELECT id,
   "enterpriseId" AS enterprise_id
 FROM "User"
 WHERE "enterpriseId" = $1
-ORDER BY name ASC
-LIMIT $2 OFFSET $3
+  AND (
+    email > $3
+    OR (
+      email = $3
+      AND id > $4
+    )
+  )
+ORDER BY email ASC,
+  id ASC
+LIMIT $2
 `
 
 type ListUsersParams struct {
 	EnterpriseId string `json:"enterpriseId"`
 	Limit        int32  `json:"limit"`
-	Offset       int32  `json:"offset"`
+	Email        string `json:"email"`
+	ID           string `json:"id"`
 }
 
 type ListUsersRow struct {
@@ -181,7 +190,12 @@ type ListUsersRow struct {
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
-	rows, err := q.db.QueryContext(ctx, listUsers, arg.EnterpriseId, arg.Limit, arg.Offset)
+	rows, err := q.db.QueryContext(ctx, listUsers,
+		arg.EnterpriseId,
+		arg.Limit,
+		arg.Email,
+		arg.ID,
+	)
 	if err != nil {
 		return nil, err
 	}

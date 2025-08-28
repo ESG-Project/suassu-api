@@ -6,7 +6,18 @@ import (
 
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
+	"github.com/google/uuid"
 )
+
+type UserCursorKey struct {
+	Email string    `json:"email"`
+	ID    uuid.UUID `json:"id"`
+}
+
+type PageInfo struct {
+	Next    *UserCursorKey
+	HasMore bool
+}
 
 func toNullString(s *string) sql.NullString {
 	if s == nil {
@@ -40,19 +51,35 @@ func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	})
 }
 
-func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*domainuser.User, error) {
-	rows, err := r.q.ListUsers(ctx, sqlc.ListUsersParams{
+func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, after *UserCursorKey) ([]*domainuser.User, PageInfo, error) {
+	params := sqlc.ListUsersParams{
 		EnterpriseId: enterpriseID,
-		Limit:        limit,
-		Offset:       offset,
-	})
+		Limit:        limit + 1,
+	}
+
+	// Se não há cursor, usar valores vazios para pegar todos
+	if after == nil {
+		params.Email = ""
+		params.ID = ""
+	} else {
+		params.Email = after.Email
+		params.ID = after.ID.String()
+	}
+
+	rows, err := r.q.ListUsers(ctx, params)
 	if err != nil {
-		return nil, err
+		return nil, PageInfo{}, err
+	}
+
+	hasMore := false
+	if int32(len(rows)) > limit {
+		hasMore = true
+		rows = rows[:limit]
 	}
 
 	out := make([]*domainuser.User, 0, len(rows))
 	for _, row := range rows {
-		user := domainuser.NewUser(
+		u := domainuser.NewUser(
 			row.ID,
 			row.Name,
 			row.Email,
@@ -60,21 +87,26 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit, offset 
 			row.Document,
 			row.EnterpriseID,
 		)
-
-		// Set optional fields
+		// opcionais
 		if row.Phone.Valid {
-			user.SetPhone(&row.Phone.String)
+			u.SetPhone(&row.Phone.String)
 		}
 		if row.AddressID.Valid {
-			user.SetAddressID(&row.AddressID.String)
+			u.SetAddressID(&row.AddressID.String)
 		}
 		if row.RoleID.Valid {
-			user.SetRoleID(&row.RoleID.String)
+			u.SetRoleID(&row.RoleID.String)
 		}
-
-		out = append(out, user)
+		out = append(out, u)
 	}
-	return out, nil
+
+	var next *UserCursorKey
+	if len(rows) > 0 {
+		last := rows[len(rows)-1]
+		next = &UserCursorKey{Email: last.Email}
+	}
+
+	return out, PageInfo{Next: next, HasMore: hasMore}, nil
 }
 
 // GetByEmailForAuth - específico para autenticação (sem filtro de tenant)

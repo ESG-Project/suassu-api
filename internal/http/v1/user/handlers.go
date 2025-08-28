@@ -6,17 +6,21 @@ import (
 	"net/http"
 	"strconv"
 
+	"encoding/base64"
+
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
+	"github.com/ESG-Project/suassu-api/internal/http/response"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/go-chi/chi/v5"
 )
 
 type Service interface {
 	Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error)
-	List(ctx context.Context, enterpriseID string, limit, offset int32) ([]domainuser.User, error)
+	List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error)
 }
 
 func Routes(svc Service) chi.Router {
@@ -43,10 +47,10 @@ func Routes(svc Service) chi.Router {
 			httperr.Handle(w, req, err)
 			return
 		}
-		writeJSON(w, http.StatusCreated, map[string]string{"id": id})
+		response.JSON(w, http.StatusCreated, map[string]string{"id": id}, nil)
 	})
 
-	// GET /users?limit=50&offset=0
+	// GET /users?limit=50&cursor=...
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		enterpriseID := httpmw.EnterpriseID(req.Context())
 		if enterpriseID == "" {
@@ -55,9 +59,18 @@ func Routes(svc Service) chi.Router {
 		}
 
 		limit := parseInt32(req.URL.Query().Get("limit"), 50)
-		offset := parseInt32(req.URL.Query().Get("offset"), 0)
+		cursorStr := req.URL.Query().Get("cursor")
 
-		users, err := svc.List(req.Context(), enterpriseID, limit, offset)
+		var after *postgres.UserCursorKey
+		if cursorStr != "" {
+			// Decodificar cursor base64 JSON
+			decoded, err := base64.StdEncoding.DecodeString(cursorStr)
+			if err == nil {
+				json.Unmarshal(decoded, &after)
+			}
+		}
+
+		users, pageInfo, err := svc.List(req.Context(), enterpriseID, limit, after)
 		if err != nil {
 			httperr.Handle(w, req, err)
 			return
@@ -82,12 +95,20 @@ func Routes(svc Service) chi.Router {
 			})
 		}
 
-		writeJSON(w, http.StatusOK, map[string]any{
-			"items":  out,
-			"limit":  limit,
-			"offset": offset,
-			"count":  len(out),
-		})
+		var nextCursor *string
+		if pageInfo.Next != nil {
+			cursorData, _ := json.Marshal(pageInfo.Next)
+			encoded := base64.StdEncoding.EncodeToString(cursorData)
+			nextCursor = &encoded
+		}
+
+		meta := response.MetaCursor{
+			Limit:      int(limit),
+			NextCursor: nextCursor,
+			HasMore:    pageInfo.HasMore,
+		}
+
+		response.JSON(w, http.StatusOK, out, meta)
 	})
 
 	return r
@@ -102,10 +123,4 @@ func parseInt32(s string, def int32) int32 {
 		return def
 	}
 	return int32(v)
-}
-
-func writeJSON(w http.ResponseWriter, status int, v any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(v)
 }
