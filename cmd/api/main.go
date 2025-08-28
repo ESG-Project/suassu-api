@@ -11,6 +11,7 @@ import (
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
+	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
@@ -44,8 +45,10 @@ func main() {
 
 	// 3) Dependencies
 	userRepo := postgres.NewUserRepo(db)
+	addressRepo := postgres.NewAddressRepo(db)
 	hasher := infraauth.NewBCrypt()
-	userSvc := appuser.NewService(userRepo, hasher)
+	addressSvc := appaddress.NewService(addressRepo, hasher)
+	userSvc := appuser.NewService(userRepo, addressSvc, hasher)
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)

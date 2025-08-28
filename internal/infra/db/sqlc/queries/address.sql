@@ -19,6 +19,20 @@ FROM "Address"
 WHERE id = $1
 LIMIT 1;
 
+-- name: FindAddressByDetails :one
+SELECT *
+FROM "Address"
+WHERE "zipCode" = $1
+  AND state = $2
+  AND city = $3
+  AND neighborhood = $4
+  AND street = $5
+  AND num = $6
+  AND latitude = $7
+  AND longitude = $8
+  AND "addInfo" = $9
+LIMIT 1;
+
 -- name: UpdateAddress :exec
 UPDATE "Address"
 SET

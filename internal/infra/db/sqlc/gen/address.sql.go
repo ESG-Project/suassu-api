@@ -55,6 +55,61 @@ func (q *Queries) CreateAddress(ctx context.Context, arg CreateAddressParams) er
 	return err
 }
 
+const findAddressByDetails = `-- name: FindAddressByDetails :one
+SELECT id, "zipCode", state, city, neighborhood, street, num, latitude, longitude, "addInfo"
+FROM "Address"
+WHERE "zipCode" = $1
+  AND state = $2
+  AND city = $3
+  AND neighborhood = $4
+  AND street = $5
+  AND num = $6
+  AND latitude = $7
+  AND longitude = $8
+  AND "addInfo" = $9
+LIMIT 1
+`
+
+type FindAddressByDetailsParams struct {
+	ZipCode      string         `json:"zipCode"`
+	State        string         `json:"state"`
+	City         string         `json:"city"`
+	Neighborhood string         `json:"neighborhood"`
+	Street       string         `json:"street"`
+	Num          string         `json:"num"`
+	Latitude     sql.NullString `json:"latitude"`
+	Longitude    sql.NullString `json:"longitude"`
+	AddInfo      sql.NullString `json:"addInfo"`
+}
+
+func (q *Queries) FindAddressByDetails(ctx context.Context, arg FindAddressByDetailsParams) (Address, error) {
+	row := q.db.QueryRowContext(ctx, findAddressByDetails,
+		arg.ZipCode,
+		arg.State,
+		arg.City,
+		arg.Neighborhood,
+		arg.Street,
+		arg.Num,
+		arg.Latitude,
+		arg.Longitude,
+		arg.AddInfo,
+	)
+	var i Address
+	err := row.Scan(
+		&i.ID,
+		&i.ZipCode,
+		&i.State,
+		&i.City,
+		&i.Neighborhood,
+		&i.Street,
+		&i.Num,
+		&i.Latitude,
+		&i.Longitude,
+		&i.AddInfo,
+	)
+	return i, err
+}
+
 const getAddressByID = `-- name: GetAddressByID :one
 SELECT id, "zipCode", state, city, neighborhood, street, num, latitude, longitude, "addInfo"
 FROM "Address"

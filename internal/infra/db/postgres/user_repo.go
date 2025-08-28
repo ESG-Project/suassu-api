@@ -6,6 +6,7 @@ import (
 
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 	"github.com/google/uuid"
 )
@@ -20,20 +21,6 @@ type PageInfo struct {
 	HasMore bool
 }
 
-func toNullString(s *string) sql.NullString {
-	if s == nil {
-		return sql.NullString{Valid: false}
-	}
-	return sql.NullString{String: *s, Valid: true}
-}
-func fromNullString(ns sql.NullString) *string {
-	if !ns.Valid {
-		return nil
-	}
-	str := ns.String
-	return &str
-}
-
 type UserRepo struct{ q *sqlc.Queries }
 
 func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{q: sqlc.New(db)} }
@@ -45,9 +32,9 @@ func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 		Email:        u.Email,
 		Password:     u.PasswordHash,
 		Document:     u.Document,
-		Phone:        toNullString(u.Phone),
-		AddressId:    toNullString(u.AddressID),
-		RoleId:       toNullString(u.RoleID),
+		Phone:        utils.ToNullString(u.Phone),
+		AddressId:    utils.ToNullString(u.AddressID),
+		RoleId:       utils.ToNullString(u.RoleID),
 		EnterpriseId: u.EnterpriseID,
 	})
 }
