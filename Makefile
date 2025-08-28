@@ -27,6 +27,10 @@ run: ## Executa o projeto
 sqlc: ## Gera código sqlc
 	sqlc generate
 
+.PHONY: swagger
+swagger: ## Abre o swagger localhost
+	open http://localhost:8080/api/v1/docs
+
 # ===========================
 # section: Qualidade
 # ===========================
