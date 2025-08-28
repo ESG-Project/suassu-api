@@ -64,34 +64,18 @@ sqlc.yaml                → config do sqlc
 
 ---
 
-## 📡 Endpoints (User)
+## 📡 API Endpoints
 
-### Criar usuário
+**📚 Documentação completa da API está disponível no Swagger UI:**
+- **URL**: `http://localhost:8080/api/v1/docs`
+- **Especificação OpenAPI**: `http://localhost:8080/api/v1/openapi.yaml`
 
-```http
-POST /api/v1/users
-Content-Type: application/json
+### Principais Funcionalidades
 
-{
-  "name": "Ana",
-  "email": "ana@example.com",
-  "password": "Secreta123",
-  "document": "12345678900",
-  "enterpriseId": "uuid-empresa"
-}
-```
-
-### Listar usuários
-
-```http
-GET /api/v1/users?limit=10&offset=0
-```
-
-### Buscar por e-mail
-
-```http
-GET /api/v1/users/by-email?email=ana@example.com
-```
+- **Autenticação**: Login JWT com refresh token
+- **Usuários**: CRUD completo com paginação por cursor
+- **Multi-tenant**: Isolamento por empresa
+- **Validação**: Tratamento robusto de erros
 
 ---
 

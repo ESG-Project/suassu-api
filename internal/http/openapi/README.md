@@ -2,7 +2,11 @@
 
 ## Visão Geral
 
-Este diretório contém a implementação da documentação OpenAPI 3.1.0 para a Suassu API, seguindo a estratégia de **sem overengineering** com arquivos estáticos e embed.
+Este diretório contém a implementação da documentação OpenAPI 3.1.0 para a Suassu API.
+
+**📚 Para documentação completa da API, acesse:**
+- **Swagger UI**: `http://localhost:8080/api/v1/docs`
+- **Especificação**: `http://localhost:8080/api/v1/openapi.yaml`
 
 ## Estrutura
 
@@ -16,37 +20,6 @@ internal/http/openapi/
 ├── handlers_test.go  # Testes dos handlers
 └── README.md         # Esta documentação
 ```
-
-## Endpoints
-
-### 1. Especificação OpenAPI
-- **URL**: `GET /api/v1/openapi.yaml`
-- **Content-Type**: `application/yaml`
-- **Descrição**: Retorna a especificação OpenAPI 3.1.0 completa
-
-### 2. Documentação Swagger UI
-- **URL**: `GET /api/v1/docs`
-- **Content-Type**: `text/html; charset=utf-8`
-- **Descrição**: Interface interativa para testar a API
-
-### 3. Arquivos Estáticos (Opcional)
-- **URL**: `GET /api/v1/openapi/static/{arquivo}`
-- **Descrição**: Serve arquivos estáticos específicos se necessário
-
-## Características
-
-### ✅ Implementado
-- **OpenAPI 3.1.0**: Versão mais recente da especificação
-- **Swagger UI**: Interface via CDN (sem dependências locais)
-- **Embed**: Arquivos incluídos no binário Go
-- **Sem Overengineering**: Sem libs pesadas ou geradores
-- **Testes**: Cobertura completa dos handlers
-- **CORS**: Configurado para permitir acesso à documentação
-
-### 🔧 Configuração
-- **Servidor**: `/api/v1` (base path)
-- **Autenticação**: Bearer JWT para endpoints protegidos
-- **Cache**: Configurado para arquivos estáticos (1 hora)
 
 ## Workflow de Desenvolvimento
 
@@ -95,28 +68,6 @@ curl -s http://localhost:8080/api/v1/openapi.yaml | grep "openapi: \"3.1.0\""
 # Verificar Swagger UI
 curl -s http://localhost:8080/api/v1/docs | grep "SwaggerUIBundle"
 ```
-
-## Schemas Principais
-
-### Autenticação
-- `SignInInput`: Email e senha para login
-- `SignInOutput`: Token JWT de acesso
-- `UserMeResponse`: Informações do usuário autenticado
-
-### Usuários
-- `CreateUserInput`: Dados para criar usuário
-- `CreateUserResponse`: ID do usuário criado
-- `User`: Entidade completa do usuário
-- `UserListResponse`: Lista paginada de usuários
-
-### Erros
-- `ErrorResponse`: Formato padrão de erro da API
-
-## Segurança
-
-- **JWT Bearer**: Autenticação via token
-- **Enterprise ID**: Isolamento por empresa
-- **CORS**: Configurado para permitir acesso à documentação
 
 ## Manutenção
 
