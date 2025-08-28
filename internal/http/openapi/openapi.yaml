@@ -142,7 +142,7 @@ paths:
 
     get:
       summary: Listar usuários
-      description: Lista usuários da empresa com paginação
+      description: Lista usuários da empresa com paginação por cursor
       operationId: listUsers
       tags:
         - Users
@@ -158,23 +158,28 @@ paths:
             minimum: 1
             maximum: 1000
             default: 50
-        - name: offset
+        - name: cursor
           in: query
-          description: Número de usuários para pular
+          description: Cursor para paginação (base64 JSON com email e id)
           required: false
           schema:
-            type: integer
-            minimum: 0
-            default: 0
+            type: string
+            example: "eyJlbWFpbCI6InVzdWFyaW9AZW1wcmVzYS5jb20iLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9"
       responses:
         '200':
           description: Lista de usuários retornada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserListResponse'
+                $ref: '#/components/schemas/Envelope'
         '401':
           description: Não autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Cursor inválido
           content:
             application/json:
               schema:
@@ -355,51 +360,61 @@ components:
           description: ID da empresa
           example: "empresa-123"
 
-    UserListResponse:
-      type: object
-      required:
-        - items
-        - limit
-        - offset
-        - count
-      properties:
-        items:
-          type: array
-          description: Lista de usuários
-          items:
-            $ref: '#/components/schemas/User'
-        limit:
-          type: integer
-          description: Número máximo de usuários por página
-          example: 50
-        offset:
-          type: integer
-          description: Número de usuários pulados
-          example: 0
-        count:
-          type: integer
-          description: Número total de usuários na página atual
-          example: 25
-
     ErrorResponse:
       type: object
       required:
-        - code
-        - message
+        - error
+        - meta
       properties:
-        code:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              enum: [INVALID, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, RATE_LIMITED, INTERNAL]
+            message:
+              type: string
+            details:
+              type: object
+        meta:
+          type: object
+          required:
+            - requestId
+          properties:
+            requestId:
+              type: string
+
+    Envelope:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          description: Dados da resposta
+        meta:
+          $ref: '#/components/schemas/MetaCursor'
+
+    MetaCursor:
+      type: object
+      required:
+        - limit
+        - hasMore
+      properties:
+        limit:
+          type: integer
+          description: Número máximo de itens por página
+        nextCursor:
           type: string
-          description: Código do erro
-          enum:
-            - INVALID
-            - UNAUTHORIZED
-            - NOT_FOUND
-            - INTERNAL
-          example: "INVALID"
-        message:
+          description: Cursor para próxima página (base64 JSON)
+        prevCursor:
           type: string
-          description: Mensagem descritiva do erro
-          example: "Dados inválidos fornecidos"
+          description: Cursor para página anterior (base64 JSON)
+        hasMore:
+          type: boolean
+          description: Indica se há mais páginas
 
 tags:
   - name: System

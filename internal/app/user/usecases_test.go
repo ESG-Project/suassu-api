@@ -9,6 +9,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/stretchr/testify/require"
 )
 
@@ -40,11 +41,18 @@ func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return nil, nil
 }
 
-func (f *fakeRepo) List(context.Context, string, int32, int32) ([]*domainuser.User, error) {
+func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*domainuser.User, postgres.PageInfo, error) {
 	if f.err != nil {
-		return nil, f.err
+		return nil, postgres.PageInfo{}, f.err
 	}
-	return f.users, nil
+	return f.users, postgres.PageInfo{}, nil
+}
+
+func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*domainuser.User, postgres.PageInfo, error) {
+	if f.err != nil {
+		return nil, postgres.PageInfo{}, f.err
+	}
+	return f.users, postgres.PageInfo{}, nil
 }
 
 type fakeHasher struct{ err error }
@@ -135,36 +143,29 @@ func TestService_List(t *testing.T) {
 		repo := &fakeRepo{users: testUsers}
 		svc := user.NewService(repo, fakeHasher{})
 
-		users, err := svc.List(ctx, "ent-1", 10, 0)
+		users, pageInfo, err := svc.List(ctx, "ent-1", 10, nil)
 		require.NoError(t, err)
 		require.Len(t, users, 2)
 		require.Equal(t, "Ana", users[0].Name)
 		require.Equal(t, "João", users[1].Name)
+		require.NotNil(t, pageInfo)
 	})
 
 	t.Run("adjusts invalid limit", func(t *testing.T) {
 		repo := &fakeRepo{users: []*domainuser.User{}}
 		svc := user.NewService(repo, fakeHasher{})
 
-		users, err := svc.List(ctx, "ent-1", -5, 0)
+		users, pageInfo, err := svc.List(ctx, "ent-1", -5, nil)
 		require.NoError(t, err)
 		require.Len(t, users, 0)
-	})
-
-	t.Run("adjusts invalid offset", func(t *testing.T) {
-		repo := &fakeRepo{users: []*domainuser.User{}}
-		svc := user.NewService(repo, fakeHasher{})
-
-		users, err := svc.List(ctx, "ent-1", 10, -10)
-		require.NoError(t, err)
-		require.Len(t, users, 0)
+		require.NotNil(t, pageInfo)
 	})
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &fakeRepo{err: errors.New("db error")}
 		svc := user.NewService(repo, fakeHasher{})
 
-		_, err := svc.List(ctx, "ent-1", 10, 0)
+		_, _, err := svc.List(ctx, "ent-1", 10, nil)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db error")
 	})

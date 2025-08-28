@@ -29,7 +29,7 @@ func TestRecoveryWithLogger(t *testing.T) {
 
 		// Verifica status 500
 		require.Equal(t, http.StatusInternalServerError, w.Code)
-		require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 		// Verifica resposta JSON
 		var response map[string]any
@@ -37,7 +37,7 @@ func TestRecoveryWithLogger(t *testing.T) {
 		require.NoError(t, err)
 
 		require.Contains(t, response, "error")
-		require.Contains(t, response, "requestId")
+		require.Contains(t, response, "meta")
 
 		errorObj := response["error"].(map[string]any)
 		require.Equal(t, "internal", errorObj["code"])

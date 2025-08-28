@@ -67,14 +67,14 @@ func TestServeStatic(t *testing.T) {
 			name:           "path vazio",
 			path:           "/api/v1/openapi/static/",
 			expectedStatus: http.StatusNotFound,
-			expectedType:   "application/json",
+			expectedType:   "application/json; charset=utf-8",
 			expectError:    true,
 		},
 		{
 			name:           "non-existent file",
 			path:           "/api/v1/openapi/static/notfound.txt",
 			expectedStatus: http.StatusNotFound,
-			expectedType:   "application/json",
+			expectedType:   "application/json; charset=utf-8",
 			expectError:    true,
 		},
 	}
@@ -99,7 +99,7 @@ func TestServeStatic(t *testing.T) {
 				require.NoError(t, err)
 
 				require.Contains(t, response, "error")
-				require.Contains(t, response, "requestId")
+				require.Contains(t, response, "meta")
 
 				errorObj := response["error"].(map[string]any)
 				require.Contains(t, errorObj, "code")
@@ -135,7 +135,7 @@ func TestServeOpenAPISpec_Error(t *testing.T) {
 		require.Equal(t, "application/yaml", rr.Header().Get("Content-Type"))
 	} else {
 		// Se houver erro, deve retornar JSON padronizado
-		require.Equal(t, "application/json", rr.Header().Get("Content-Type"))
+		require.Equal(t, "application/json; charset=utf-8", rr.Header().Get("Content-Type"))
 		require.Equal(t, http.StatusInternalServerError, rr.Code)
 	}
 }

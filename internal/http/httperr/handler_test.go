@@ -31,14 +31,14 @@ func TestHandle(t *testing.T) {
 		Handle(w, req, err)
 
 		require.Equal(t, http.StatusUnprocessableEntity, w.Code)
-		require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 		var response map[string]any
 		jsonErr := json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, jsonErr)
 
 		require.Contains(t, response, "error")
-		require.Contains(t, response, "requestId")
+		require.Contains(t, response, "meta")
 
 		errorObj := response["error"].(map[string]any)
 		require.Equal(t, "invalid", errorObj["code"])
@@ -105,10 +105,10 @@ func TestWriteJSON(t *testing.T) {
 		w := httptest.NewRecorder()
 		data := map[string]string{"message": "success"}
 
-		writeJSON(w, http.StatusOK, data)
+		writeJSON(w, http.StatusOK, "test-req-id", data)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 		var response map[string]string
 		err := json.Unmarshal(w.Body.Bytes(), &response)
@@ -121,9 +121,9 @@ func TestWriteJSON(t *testing.T) {
 		// Channel não pode ser serializado para JSON
 		unserializable := make(chan int)
 
-		writeJSON(w, http.StatusOK, unserializable)
+		writeJSON(w, http.StatusOK, "test-req-id", unserializable)
 
 		require.Equal(t, http.StatusOK, w.Code)
-		require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+		require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 	})
 }

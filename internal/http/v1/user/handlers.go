@@ -59,14 +59,23 @@ func Routes(svc Service) chi.Router {
 		}
 
 		limit := parseInt32(req.URL.Query().Get("limit"), 50)
+		if limit > 1000 {
+			limit = 1000
+		}
+
 		cursorStr := req.URL.Query().Get("cursor")
 
 		var after *postgres.UserCursorKey
 		if cursorStr != "" {
 			// Decodificar cursor base64 JSON
 			decoded, err := base64.StdEncoding.DecodeString(cursorStr)
-			if err == nil {
-				json.Unmarshal(decoded, &after)
+			if err != nil {
+				httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid cursor format"))
+				return
+			}
+			if err := json.Unmarshal(decoded, &after); err != nil {
+				httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid cursor data"))
+				return
 			}
 		}
 

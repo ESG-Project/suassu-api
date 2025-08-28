@@ -8,6 +8,7 @@ import (
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	"github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/stretchr/testify/require"
 )
 
@@ -36,12 +37,12 @@ func (f *fakeRepo) Create(ctx context.Context, u *user.User) error {
 	return nil
 }
 
-func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]*user.User, error) {
+func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*user.User, postgres.PageInfo, error) {
 	users := make([]*user.User, 0, len(f.users))
 	for _, u := range f.users {
 		users = append(users, u)
 	}
-	return users, nil
+	return users, postgres.PageInfo{}, nil
 }
 
 func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*user.User, error) {
@@ -56,6 +57,14 @@ func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, 
 		return u, nil
 	}
 	return nil, errors.New("user not found")
+}
+
+func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*user.User, postgres.PageInfo, error) {
+	users := make([]*user.User, 0, len(f.users))
+	for _, u := range f.users {
+		users = append(users, u)
+	}
+	return users, postgres.PageInfo{}, nil
 }
 
 type fakeHasher struct{}

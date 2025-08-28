@@ -72,9 +72,20 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 	}
 
 	hasMore := false
+	var next *UserCursorKey
+
 	if int32(len(rows)) > limit {
 		hasMore = true
+		// Calcular next ANTES de truncar
+		last := rows[limit-1] // Usar índice limit-1, não len(rows)-1
+		lastID, _ := uuid.Parse(last.ID)
+		next = &UserCursorKey{Email: last.Email, ID: lastID}
 		rows = rows[:limit]
+	} else if len(rows) > 0 {
+		// Se não há mais páginas, next é nil
+		last := rows[len(rows)-1]
+		lastID, _ := uuid.Parse(last.ID)
+		next = &UserCursorKey{Email: last.Email, ID: lastID}
 	}
 
 	out := make([]*domainuser.User, 0, len(rows))
@@ -98,12 +109,6 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 			u.SetRoleID(&row.RoleID.String)
 		}
 		out = append(out, u)
-	}
-
-	var next *UserCursorKey
-	if len(rows) > 0 {
-		last := rows[len(rows)-1]
-		next = &UserCursorKey{Email: last.Email}
 	}
 
 	return out, PageInfo{Next: next, HasMore: hasMore}, nil

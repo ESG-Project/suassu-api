@@ -14,6 +14,7 @@ import (
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
+	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
 )
@@ -31,8 +32,12 @@ func (f *fakeSvc) Create(ctx context.Context, enterpriseID string, in appuser.Cr
 	return f.createdID, nil
 }
 
-func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit, offset int32) ([]domainuser.User, error) {
-	return f.users, nil
+func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
+	return f.users, &postgres.PageInfo{HasMore: false, Next: nil}, nil
+}
+
+func (f *fakeSvc) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
+	return f.users, &postgres.PageInfo{HasMore: false}, nil
 }
 
 // Helper para criar router de teste com middlewares simulados
@@ -104,25 +109,29 @@ func TestGET_Users_List(t *testing.T) {
 	svc := &fakeSvc{users: testUsers}
 	router := newTestRouter(svc)
 
-	req := httptest.NewRequest(http.MethodGet, "/users/?limit=10&offset=0", nil)
+	req := httptest.NewRequest(http.MethodGet, "/users/?limit=10", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "application/json", w.Header().Get("Content-Type"))
+	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 
 	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
-	require.Equal(t, float64(10), response["limit"])
-	require.Equal(t, float64(0), response["offset"])
-	require.Equal(t, float64(2), response["count"])
+	// Verifica estrutura do envelope
+	require.Contains(t, response, "data")
+	require.Contains(t, response, "meta")
 
-	items := response["items"].([]any)
-	require.Len(t, items, 2)
+	data := response["data"].([]any)
+	require.Len(t, data, 2)
+
+	meta := response["meta"].(map[string]any)
+	require.Equal(t, float64(10), meta["limit"])
+	require.Equal(t, false, meta["hasMore"])
 
 	// Verifica primeiro usuário
-	firstUser := items[0].(map[string]any)
+	firstUser := data[0].(map[string]any)
 	require.Equal(t, "user-1", firstUser["id"])
 	require.Equal(t, "Ana", firstUser["name"])
 	require.Equal(t, "ana@ex.com", firstUser["email"])
@@ -142,10 +151,16 @@ func TestGET_Users_List_DefaultParams(t *testing.T) {
 	var response map[string]any
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
 
-	// Verifica valores padrão
-	require.Equal(t, float64(50), response["limit"])
-	require.Equal(t, float64(0), response["offset"])
-	require.Equal(t, float64(0), response["count"])
+	// Verifica estrutura do envelope
+	require.Contains(t, response, "data")
+	require.Contains(t, response, "meta")
+
+	data := response["data"].([]any)
+	require.Len(t, data, 0)
+
+	meta := response["meta"].(map[string]any)
+	require.Equal(t, float64(50), meta["limit"])
+	require.Equal(t, false, meta["hasMore"])
 }
 
 func TestPOST_Users_Create_InvalidBody(t *testing.T) {
@@ -186,4 +201,21 @@ func TestPOST_Users_Create_MissingRequiredFields(t *testing.T) {
 			require.Equal(t, http.StatusUnprocessableEntity, w.Code)
 		})
 	}
+}
+
+func TestGET_Users_List_InvalidCursor(t *testing.T) {
+	svc := &fakeSvc{users: []domainuser.User{}}
+	router := newTestRouter(svc)
+
+	req := httptest.NewRequest(http.MethodGet, "/users/?cursor=invalid-base64", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, w.Code)
+	require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
+
+	var response map[string]any
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Contains(t, response, "error")
+	require.Contains(t, response, "meta")
 }
