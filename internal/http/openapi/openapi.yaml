@@ -1,0 +1,410 @@
+openapi: "3.1.0"
+info:
+  title: Suassu API
+  description: API para gerenciamento de usuários e autenticação empresarial
+  version: "1.0.0"
+  contact:
+    name: Suassu Team
+    email: suporte@suassu.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: /api/v1
+    description: API v1
+
+paths:
+  /healthz:
+    get:
+      summary: Health Check
+      description: Endpoint para verificar o status da API
+      operationId: healthCheck
+      tags:
+        - System
+      responses:
+        '200':
+          description: API está funcionando
+          content:
+            text/plain:
+              schema:
+                type: string
+                example: "OK"
+
+  /auth/login:
+    post:
+      summary: Login de usuário
+      description: Autentica um usuário e retorna um token JWT
+      operationId: login
+      tags:
+        - Authentication
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SignInInput'
+      responses:
+        '200':
+          description: Login realizado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignInOutput'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Credenciais inválidas
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /auth/me:
+    get:
+      summary: Informações do usuário autenticado
+      description: Retorna informações do usuário baseado no token JWT
+      operationId: getMe
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Informações do usuário retornadas com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserMeResponse'
+        '401':
+          description: Token inválido ou expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users:
+    post:
+      summary: Criar usuário
+      description: Cria um novo usuário na empresa
+      operationId: createUser
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateUserInput'
+      responses:
+        '201':
+          description: Usuário criado com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CreateUserResponse'
+        '400':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      summary: Listar usuários
+      description: Lista usuários da empresa com paginação
+      operationId: listUsers
+      tags:
+        - Users
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: limit
+          in: query
+          description: Número máximo de usuários por página
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000
+            default: 50
+        - name: offset
+          in: query
+          description: Número de usuários para pular
+          required: false
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+      responses:
+        '200':
+          description: Lista de usuários retornada com sucesso
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserListResponse'
+        '401':
+          description: Não autorizado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Token JWT obtido através do endpoint /auth/login
+
+  schemas:
+    SignInInput:
+      type: object
+      required:
+        - email
+        - password
+      properties:
+        email:
+          type: string
+          format: email
+          description: Email do usuário
+          example: "usuario@empresa.com"
+        password:
+          type: string
+          format: password
+          description: Senha do usuário
+          minLength: 1
+          example: "senha123"
+
+    SignInOutput:
+      type: object
+      required:
+        - accessToken
+      properties:
+        accessToken:
+          type: string
+          description: Token JWT para autenticação
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
+    UserMeResponse:
+      type: object
+      required:
+        - sub
+        - email
+        - name
+        - enterpriseId
+      properties:
+        sub:
+          type: string
+          description: ID do usuário
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        email:
+          type: string
+          format: email
+          description: Email do usuário
+          example: "usuario@empresa.com"
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "João Silva"
+        enterpriseId:
+          type: string
+          description: ID da empresa
+          example: "empresa-123"
+        roleId:
+          type: string
+          nullable: true
+          description: ID do papel/função do usuário
+          example: "admin-role"
+
+    CreateUserInput:
+      type: object
+      required:
+        - name
+        - email
+        - password
+        - document
+      properties:
+        name:
+          type: string
+          description: Nome completo do usuário
+          minLength: 1
+          example: "Maria Santos"
+        email:
+          type: string
+          format: email
+          description: Email do usuário
+          example: "maria@empresa.com"
+        password:
+          type: string
+          format: password
+          description: Senha do usuário
+          minLength: 1
+          example: "senha123"
+        document:
+          type: string
+          description: CPF ou CNPJ do usuário
+          minLength: 1
+          example: "123.456.789-00"
+        phone:
+          type: string
+          nullable: true
+          description: Telefone do usuário
+          example: "+55 11 99999-9999"
+        addressId:
+          type: string
+          nullable: true
+          description: ID do endereço do usuário
+          example: "addr-123"
+        roleId:
+          type: string
+          nullable: true
+          description: ID do papel/função do usuário
+          example: "user-role"
+
+    CreateUserResponse:
+      type: object
+      required:
+        - id
+      properties:
+        id:
+          type: string
+          description: ID do usuário criado
+          example: "550e8400-e29b-41d4-a716-446655440000"
+
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - document
+        - enterpriseId
+      properties:
+        id:
+          type: string
+          description: ID único do usuário
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "João Silva"
+        email:
+          type: string
+          format: email
+          description: Email do usuário
+          example: "joao@empresa.com"
+        document:
+          type: string
+          description: CPF ou CNPJ do usuário
+          example: "123.456.789-00"
+        phone:
+          type: string
+          nullable: true
+          description: Telefone do usuário
+          example: "+55 11 99999-9999"
+        addressId:
+          type: string
+          nullable: true
+          description: ID do endereço do usuário
+          example: "addr-123"
+        roleId:
+          type: string
+          nullable: true
+          description: ID do papel/função do usuário
+          example: "user-role"
+        enterpriseId:
+          type: string
+          description: ID da empresa
+          example: "empresa-123"
+
+    UserListResponse:
+      type: object
+      required:
+        - items
+        - limit
+        - offset
+        - count
+      properties:
+        items:
+          type: array
+          description: Lista de usuários
+          items:
+            $ref: '#/components/schemas/User'
+        limit:
+          type: integer
+          description: Número máximo de usuários por página
+          example: 50
+        offset:
+          type: integer
+          description: Número de usuários pulados
+          example: 0
+        count:
+          type: integer
+          description: Número total de usuários na página atual
+          example: 25
+
+    ErrorResponse:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: string
+          description: Código do erro
+          enum:
+            - INVALID
+            - UNAUTHORIZED
+            - NOT_FOUND
+            - INTERNAL
+          example: "INVALID"
+        message:
+          type: string
+          description: Mensagem descritiva do erro
+          example: "Dados inválidos fornecidos"
+
+tags:
+  - name: System
+    description: Endpoints do sistema
+  - name: Authentication
+    description: Endpoints de autenticação e autorização
+  - name: Users
+    description: Gerenciamento de usuários

@@ -19,6 +19,7 @@ import (
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	httperr "github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
+	openapi "github.com/ESG-Project/suassu-api/internal/http/openapi"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
 	infraauth "github.com/ESG-Project/suassu-api/internal/infra/auth"
 )
@@ -73,12 +74,13 @@ func main() {
 			})
 		})
 
-		// demais rotas protegidas
 		v1.Group(func(priv chi.Router) {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
 		})
+
+		v1.Mount("/", openapi.Routes())
 	})
 
 	// 5) Server
