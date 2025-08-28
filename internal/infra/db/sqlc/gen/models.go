@@ -8,6 +8,19 @@ import (
 	"database/sql"
 )
 
+type Address struct {
+	ID           string         `json:"id"`
+	ZipCode      string         `json:"zipCode"`
+	State        string         `json:"state"`
+	City         string         `json:"city"`
+	Neighborhood string         `json:"neighborhood"`
+	Street       string         `json:"street"`
+	Num          string         `json:"num"`
+	Latitude     sql.NullString `json:"latitude"`
+	Longitude    sql.NullString `json:"longitude"`
+	AddInfo      sql.NullString `json:"addInfo"`
+}
+
 type User struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`

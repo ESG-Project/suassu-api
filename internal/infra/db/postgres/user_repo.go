@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 	"github.com/google/uuid"
@@ -104,6 +105,24 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 		}
 		if row.AddressID.Valid {
 			u.SetAddressID(&row.AddressID.String)
+			u.SetAddress(&domainaddress.Address{
+				ID:           row.AddressID.String,
+				ZipCode:      row.ZipCode,
+				Street:       row.Street,
+				City:         row.City,
+				State:        row.State,
+				Neighborhood: row.Neighborhood,
+				Num:          row.Num,
+			})
+			if row.Latitude.Valid {
+				u.Address.SetLatitude(&row.Latitude.String)
+			}
+			if row.Longitude.Valid {
+				u.Address.SetLongitude(&row.Longitude.String)
+			}
+			if row.AddInfo.Valid {
+				u.Address.SetAddInfo(&row.AddInfo.String)
+			}
 		}
 		if row.RoleID.Valid {
 			u.SetRoleID(&row.RoleID.String)

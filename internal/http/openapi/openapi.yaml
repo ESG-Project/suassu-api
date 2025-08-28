@@ -350,6 +350,39 @@ components:
           nullable: true
           description: ID do endereço do usuário
           example: "addr-123"
+        address:
+          type: object
+          properties:
+            id:
+              type: string
+              example: "addr-123"
+            zipCode:
+              type: string
+              example: "12345-678"
+            state:
+              type: string
+              example: "SP"
+            city:
+              type: string
+              example: "São Paulo"
+            neighborhood:
+              type: string
+              example: "Centro"
+            street:
+              type: string
+              example: "Avenida Paulista"
+            num:
+              type: string
+              example: "1578"
+            latitude:
+              type: string
+              example: "-23.5505"
+            longitude:
+              type: string
+              example: "-46.6333"
+            addInfo:
+              type: string
+              example: "Apto 123"
         roleId:
           type: string
           nullable: true

@@ -85,22 +85,48 @@ func Routes(svc Service) chi.Router {
 			return
 		}
 
-		type userOut struct {
+		type addressOut struct {
 			ID           string  `json:"id"`
-			Name         string  `json:"name"`
-			Email        string  `json:"email"`
-			Document     string  `json:"document"`
-			Phone        *string `json:"phone,omitempty"`
-			AddressID    *string `json:"addressId,omitempty"`
-			RoleID       *string `json:"roleId,omitempty"`
-			EnterpriseID string  `json:"enterpriseId"`
+			State        string  `json:"state"`
+			ZipCode      string  `json:"zipCode"`
+			City         string  `json:"city"`
+			Neighborhood string  `json:"neighborhood"`
+			Street       string  `json:"street"`
+			Num          string  `json:"num"`
+			Latitude     *string `json:"latitude,omitempty"`
+			Longitude    *string `json:"longitude,omitempty"`
+			AddInfo      *string `json:"addInfo,omitempty"`
+		}
+
+		type userOut struct {
+			ID           string      `json:"id"`
+			Name         string      `json:"name"`
+			Email        string      `json:"email"`
+			Document     string      `json:"document"`
+			Phone        *string     `json:"phone,omitempty"`
+			AddressID    *string     `json:"addressId,omitempty"`
+			Address      *addressOut `json:"address,omitempty"`
+			RoleID       *string     `json:"roleId,omitempty"`
+			EnterpriseID string      `json:"enterpriseId"`
 		}
 
 		out := make([]userOut, 0, len(users))
 		for _, u := range users {
+			aOut := addressOut{
+				ID:           u.Address.ID,
+				ZipCode:      u.Address.ZipCode,
+				State:        u.Address.State,
+				City:         u.Address.City,
+				Neighborhood: u.Address.Neighborhood,
+				Street:       u.Address.Street,
+				Num:          u.Address.Num,
+				Latitude:     u.Address.Latitude,
+				Longitude:    u.Address.Longitude,
+				AddInfo:      u.Address.AddInfo,
+			}
 			out = append(out, userOut{
 				ID: u.ID, Name: u.Name, Email: u.Email, Document: u.Document,
-				Phone: u.Phone, AddressID: u.AddressID, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
+				Phone: u.Phone, AddressID: u.AddressID, Address: &aOut, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
 			})
 		}
 

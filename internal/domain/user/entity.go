@@ -3,6 +3,8 @@ package user
 import (
 	"errors"
 	"strings"
+
+	"github.com/ESG-Project/suassu-api/internal/domain/address"
 )
 
 // User representa a entidade de usuário no domínio
@@ -14,6 +16,7 @@ type User struct {
 	Document     string
 	Phone        *string
 	AddressID    *string
+	Address      *address.Address
 	RoleID       *string
 	EnterpriseID string
 	Active       bool
@@ -75,6 +78,10 @@ func (u *User) SetPhone(phone *string) {
 // SetAddressID define o ID do endereço do usuário
 func (u *User) SetAddressID(addressID *string) {
 	u.AddressID = addressID
+}
+
+func (u *User) SetAddress(address *address.Address) {
+	u.Address = address
 }
 
 // SetRoleID define o ID do papel do usuário
