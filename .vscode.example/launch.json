@@ -2,24 +2,7 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "🚀 Debug API (Main)",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/cmd/api/main.go",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "APP_ENV": "dev",
-                "LOG_LEVEL": "debug"
-            },
-            "args": [],
-            "showLog": true,
-            "console": "integratedTerminal",
-            "stopOnEntry": false,
-            "logOutput": "debugger"
-        },
-        {
-            "name": "🐛 Debug API (with .env)",
+            "name": "🐛 debug suassu-api",
             "type": "go",
             "request": "launch",
             "mode": "auto",
@@ -28,63 +11,7 @@
             "envFile": "${workspaceFolder}/.env",
             "args": [],
             "showLog": true,
-            "console": "integratedTerminal",
             "stopOnEntry": false
-        },
-        {
-            "name": "🧪 Debug Tests (All)",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${workspaceFolder}",
-            "args": [
-                "-test.v",
-                "-test.timeout=5m"
-            ],
-            "showLog": true,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "🐛 Debug Current Test File",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${fileDirname}",
-            "args": [
-                "-test.v"
-            ],
-            "showLog": true,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "🔍 Debug Specific Test",
-            "type": "go",
-            "request": "launch",
-            "mode": "test",
-            "program": "${fileDirname}",
-            "args": [
-                "-test.v",
-                "-test.run",
-                "${selectedText}"
-            ],
-            "showLog": true,
-            "console": "integratedTerminal"
-        },
-        {
-            "name": "📊 Debug with Race Detection",
-            "type": "go",
-            "request": "launch",
-            "mode": "auto",
-            "program": "${workspaceFolder}/cmd/api/main.go",
-            "cwd": "${workspaceFolder}",
-            "env": {
-                "APP_ENV": "dev",
-                "LOG_LEVEL": "debug"
-            },
-            "args": [],
-            "showLog": true,
-            "console": "integratedTerminal",
-            "buildFlags": ["-race"]
         }
     ]
 }
