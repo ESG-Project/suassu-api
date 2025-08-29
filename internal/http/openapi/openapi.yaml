@@ -407,7 +407,7 @@ components:
           properties:
             code:
               type: string
-              enum: [INVALID, NOT_FOUND, CONFLICT, UNAUTHORIZED, FORBIDDEN, RATE_LIMITED, INTERNAL]
+              enum: [invalid, not_found, conflict, unauthorized, forbidden, rate_limited, internal]
             message:
               type: string
             details:
