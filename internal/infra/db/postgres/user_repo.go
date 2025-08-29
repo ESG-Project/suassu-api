@@ -11,16 +11,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type UserCursorKey struct {
-	Email string    `json:"email"`
-	ID    uuid.UUID `json:"id"`
-}
-
-type PageInfo struct {
-	Next    *UserCursorKey
-	HasMore bool
-}
-
 type UserRepo struct{ q *sqlc.Queries }
 
 func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{q: sqlc.New(db)} }
@@ -39,7 +29,7 @@ func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	})
 }
 
-func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, after *UserCursorKey) ([]*domainuser.User, PageInfo, error) {
+func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error) {
 	params := sqlc.ListUsersParams{
 		EnterpriseId: enterpriseID,
 		Limit:        limit + 1,
@@ -56,24 +46,24 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 
 	rows, err := r.q.ListUsers(ctx, params)
 	if err != nil {
-		return nil, PageInfo{}, err
+		return nil, domainuser.PageInfo{}, err
 	}
 
 	hasMore := false
-	var next *UserCursorKey
+	var next *domainuser.UserCursorKey
 
 	if int32(len(rows)) > limit {
 		hasMore = true
 		// Calcular next ANTES de truncar
 		last := rows[limit-1] // Usar índice limit-1, não len(rows)-1
 		lastID, _ := uuid.Parse(last.ID)
-		next = &UserCursorKey{Email: last.Email, ID: lastID}
+		next = &domainuser.UserCursorKey{Email: last.Email, ID: lastID}
 		rows = rows[:limit]
 	} else if len(rows) > 0 {
 		// Se não há mais páginas, next é nil
 		last := rows[len(rows)-1]
 		lastID, _ := uuid.Parse(last.ID)
-		next = &UserCursorKey{Email: last.Email, ID: lastID}
+		next = &domainuser.UserCursorKey{Email: last.Email, ID: lastID}
 	}
 
 	out := make([]*domainuser.User, 0, len(rows))
@@ -117,7 +107,7 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 		out = append(out, u)
 	}
 
-	return out, PageInfo{Next: next, HasMore: hasMore}, nil
+	return out, domainuser.PageInfo{Next: next, HasMore: hasMore}, nil
 }
 
 // GetByEmailForAuth - específico para autenticação (sem filtro de tenant)

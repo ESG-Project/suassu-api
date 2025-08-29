@@ -7,7 +7,6 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
 
@@ -83,7 +82,7 @@ func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, e
 	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
 }
 
-func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
+func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}

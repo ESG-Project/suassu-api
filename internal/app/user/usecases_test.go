@@ -6,10 +6,11 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
+
 	"github.com/stretchr/testify/require"
 )
 
@@ -41,18 +42,18 @@ func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return nil, nil
 }
 
-func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*domainuser.User, postgres.PageInfo, error) {
+func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error) {
 	if f.err != nil {
-		return nil, postgres.PageInfo{}, f.err
+		return nil, domainuser.PageInfo{}, f.err
 	}
-	return f.users, postgres.PageInfo{}, nil
+	return f.users, domainuser.PageInfo{}, nil
 }
 
-func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*domainuser.User, postgres.PageInfo, error) {
+func (f *fakeRepo) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error) {
 	if f.err != nil {
-		return nil, postgres.PageInfo{}, f.err
+		return nil, domainuser.PageInfo{}, f.err
 	}
-	return f.users, postgres.PageInfo{}, nil
+	return f.users, domainuser.PageInfo{}, nil
 }
 
 type fakeHasher struct{ err error }
@@ -73,7 +74,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("success", func(t *testing.T) {
 		repo := &fakeRepo{}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		id, err := svc.Create(ctx, "ent-1", user.CreateInput{
 			Name: "Ana", Email: "ana@ex.com", Password: "123",
@@ -87,7 +89,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("missing required fields", func(t *testing.T) {
 		repo := &fakeRepo{}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.Create(ctx, "ent-1", user.CreateInput{
 			Name: "", Email: "ana@ex.com", Password: "123", Document: "999", EnterpriseID: "ent-1",
@@ -98,7 +101,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("missing enterprise ID", func(t *testing.T) {
 		repo := &fakeRepo{}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.Create(ctx, "", user.CreateInput{
 			Name: "Ana", Email: "ana@ex.com", Password: "123", Document: "999", EnterpriseID: "ent-1",
@@ -109,7 +113,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("hasher error", func(t *testing.T) {
 		repo := &fakeRepo{}
-		svc := user.NewService(repo, fakeHasher{err: errors.New("hash failed")})
+		hasher := fakeHasher{err: errors.New("hash failed")}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.Create(ctx, "ent-1", user.CreateInput{
 			Name: "Ana", Email: "ana@ex.com", Password: "123", Document: "999", EnterpriseID: "ent-1",
@@ -120,7 +125,8 @@ func TestService_Create(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &fakeRepo{err: errors.New("db error")}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.Create(ctx, "ent-1", user.CreateInput{
 			Name: "Ana", Email: "ana@ex.com", Password: "123", Document: "999", EnterpriseID: "ent-1",
@@ -141,7 +147,8 @@ func TestService_List(t *testing.T) {
 			{ID: "user-2", Name: "João", Email: "joao@ex.com", Document: "456", EnterpriseID: "ent-1"},
 		}
 		repo := &fakeRepo{users: testUsers}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		users, pageInfo, err := svc.List(ctx, "ent-1", 10, nil)
 		require.NoError(t, err)
@@ -153,7 +160,8 @@ func TestService_List(t *testing.T) {
 
 	t.Run("adjusts invalid limit", func(t *testing.T) {
 		repo := &fakeRepo{users: []*domainuser.User{}}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		users, pageInfo, err := svc.List(ctx, "ent-1", -5, nil)
 		require.NoError(t, err)
@@ -163,7 +171,8 @@ func TestService_List(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &fakeRepo{err: errors.New("db error")}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, _, err := svc.List(ctx, "ent-1", 10, nil)
 		require.Error(t, err)
@@ -179,7 +188,8 @@ func TestService_GetByEmailInTenant(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
 		testUser := &domainuser.User{ID: "user-1", Name: "Ana", Email: "ana@ex.com", EnterpriseID: "ent-1"}
 		repo := &fakeRepo{users: []*domainuser.User{testUser}}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		user, err := svc.GetByEmailInTenant(ctx, "ent-1", "ana@ex.com")
 		require.NoError(t, err)
@@ -189,7 +199,8 @@ func TestService_GetByEmailInTenant(t *testing.T) {
 
 	t.Run("empty email", func(t *testing.T) {
 		repo := &fakeRepo{}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.GetByEmailInTenant(ctx, "ent-1", "")
 		require.Error(t, err)
@@ -198,7 +209,8 @@ func TestService_GetByEmailInTenant(t *testing.T) {
 
 	t.Run("repo error", func(t *testing.T) {
 		repo := &fakeRepo{err: errors.New("db error")}
-		svc := user.NewService(repo, fakeHasher{})
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, err := svc.GetByEmailInTenant(ctx, "ent-1", "ana@ex.com")
 		require.Error(t, err)

@@ -14,13 +14,12 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/ESG-Project/suassu-api/internal/http/response"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/go-chi/chi/v5"
 )
 
 type Service interface {
 	Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error)
-	List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error)
+	List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error)
 }
 
 func Routes(svc Service) chi.Router {
@@ -65,7 +64,7 @@ func Routes(svc Service) chi.Router {
 
 		cursorStr := req.URL.Query().Get("cursor")
 
-		var after *postgres.UserCursorKey
+		var after *domainuser.UserCursorKey
 		if cursorStr != "" {
 			// Decodificar cursor base64 JSON
 			decoded, err := base64.StdEncoding.DecodeString(cursorStr)
@@ -112,21 +111,25 @@ func Routes(svc Service) chi.Router {
 
 		out := make([]userOut, 0, len(users))
 		for _, u := range users {
-			aOut := addressOut{
-				ID:           u.Address.ID,
-				ZipCode:      u.Address.ZipCode,
-				State:        u.Address.State,
-				City:         u.Address.City,
-				Neighborhood: u.Address.Neighborhood,
-				Street:       u.Address.Street,
-				Num:          u.Address.Num,
-				Latitude:     u.Address.Latitude,
-				Longitude:    u.Address.Longitude,
-				AddInfo:      u.Address.AddInfo,
+			var aOut *addressOut
+			if u.Address != nil {
+				aOut = &addressOut{
+					ID:           u.Address.ID,
+					ZipCode:      u.Address.ZipCode,
+					State:        u.Address.State,
+					City:         u.Address.City,
+					Neighborhood: u.Address.Neighborhood,
+					Street:       u.Address.Street,
+					Num:          u.Address.Num,
+					Latitude:     u.Address.Latitude,
+					Longitude:    u.Address.Longitude,
+					AddInfo:      u.Address.AddInfo,
+				}
 			}
+
 			out = append(out, userOut{
 				ID: u.ID, Name: u.Name, Email: u.Email, Document: u.Document,
-				Phone: u.Phone, AddressID: u.AddressID, Address: &aOut, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
+				Phone: u.Phone, AddressID: u.AddressID, Address: aOut, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
 			})
 		}
 

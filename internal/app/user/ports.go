@@ -4,12 +4,11 @@ import (
 	"context"
 
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 )
 
 type Repo interface {
 	Create(ctx context.Context, u *domainuser.User) error
-	List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*domainuser.User, postgres.PageInfo, error)
+	List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error)
 	GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) // Para operações de negócio (com filtro de tenant)
 	GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error)                       // Para autenticação (sem filtro de tenant)
 }
