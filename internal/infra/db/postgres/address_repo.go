@@ -12,7 +12,11 @@ import (
 
 type AddressRepo struct{ q *sqlc.Queries }
 
-func NewAddressRepo(db *sql.DB) *AddressRepo { return &AddressRepo{q: sqlc.New(db)} }
+// Construtor que aceita qualquer sqlc.DBTX (ex.: *sql.DB ou *sql.Tx)
+func NewAddressRepoFrom(d dbtx) *AddressRepo { return &AddressRepo{q: sqlc.New(d)} }
+
+// Compatibilidade com construtor anterior
+func NewAddressRepo(db *sql.DB) *AddressRepo { return NewAddressRepoFrom(db) }
 
 func (r *AddressRepo) FindByDetails(ctx context.Context, address *address.CreateInput) (*domainaddress.Address, error) {
 	row, err := r.q.FindAddressByDetails(ctx, sqlc.FindAddressByDetailsParams{

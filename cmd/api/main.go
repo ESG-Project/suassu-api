@@ -18,7 +18,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
-	httperr "github.com/ESG-Project/suassu-api/internal/http/httperr"
+	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	openapi "github.com/ESG-Project/suassu-api/internal/http/openapi"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
@@ -44,11 +44,12 @@ func main() {
 	defer func(db *sql.DB) { _ = db.Close() }(db)
 
 	// 3) Dependencies
+	txm := &postgres.TxManager{DB: db}
 	userRepo := postgres.NewUserRepo(db)
 	addressRepo := postgres.NewAddressRepo(db)
 	hasher := infraauth.NewBCrypt()
 	addressSvc := appaddress.NewService(addressRepo, hasher)
-	userSvc := appuser.NewService(userRepo, addressSvc, hasher)
+	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)

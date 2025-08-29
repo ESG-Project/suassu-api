@@ -13,7 +13,11 @@ import (
 
 type UserRepo struct{ q *sqlc.Queries }
 
-func NewUserRepo(db *sql.DB) *UserRepo { return &UserRepo{q: sqlc.New(db)} }
+// Construtor que aceita qualquer sqlc.DBTX (ex.: *sql.DB ou *sql.Tx)
+func NewUserRepoFrom(d dbtx) *UserRepo { return &UserRepo{q: sqlc.New(d)} }
+
+// Compatibilidade com construtor anterior
+func NewUserRepo(db *sql.DB) *UserRepo { return NewUserRepoFrom(db) }
 
 func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	return r.q.CreateUser(ctx, sqlc.CreateUserParams{

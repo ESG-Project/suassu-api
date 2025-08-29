@@ -7,6 +7,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
 
@@ -14,10 +15,15 @@ type Service struct {
 	repo           Repo
 	addressService *address.Service
 	hasher         Hasher
+	txm            *postgres.TxManager
 }
 
 func NewService(r Repo, as *address.Service, h Hasher) *Service {
-	return &Service{repo: r, addressService: as, hasher: h}
+	return NewServiceWithTx(r, as, h, nil)
+}
+
+func NewServiceWithTx(r Repo, as *address.Service, h Hasher, txm *postgres.TxManager) *Service {
+	return &Service{repo: r, addressService: as, hasher: h, txm: txm}
 }
 
 type CreateInput struct {
@@ -60,18 +66,33 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
 	}
 
-	// Lógica de endereço: verificar se existe ou criar novo
 	if in.Address != nil {
-		addressID, err := s.addressService.HandleAddress(ctx, in.Address)
-		if err != nil {
-			return "", err
+		if s.txm == nil {
+			return "", apperr.New(apperr.CodeInvalid, "tx manager required for address creation")
 		}
-		user.SetAddressID(&addressID)
-	} else if in.AddressID != nil {
-		user.SetAddressID(in.AddressID)
+		var createdID string
+		err := s.txm.RunInTx(ctx, func(r postgres.Repos) error {
+			addrSvc := address.NewService(r.Addresses(), s.hasher)
+			addressID, err := addrSvc.HandleAddress(ctx, in.Address)
+			if err != nil {
+				return err
+			}
+			user.SetAddressID(&addressID)
+
+			if err := r.Users().Create(ctx, user); err != nil {
+				return err
+			}
+			createdID = id
+			return nil
+		})
+		return createdID, err
 	}
 
+	if in.AddressID != nil {
+		user.SetAddressID(in.AddressID)
+	}
 	err = s.repo.Create(ctx, user)
+
 	return id, err
 }
 
