@@ -10,6 +10,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	"github.com/stretchr/testify/require"
 )
@@ -66,6 +67,21 @@ func (f fakeHasher) Hash(pw string) (string, error) {
 }
 
 func (f fakeHasher) Compare(hash, plain string) error { return nil }
+
+// Mock TxManager para testes unitários
+type mockTxManager struct {
+	runInTxFunc func(ctx context.Context, fn func(postgres.Repos) error) error
+}
+
+func (m *mockTxManager) RunInTx(ctx context.Context, fn func(postgres.Repos) error) error {
+	if m.runInTxFunc != nil {
+		return m.runInTxFunc(ctx, fn)
+	}
+	return fn(postgres.Repos{
+		Users:     func() *postgres.UserRepo { return &postgres.UserRepo{} },
+		Addresses: func() *postgres.AddressRepo { return &postgres.AddressRepo{} },
+	})
+}
 
 func TestService_Create(t *testing.T) {
 	t.Parallel()
@@ -133,6 +149,69 @@ func TestService_Create(t *testing.T) {
 		})
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db error")
+	})
+}
+
+func TestService_CreateWithTransaction(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	t.Run("error when TxManager not available for address creation", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher) // Sem TxManager
+
+		_, err := svc.Create(ctx, "ent-1", user.CreateInput{
+			Name: "João", Email: "joao@ex.com", Password: "123",
+			Document: "999", EnterpriseID: "ent-1",
+			Address: &address.CreateInput{
+				ZipCode: "00000-000", State: "SP", City: "SP",
+			},
+		})
+		require.Error(t, err)
+		require.Equal(t, apperr.CodeInvalid, apperr.CodeOf(err))
+		require.Contains(t, err.Error(), "tx manager required for address creation")
+	})
+
+	t.Run("success with existing addressId (no transaction needed)", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		id, err := svc.Create(ctx, "ent-1", user.CreateInput{
+			Name: "João", Email: "joao@ex.com", Password: "123",
+			Document: "999", EnterpriseID: "ent-1",
+			AddressID: stringPtr("existing-addr-123"), // Endereço já existe
+		})
+		require.NoError(t, err)
+		require.NotEmpty(t, id)
+		require.NotNil(t, repo.saved)
+		require.Equal(t, "existing-addr-123", *repo.saved.AddressID)
+	})
+
+	t.Run("transaction error is propagated", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+
+		// Mock TxManager que simula erro
+		mockTxm := &mockTxManager{
+			runInTxFunc: func(ctx context.Context, fn func(postgres.Repos) error) error {
+				return errors.New("transaction failed")
+			},
+		}
+
+		svc := user.NewServiceWithTx(repo, &address.Service{}, hasher, mockTxm)
+
+		_, err := svc.Create(ctx, "ent-1", user.CreateInput{
+			Name: "João", Email: "joao@ex.com", Password: "123",
+			Document: "999", EnterpriseID: "ent-1",
+			Address: &address.CreateInput{
+				ZipCode: "00000-000", State: "SP", City: "SP",
+			},
+		})
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "transaction failed")
 	})
 }
 
@@ -216,4 +295,32 @@ func TestService_GetByEmailInTenant(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db error")
 	})
+}
+
+func TestService_NewServiceWithTx(t *testing.T) {
+	t.Parallel()
+
+	t.Run("NewServiceWithTx creates service with TxManager", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+		mockTxm := &mockTxManager{}
+
+		svc := user.NewServiceWithTx(repo, &address.Service{}, hasher, mockTxm)
+		require.NotNil(t, svc)
+		// Note: campo txm é privado, mas podemos testar o comportamento
+	})
+
+	t.Run("NewService creates service without TxManager", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+
+		svc := user.NewService(repo, &address.Service{}, hasher)
+		require.NotNil(t, svc)
+		// Note: campo txm é privado, mas podemos testar o comportamento
+	})
+}
+
+// Helper function
+func stringPtr(s string) *string {
+	return &s
 }

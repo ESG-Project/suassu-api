@@ -10,7 +10,15 @@ import (
 // Adaptador para permitir *sql.DB e *sql.Tx via sqlc.DBTX
 type dbtx = sqlc.DBTX
 
+// Interface para permitir mocking nos testes
+type TxManagerInterface interface {
+	RunInTx(ctx context.Context, fn func(r Repos) error) error
+}
+
 type TxManager struct{ DB *sql.DB }
+
+// Garantir que TxManager implementa TxManagerInterface
+var _ TxManagerInterface = (*TxManager)(nil)
 
 type Repos struct {
 	Users     func() *UserRepo

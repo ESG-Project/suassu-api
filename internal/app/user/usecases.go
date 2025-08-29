@@ -15,14 +15,14 @@ type Service struct {
 	repo           Repo
 	addressService *address.Service
 	hasher         Hasher
-	txm            *postgres.TxManager
+	txm            postgres.TxManagerInterface
 }
 
 func NewService(r Repo, as *address.Service, h Hasher) *Service {
 	return NewServiceWithTx(r, as, h, nil)
 }
 
-func NewServiceWithTx(r Repo, as *address.Service, h Hasher, txm *postgres.TxManager) *Service {
+func NewServiceWithTx(r Repo, as *address.Service, h Hasher, txm postgres.TxManagerInterface) *Service {
 	return &Service{repo: r, addressService: as, hasher: h, txm: txm}
 }
 
@@ -66,6 +66,7 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
 	}
 
+	// Quando houver criação de endereço + usuário e TxManager disponível, usar transação
 	if in.Address != nil {
 		if s.txm == nil {
 			return "", apperr.New(apperr.CodeInvalid, "tx manager required for address creation")
