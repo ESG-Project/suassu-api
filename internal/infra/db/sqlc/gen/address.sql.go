@@ -64,9 +64,27 @@ WHERE "zipCode" = $1
   AND neighborhood = $4
   AND street = $5
   AND num = $6
-  AND latitude = $7
-  AND longitude = $8
-  AND "addInfo" = $9
+  AND (
+    (latitude = $7)
+    OR (
+      latitude IS NULL
+      AND $7 IS NULL
+    )
+  )
+  AND (
+    (longitude = $8)
+    OR (
+      longitude IS NULL
+      AND $8 IS NULL
+    )
+  )
+  AND (
+    ("addInfo" = $9)
+    OR (
+      "addInfo" IS NULL
+      AND $9 IS NULL
+    )
+  )
 LIMIT 1
 `
 

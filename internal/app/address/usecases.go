@@ -33,6 +33,15 @@ func NewService(repo Repo, hasher Hasher) *Service {
 }
 
 func (s *Service) HandleAddress(ctx context.Context, in *CreateInput) (string, error) {
+	if in.Latitude != nil && *in.Latitude == "" {
+		in.Latitude = nil
+	}
+	if in.Longitude != nil && *in.Longitude == "" {
+		in.Longitude = nil
+	}
+	if in.AddInfo != nil && *in.AddInfo == "" {
+		in.AddInfo = nil
+	}
 	// REGRA DE NEGÓCIO: Verificar se endereço existe antes de criar
 	existingAddr, err := s.repo.FindByDetails(
 		ctx,
