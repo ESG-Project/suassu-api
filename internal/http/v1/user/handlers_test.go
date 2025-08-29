@@ -14,7 +14,6 @@ import (
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/go-chi/chi/v5"
 	"github.com/stretchr/testify/require"
 )
@@ -32,12 +31,12 @@ func (f *fakeSvc) Create(ctx context.Context, enterpriseID string, in appuser.Cr
 	return f.createdID, nil
 }
 
-func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
-	return f.users, &postgres.PageInfo{HasMore: false, Next: nil}, nil
+func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
+	return f.users, &domainuser.PageInfo{HasMore: false, Next: nil}, nil
 }
 
-func (f *fakeSvc) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
-	return f.users, &postgres.PageInfo{HasMore: false}, nil
+func (f *fakeSvc) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
+	return f.users, &domainuser.PageInfo{HasMore: false}, nil
 }
 
 // Helper para criar router de teste com middlewares simulados

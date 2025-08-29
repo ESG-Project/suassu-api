@@ -4,18 +4,21 @@ import (
 	"context"
 	"errors"
 
+	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo   Repo
-	hasher Hasher
+	repo           Repo
+	addressService *address.Service
+	hasher         Hasher
 }
 
-func NewService(r Repo, h Hasher) *Service { return &Service{repo: r, hasher: h} }
+func NewService(r Repo, as *address.Service, h Hasher) *Service {
+	return &Service{repo: r, addressService: as, hasher: h}
+}
 
 type CreateInput struct {
 	Name         string
@@ -24,6 +27,7 @@ type CreateInput struct {
 	Document     string
 	Phone        *string
 	AddressID    *string
+	Address      *address.CreateInput
 	RoleID       *string
 	EnterpriseID string
 }
@@ -56,6 +60,17 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
 	}
 
+	// Lógica de endereço: verificar se existe ou criar novo
+	if in.Address != nil {
+		addressID, err := s.addressService.HandleAddress(ctx, in.Address)
+		if err != nil {
+			return "", err
+		}
+		user.SetAddressID(&addressID)
+	} else if in.AddressID != nil {
+		user.SetAddressID(in.AddressID)
+	}
+
 	err = s.repo.Create(ctx, user)
 	return id, err
 }
@@ -67,7 +82,7 @@ func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, e
 	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
 }
 
-func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]domainuser.User, *postgres.PageInfo, error) {
+func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}

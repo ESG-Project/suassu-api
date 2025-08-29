@@ -8,5 +8,6 @@ CREATE TABLE "User" (
   phone text,
   "addressId" text,
   "roleId" text,
-  "enterpriseId" text NOT NULL
+  "enterpriseId" text NOT NULL,
+  FOREIGN KEY ("addressId") REFERENCES "Address" (id)
 );

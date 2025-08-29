@@ -7,20 +7,20 @@ import (
 	"time"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
-	"github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
+	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/stretchr/testify/require"
 )
 
 // Fakes para teste
 type fakeRepo struct {
-	users map[string]*user.User
+	users map[string]*domain.User
+	err   error
 }
 
 func newFakeRepo() *fakeRepo {
 	return &fakeRepo{
-		users: map[string]*user.User{
-			"teste@exemplo.com": user.NewUser(
+		users: map[string]*domain.User{
+			"teste@exemplo.com": domain.NewUser(
 				"user-123",
 				"Usuário Teste",
 				"teste@exemplo.com",
@@ -32,39 +32,45 @@ func newFakeRepo() *fakeRepo {
 	}
 }
 
-func (f *fakeRepo) Create(ctx context.Context, u *user.User) error {
+func (f *fakeRepo) Create(ctx context.Context, u *domain.User) error {
 	f.users[u.Email] = u
 	return nil
 }
 
-func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*user.User, postgres.PageInfo, error) {
-	users := make([]*user.User, 0, len(f.users))
-	for _, u := range f.users {
-		users = append(users, u)
+func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
+	if f.err != nil {
+		return nil, domain.PageInfo{}, f.err
 	}
-	return users, postgres.PageInfo{}, nil
+	users := []*domain.User{
+		{ID: "user-1", Name: "Ana", Email: "ana@ex.com", EnterpriseID: "ent-1"},
+		{ID: "user-2", Name: "Bob", Email: "bob@ex.com", EnterpriseID: "ent-1"},
+	}
+	return users, domain.PageInfo{}, nil
 }
 
-func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*user.User, error) {
+func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain.User, error) {
 	if u, exists := f.users[email]; exists {
 		return u, nil
 	}
 	return nil, errors.New("user not found")
 }
 
-func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*user.User, error) {
+func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domain.User, error) {
 	if u, exists := f.users[email]; exists {
 		return u, nil
 	}
 	return nil, errors.New("user not found")
 }
 
-func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *postgres.UserCursorKey) ([]*user.User, postgres.PageInfo, error) {
-	users := make([]*user.User, 0, len(f.users))
-	for _, u := range f.users {
-		users = append(users, u)
+func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
+	if f.err != nil {
+		return nil, domain.PageInfo{}, f.err
 	}
-	return users, postgres.PageInfo{}, nil
+	users := []*domain.User{
+		{ID: "user-1", Name: "Ana", Email: "ana@ex.com", EnterpriseID: "ent-1"},
+		{ID: "user-2", Name: "Bob", Email: "bob@ex.com", EnterpriseID: "ent-1"},
+	}
+	return users, domain.PageInfo{}, nil
 }
 
 type fakeHasher struct{}
@@ -85,7 +91,7 @@ type fakeTokenIssuer struct {
 	shouldFail bool
 }
 
-func (f *fakeTokenIssuer) NewAccessToken(u *user.User) (string, error) {
+func (f *fakeTokenIssuer) NewAccessToken(u *domain.User) (string, error) {
 	if f.shouldFail {
 		return "", errors.New("token generation failed")
 	}

@@ -147,26 +147,36 @@ func (q *Queries) GetUserByEmailInTenant(ctx context.Context, arg GetUserByEmail
 }
 
 const listUsers = `-- name: ListUsers :many
-SELECT id,
-  name,
-  email,
-  password AS password_hash,
-  document,
-  phone,
-  "addressId" AS address_id,
-  "roleId" AS role_id,
-  "enterpriseId" AS enterprise_id
-FROM "User"
+SELECT u.id,
+  u.name,
+  u.email,
+  u.password AS password_hash,
+  u.document,
+  u.phone,
+  u."addressId" AS address_id,
+  u."roleId" AS role_id,
+  u."enterpriseId" AS enterprise_id,
+  a."zipCode" AS zip_code,
+  a.state,
+  a.city,
+  a.neighborhood,
+  a.street,
+  a.num,
+  a.latitude,
+  a.longitude,
+  a."addInfo" AS add_info
+FROM "User" u
+JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
-    email > $3
+    u.email > $3
     OR (
-      email = $3
-      AND id > $4
+      u.email = $3
+      AND u.id > $4
     )
   )
-ORDER BY email ASC,
-  id ASC
+ORDER BY u.email ASC,
+  u.id ASC
 LIMIT $2
 `
 
@@ -187,6 +197,15 @@ type ListUsersRow struct {
 	AddressID    sql.NullString `json:"address_id"`
 	RoleID       sql.NullString `json:"role_id"`
 	EnterpriseID string         `json:"enterprise_id"`
+	ZipCode      string         `json:"zip_code"`
+	State        string         `json:"state"`
+	City         string         `json:"city"`
+	Neighborhood string         `json:"neighborhood"`
+	Street       string         `json:"street"`
+	Num          string         `json:"num"`
+	Latitude     sql.NullString `json:"latitude"`
+	Longitude    sql.NullString `json:"longitude"`
+	AddInfo      sql.NullString `json:"add_info"`
 }
 
 func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUsersRow, error) {
@@ -213,6 +232,15 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 			&i.AddressID,
 			&i.RoleID,
 			&i.EnterpriseID,
+			&i.ZipCode,
+			&i.State,
+			&i.City,
+			&i.Neighborhood,
+			&i.Street,
+			&i.Num,
+			&i.Latitude,
+			&i.Longitude,
+			&i.AddInfo,
 		); err != nil {
 			return nil, err
 		}

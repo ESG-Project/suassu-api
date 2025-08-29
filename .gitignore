@@ -59,9 +59,6 @@ suassu-api
 *.so
 *.dylib
 
-# SQLC generated files (if any)
-internal/infra/db/sqlc/gen/*.go
-
 # Coverage reports
 coverage.txt
 coverage.html
