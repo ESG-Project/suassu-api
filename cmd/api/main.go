@@ -12,8 +12,10 @@ import (
 	"go.uber.org/zap"
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
+	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
+	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
@@ -45,11 +47,15 @@ func main() {
 
 	// 3) Dependencies
 	txm := &postgres.TxManager{DB: db}
+	hasher := infraauth.NewBCrypt()
+
 	userRepo := postgres.NewUserRepo(db)
 	addressRepo := postgres.NewAddressRepo(db)
-	hasher := infraauth.NewBCrypt()
+	enterpriseRepo := postgres.NewEnterpriseRepo(db)
+
 	addressSvc := appaddress.NewService(addressRepo, hasher)
 	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
+	enterpriseSvc := appenterprise.NewService(enterpriseRepo, addressSvc, hasher)
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
@@ -82,6 +88,7 @@ func main() {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
+			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
 		})
 
 		v1.Mount("/", openapi.Routes())
