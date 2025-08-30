@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
@@ -118,6 +119,9 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 func (r *UserRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
 	row, err := r.q.GetUserByEmailForAuth(ctx, email)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "user not found")
+		}
 		return nil, err
 	}
 
@@ -151,6 +155,9 @@ func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID s
 		Email:        email,
 	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "user not found")
+		}
 		return nil, err
 	}
 

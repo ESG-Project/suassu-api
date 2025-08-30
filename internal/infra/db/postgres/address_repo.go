@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
@@ -31,6 +32,9 @@ func (r *AddressRepo) FindByDetails(ctx context.Context, address *address.Create
 		AddInfo:      utils.ToNullString(address.AddInfo),
 	})
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "address not found")
+		}
 		return nil, err
 	}
 

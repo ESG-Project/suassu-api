@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainenterprise "github.com/ESG-Project/suassu-api/internal/domain/enterprise"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
@@ -31,6 +32,9 @@ func (r *EnterpriseRepo) Create(ctx context.Context, e *domainenterprise.Enterpr
 func (r *EnterpriseRepo) GetByID(ctx context.Context, id string) (*domainenterprise.Enterprise, error) {
 	row, err := r.q.GetEnterpriseByID(ctx, id)
 	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "enterprise not found")
+		}
 		return nil, err
 	}
 
