@@ -31,6 +31,27 @@ type Enterprise struct {
 	Phone       sql.NullString `json:"phone"`
 }
 
+type Feature struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+type Permission struct {
+	ID        string `json:"id"`
+	FeatureId string `json:"featureId"`
+	RoleId    string `json:"roleId"`
+	Create    bool   `json:"create"`
+	Read      bool   `json:"read"`
+	Update    bool   `json:"update"`
+	Delete    bool   `json:"delete"`
+}
+
+type Role struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	EnterpriseId string `json:"enterpriseId"`
+}
+
 type User struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`

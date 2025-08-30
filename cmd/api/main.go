@@ -13,6 +13,7 @@ import (
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
+	appfeatures "github.com/ESG-Project/suassu-api/internal/app/features"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
@@ -45,9 +46,13 @@ func main() {
 	}
 	defer func(db *sql.DB) { _ = db.Close() }(db)
 
-	// 3) Dependencies
-	txm := &postgres.TxManager{DB: db}
+	// 3) Dependencies & Seeding
 	hasher := infraauth.NewBCrypt()
+	featureRepo := postgres.NewFeatureRepo(db)
+	featureSvc := appfeatures.NewService(featureRepo, hasher)
+	featureSvc.SeedFeatures(ctx)
+
+	txm := &postgres.TxManager{DB: db}
 
 	userRepo := postgres.NewUserRepo(db)
 	addressRepo := postgres.NewAddressRepo(db)
