@@ -13,7 +13,7 @@ import (
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
-	appfeatures "github.com/ESG-Project/suassu-api/internal/app/features"
+	appfeatures "github.com/ESG-Project/suassu-api/internal/app/feature"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
