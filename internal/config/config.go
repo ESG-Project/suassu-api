@@ -23,15 +23,18 @@ type Config struct {
 	LogLevel string // debug|info|warn|error
 
 	// JWT
-	JWTSecret       string // HMAC secret
-	JWTIssuer       string
-	JWTAudience     string
-	JWTAccessTTLMin int // minutos (ex: 15)
+	JWTSecret          string // HMAC secret
+	JWTIssuer          string
+	JWTAudience        string
+	JWTAccessTTLMin    int // minutos (ex: 15)
+	CORSAllowedOrigins []string
 }
 
 // Load lê variáveis de ambiente e aplica defaults sensatos.
 // Observação: o carregamento de .env deve ser feito pelo shell (ex.: `source .env`).
 func Load() (*Config, error) {
+	corsOrigins := getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
+
 	cfg := &Config{
 		AppName:         getenv("APP_NAME", "suassu-api"),
 		AppEnv:          getenv("APP_ENV", "dev"),
@@ -43,10 +46,11 @@ func Load() (*Config, error) {
 		DBConnMaxLifeMS: getint("DB_CONN_MAX_LIFE_MS", 300000), // 5min
 		LogLevel:        strings.ToLower(getenv("LOG_LEVEL", "info")),
 
-		JWTSecret:       getenv("JWT_SECRET", "dev-secret-change-me"),
-		JWTIssuer:       getenv("JWT_ISSUER", "suassu-api"),
-		JWTAudience:     getenv("JWT_AUDIENCE", "suassu-clients"),
-		JWTAccessTTLMin: getint("JWT_ACCESS_TTL_MIN", 15),
+		JWTSecret:          getenv("JWT_SECRET", "dev-secret-change-me"),
+		JWTIssuer:          getenv("JWT_ISSUER", "suassu-api"),
+		JWTAudience:        getenv("JWT_AUDIENCE", "suassu-clients"),
+		JWTAccessTTLMin:    getint("JWT_ACCESS_TTL_MIN", 15),
+		CORSAllowedOrigins: strings.Split(corsOrigins, ","),
 	}
 
 	if cfg.DBDSN == "" {
