@@ -21,8 +21,11 @@ type TxManager struct{ DB *sql.DB }
 var _ TxManagerInterface = (*TxManager)(nil)
 
 type Repos struct {
-	Users     func() *UserRepo
-	Addresses func() *AddressRepo
+	Users       func() *UserRepo
+	Addresses   func() *AddressRepo
+	Enterprises func() *EnterpriseRepo
+	Roles       func() *RoleRepo
+	Permissions func() *PermissionRepo
 }
 
 func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
@@ -32,8 +35,11 @@ func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
 	}
 
 	r := Repos{
-		Users:     func() *UserRepo { return NewUserRepoFrom(tx) },
-		Addresses: func() *AddressRepo { return NewAddressRepoFrom(tx) },
+		Users:       func() *UserRepo { return NewUserRepoFrom(tx) },
+		Addresses:   func() *AddressRepo { return NewAddressRepoFrom(tx) },
+		Enterprises: func() *EnterpriseRepo { return NewEnterpriseRepoFrom(tx) },
+		Roles:       func() *RoleRepo { return NewRoleRepoFrom(tx) },
+		Permissions: func() *PermissionRepo { return NewPermissionRepoFrom(tx) },
 	}
 
 	if err := fn(r); err != nil {

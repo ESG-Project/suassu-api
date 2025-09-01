@@ -52,7 +52,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
-const getUserByEmailForAuth = `-- name: GetUserByEmailForAuth :one
+const findUserByEmailForAuth = `-- name: FindUserByEmailForAuth :one
 SELECT id,
   name,
   email,
@@ -67,7 +67,7 @@ WHERE email = $1
 LIMIT 1
 `
 
-type GetUserByEmailForAuthRow struct {
+type FindUserByEmailForAuthRow struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
 	Email        string         `json:"email"`
@@ -79,9 +79,9 @@ type GetUserByEmailForAuthRow struct {
 	EnterpriseID string         `json:"enterprise_id"`
 }
 
-func (q *Queries) GetUserByEmailForAuth(ctx context.Context, email string) (GetUserByEmailForAuthRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmailForAuth, email)
-	var i GetUserByEmailForAuthRow
+func (q *Queries) FindUserByEmailForAuth(ctx context.Context, email string) (FindUserByEmailForAuthRow, error) {
+	row := q.db.QueryRowContext(ctx, findUserByEmailForAuth, email)
+	var i FindUserByEmailForAuthRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -96,42 +96,61 @@ func (q *Queries) GetUserByEmailForAuth(ctx context.Context, email string) (GetU
 	return i, err
 }
 
-const getUserByEmailInTenant = `-- name: GetUserByEmailInTenant :one
-SELECT id,
-  name,
-  email,
-  password AS password_hash,
-  document,
-  phone,
-  "addressId" AS address_id,
-  "roleId" AS role_id,
-  "enterpriseId" AS enterprise_id
-FROM "User"
-WHERE "enterpriseId" = $1
-  AND email = $2
+const getUserByID = `-- name: GetUserByID :one
+SELECT u.id,
+  u.name,
+  u.email,
+  u.password AS password_hash,
+  u.document,
+  u.phone,
+  u."roleId" AS role_id,
+  u."enterpriseId" AS enterprise_id,
+  u."addressId" AS address_id,
+  a."zipCode" AS zip_code,
+  a.state,
+  a.city,
+  a.neighborhood,
+  a.street,
+  a.num,
+  a.latitude,
+  a.longitude,
+  a."addInfo" AS add_info
+FROM "User" u
+  LEFT JOIN "Address" a ON u."addressId" = a.id
+WHERE u."enterpriseId" = $1
+  AND u.id = $2
 LIMIT 1
 `
 
-type GetUserByEmailInTenantParams struct {
+type GetUserByIDParams struct {
 	EnterpriseId string `json:"enterpriseId"`
-	Email        string `json:"email"`
+	ID           string `json:"id"`
 }
 
-type GetUserByEmailInTenantRow struct {
+type GetUserByIDRow struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
 	Email        string         `json:"email"`
 	PasswordHash string         `json:"password_hash"`
 	Document     string         `json:"document"`
 	Phone        sql.NullString `json:"phone"`
-	AddressID    sql.NullString `json:"address_id"`
 	RoleID       sql.NullString `json:"role_id"`
 	EnterpriseID string         `json:"enterprise_id"`
+	AddressID    sql.NullString `json:"address_id"`
+	ZipCode      sql.NullString `json:"zip_code"`
+	State        sql.NullString `json:"state"`
+	City         sql.NullString `json:"city"`
+	Neighborhood sql.NullString `json:"neighborhood"`
+	Street       sql.NullString `json:"street"`
+	Num          sql.NullString `json:"num"`
+	Latitude     sql.NullString `json:"latitude"`
+	Longitude    sql.NullString `json:"longitude"`
+	AddInfo      sql.NullString `json:"add_info"`
 }
 
-func (q *Queries) GetUserByEmailInTenant(ctx context.Context, arg GetUserByEmailInTenantParams) (GetUserByEmailInTenantRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmailInTenant, arg.EnterpriseId, arg.Email)
-	var i GetUserByEmailInTenantRow
+func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (GetUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, arg.EnterpriseId, arg.ID)
+	var i GetUserByIDRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -139,9 +158,18 @@ func (q *Queries) GetUserByEmailInTenant(ctx context.Context, arg GetUserByEmail
 		&i.PasswordHash,
 		&i.Document,
 		&i.Phone,
-		&i.AddressID,
 		&i.RoleID,
 		&i.EnterpriseID,
+		&i.AddressID,
+		&i.ZipCode,
+		&i.State,
+		&i.City,
+		&i.Neighborhood,
+		&i.Street,
+		&i.Num,
+		&i.Latitude,
+		&i.Longitude,
+		&i.AddInfo,
 	)
 	return i, err
 }
@@ -166,7 +194,7 @@ SELECT u.id,
   a.longitude,
   a."addInfo" AS add_info
 FROM "User" u
-JOIN "Address" a ON u."addressId" = a.id
+  LEFT JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
     u.email > $3
@@ -197,12 +225,12 @@ type ListUsersRow struct {
 	AddressID    sql.NullString `json:"address_id"`
 	RoleID       sql.NullString `json:"role_id"`
 	EnterpriseID string         `json:"enterprise_id"`
-	ZipCode      string         `json:"zip_code"`
-	State        string         `json:"state"`
-	City         string         `json:"city"`
-	Neighborhood string         `json:"neighborhood"`
-	Street       string         `json:"street"`
-	Num          string         `json:"num"`
+	ZipCode      sql.NullString `json:"zip_code"`
+	State        sql.NullString `json:"state"`
+	City         sql.NullString `json:"city"`
+	Neighborhood sql.NullString `json:"neighborhood"`
+	Street       sql.NullString `json:"street"`
+	Num          sql.NullString `json:"num"`
 	Latitude     sql.NullString `json:"latitude"`
 	Longitude    sql.NullString `json:"longitude"`
 	AddInfo      sql.NullString `json:"add_info"`

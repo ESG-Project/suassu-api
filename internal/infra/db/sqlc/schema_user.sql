@@ -9,5 +9,7 @@ CREATE TABLE "User" (
   "addressId" text,
   "roleId" text,
   "enterpriseId" text NOT NULL,
-  FOREIGN KEY ("addressId") REFERENCES "Address" (id)
+  FOREIGN KEY ("enterpriseId") REFERENCES "Enterprise" (id),
+  FOREIGN KEY ("addressId") REFERENCES "Address" (id),
+  FOREIGN KEY ("roleId") REFERENCES "Role" (id)
 );

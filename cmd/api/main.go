@@ -8,12 +8,16 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"go.uber.org/zap"
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
+	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
+	appfeatures "github.com/ESG-Project/suassu-api/internal/app/feature"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
+	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
@@ -43,21 +47,37 @@ func main() {
 	}
 	defer func(db *sql.DB) { _ = db.Close() }(db)
 
-	// 3) Dependencies
-	txm := &postgres.TxManager{DB: db}
-	userRepo := postgres.NewUserRepo(db)
-	addressRepo := postgres.NewAddressRepo(db)
+	// 3) Dependencies & Seeding
 	hasher := infraauth.NewBCrypt()
+	featureRepo := postgres.NewFeatureRepo(db)
+	featureSvc := appfeatures.NewService(featureRepo, hasher)
+	featureSvc.SeedFeatures(ctx)
+
+	txm := &postgres.TxManager{DB: db}
+
+	userRepo := postgres.NewUserRepoWithTx(db, txm)
+	addressRepo := postgres.NewAddressRepo(db)
+	enterpriseRepo := postgres.NewEnterpriseRepo(db)
+
 	addressSvc := appaddress.NewService(addressRepo, hasher)
 	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
+	enterpriseSvc := appenterprise.NewService(enterpriseRepo, addressSvc, hasher)
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
-	authSvc := appauth.NewService(userRepo, hasher, jwtIssuer)
+	authSvc := appauth.NewService(userRepo, userSvc, hasher, jwtIssuer)
 	authH := authhttp.NewHandler(authSvc)
 
 	// 4) HTTP router
 	r := chi.NewRouter()
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   cfg.CORSAllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300, // 5 minutos
+	}))
 	r.Use(
 		middleware.RequestID,
 		middleware.RealIP,
@@ -74,6 +94,7 @@ func main() {
 			// privado
 			auth.Group(func(priv chi.Router) {
 				priv.Use(httpmw.AuthJWT(jwtIssuer))
+				priv.Use(httpmw.RequireEnterprise)
 				authH.RegisterPrivate(priv)
 			})
 		})
@@ -82,6 +103,7 @@ func main() {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
+			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
 		})
 
 		v1.Mount("/", openapi.Routes())

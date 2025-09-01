@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
@@ -29,16 +30,6 @@ func (f *fakeRepo) Create(ctx context.Context, u *domainuser.User) error {
 	return nil
 }
 
-func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
-	if f.err != nil {
-		return nil, f.err
-	}
-	if len(f.users) > 0 {
-		return f.users[0], nil
-	}
-	return nil, nil
-}
-
 func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
 	return nil, nil
 }
@@ -55,6 +46,14 @@ func (f *fakeRepo) ListAfter(ctx context.Context, enterpriseID string, limit int
 		return nil, domainuser.PageInfo{}, f.err
 	}
 	return f.users, domainuser.PageInfo{}, nil
+}
+
+func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return &types.UserPermissions{ID: userID, Name: "", RoleTitle: ""}, nil
+}
+
+func (f *fakeRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return &types.UserWithDetails{ID: userID, Name: "", Email: "", EnterpriseID: enterpriseID}, nil
 }
 
 type fakeHasher struct{ err error }
@@ -254,44 +253,6 @@ func TestService_List(t *testing.T) {
 		svc := user.NewService(repo, &address.Service{}, hasher)
 
 		_, _, err := svc.List(ctx, "ent-1", 10, nil)
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "db error")
-	})
-}
-
-func TestService_GetByEmailInTenant(t *testing.T) {
-	t.Parallel()
-	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-	defer cancel()
-
-	t.Run("success", func(t *testing.T) {
-		testUser := &domainuser.User{ID: "user-1", Name: "Ana", Email: "ana@ex.com", EnterpriseID: "ent-1"}
-		repo := &fakeRepo{users: []*domainuser.User{testUser}}
-		hasher := fakeHasher{}
-		svc := user.NewService(repo, &address.Service{}, hasher)
-
-		user, err := svc.GetByEmailInTenant(ctx, "ent-1", "ana@ex.com")
-		require.NoError(t, err)
-		require.Equal(t, "Ana", user.Name)
-		require.Equal(t, "ana@ex.com", user.Email)
-	})
-
-	t.Run("empty email", func(t *testing.T) {
-		repo := &fakeRepo{}
-		hasher := fakeHasher{}
-		svc := user.NewService(repo, &address.Service{}, hasher)
-
-		_, err := svc.GetByEmailInTenant(ctx, "ent-1", "")
-		require.Error(t, err)
-		require.Contains(t, err.Error(), "email is required")
-	})
-
-	t.Run("repo error", func(t *testing.T) {
-		repo := &fakeRepo{err: errors.New("db error")}
-		hasher := fakeHasher{}
-		svc := user.NewService(repo, &address.Service{}, hasher)
-
-		_, err := svc.GetByEmailInTenant(ctx, "ent-1", "ana@ex.com")
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "db error")
 	})

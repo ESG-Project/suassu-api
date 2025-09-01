@@ -2,9 +2,9 @@ package user
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
@@ -97,22 +97,17 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 	return id, err
 }
 
-func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
-	if email == "" {
-		return nil, errors.New("email is required")
-	}
-	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
-}
-
 func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50
 	}
 
-	users, pageInfo, err := s.repo.List(ctx, enterpriseID, limit, after)
+	users, _, err := s.repo.List(ctx, enterpriseID, limit, after)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	users, pageInfo := PaginateResult(users, limit)
 
 	// Converter ponteiros para valores
 	result := make([]domainuser.User, len(users))
@@ -120,4 +115,23 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 		result[i] = *user
 	}
 	return result, &pageInfo, nil
+}
+
+func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	userWithPermissions, err := s.repo.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
+	if err != nil {
+		return nil, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	return userWithPermissions, nil
+}
+
+func (s *Service) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	// Buscar usuário com todas as informações (incluindo endereço e empresa)
+	userWithDetails, err := s.repo.GetUserWithDetails(ctx, userID, enterpriseID)
+	if err != nil {
+		return nil, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	return userWithDetails, nil
 }

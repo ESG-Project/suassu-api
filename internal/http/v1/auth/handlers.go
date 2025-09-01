@@ -6,7 +6,9 @@ import (
 	"net/http"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
+	userdto "github.com/ESG-Project/suassu-api/internal/http/dto/user"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
@@ -14,6 +16,8 @@ import (
 
 type Service interface {
 	SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error)
+	GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error)
+	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error)
 }
 
 type Handler struct {
@@ -32,6 +36,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 // RegisterPrivate registra rotas privadas de /auth (com JWT)
 func (h *Handler) RegisterPrivate(r chi.Router) {
 	r.Get("/me", h.me)
+	r.Get("/my-permissions", h.myPermissions)
 	// r.Post("/logout", h.logout)   // futuro
 	// r.Post("/refresh", h.refresh) // futuro
 }
@@ -58,13 +63,46 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"sub":          claims.Subject,
-		"email":        claims.Email,
-		"name":         claims.Name,
-		"enterpriseId": claims.EnterpriseID,
-		"roleId":       claims.RoleID,
-	})
+
+	enterpriseID := httpmw.EnterpriseID(r.Context())
+	if enterpriseID == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
+		return
+	}
+
+	me, err := h.svc.GetMe(r.Context(), claims.Subject, enterpriseID)
+	if err != nil {
+		httperr.Handle(w, r, err)
+		return
+	}
+
+	// Converter para DTO HTTP
+	meOut := userdto.ToMeOut(me)
+	writeJSON(w, http.StatusOK, meOut)
+}
+
+func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
+	claims, ok := httpmw.ClaimsFromCtx(r.Context())
+	if !ok {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
+		return
+	}
+
+	enterpriseID := httpmw.EnterpriseID(r.Context())
+	if enterpriseID == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
+		return
+	}
+
+	permissions, err := h.svc.GetMyPermissions(r.Context(), claims.Subject, enterpriseID)
+	if err != nil {
+		httperr.Handle(w, r, err)
+		return
+	}
+
+	// Converter para DTO HTTP
+	permissionsOut := userdto.ToMyPermissionsOut(permissions)
+	writeJSON(w, http.StatusOK, permissionsOut)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

@@ -31,7 +31,7 @@ SELECT u.id,
   a.longitude,
   a."addInfo" AS add_info
 FROM "User" u
-JOIN "Address" a ON u."addressId" = a.id
+  LEFT JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
     u.email > $3
@@ -43,21 +43,7 @@ WHERE "enterpriseId" = $1
 ORDER BY u.email ASC,
   u.id ASC
 LIMIT $2;
--- name: GetUserByEmailInTenant :one
-SELECT id,
-  name,
-  email,
-  password AS password_hash,
-  document,
-  phone,
-  "addressId" AS address_id,
-  "roleId" AS role_id,
-  "enterpriseId" AS enterprise_id
-FROM "User"
-WHERE "enterpriseId" = $1
-  AND email = $2
-LIMIT 1;
--- name: GetUserByEmailForAuth :one
+-- name: FindUserByEmailForAuth :one
 SELECT id,
   name,
   email,
@@ -69,4 +55,28 @@ SELECT id,
   "enterpriseId" AS enterprise_id
 FROM "User"
 WHERE email = $1
+LIMIT 1;
+-- name: GetUserByID :one
+SELECT u.id,
+  u.name,
+  u.email,
+  u.password AS password_hash,
+  u.document,
+  u.phone,
+  u."roleId" AS role_id,
+  u."enterpriseId" AS enterprise_id,
+  u."addressId" AS address_id,
+  a."zipCode" AS zip_code,
+  a.state,
+  a.city,
+  a.neighborhood,
+  a.street,
+  a.num,
+  a.latitude,
+  a.longitude,
+  a."addInfo" AS add_info
+FROM "User" u
+  LEFT JOIN "Address" a ON u."addressId" = a.id
+WHERE u."enterpriseId" = $1
+  AND u.id = $2
 LIMIT 1;

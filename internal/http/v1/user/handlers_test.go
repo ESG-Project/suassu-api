@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
@@ -35,8 +36,12 @@ func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, af
 	return f.users, &domainuser.PageInfo{HasMore: false, Next: nil}, nil
 }
 
-func (f *fakeSvc) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
-	return f.users, &domainuser.PageInfo{HasMore: false}, nil
+func (f *fakeSvc) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return nil, nil
+}
+
+func (f *fakeSvc) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return nil, nil
 }
 
 // Helper para criar router de teste com middlewares simulados

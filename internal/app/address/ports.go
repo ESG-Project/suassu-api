@@ -13,5 +13,5 @@ type Hasher interface {
 
 type Repo interface {
 	Create(ctx context.Context, a *domainaddress.Address) error
-	FindByDetails(ctx context.Context, in *CreateInput) (*domainaddress.Address, error)
+	FindByDetails(ctx context.Context, params *domainaddress.SearchParams) (*domainaddress.Address, error)
 }

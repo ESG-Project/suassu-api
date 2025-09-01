@@ -4,6 +4,10 @@ sql:
     schema:
       - "internal/infra/db/sqlc/schema_user.sql"
       - "internal/infra/db/sqlc/schema_address.sql"
+      - "internal/infra/db/sqlc/schema_enterprise.sql"
+      - "internal/infra/db/sqlc/schema_roles.sql"
+      - "internal/infra/db/sqlc/schema_feature.sql"
+      - "internal/infra/db/sqlc/schema_permission.sql"
     queries: "internal/infra/db/sqlc/queries"
     gen:
       go:
