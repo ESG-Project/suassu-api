@@ -43,6 +43,7 @@ type UserEnterprise struct {
 	FantasyName *string
 	Phone       *string
 	AddressID   *string
+	Address     *UserAddress
 }
 
 // UserPermission representa uma permissão do usuário na camada de aplicação

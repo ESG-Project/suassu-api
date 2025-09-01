@@ -54,7 +54,7 @@ func main() {
 
 	txm := &postgres.TxManager{DB: db}
 
-	userRepo := postgres.NewUserRepo(db)
+	userRepo := postgres.NewUserRepoWithTx(db, txm)
 	addressRepo := postgres.NewAddressRepo(db)
 	enterpriseRepo := postgres.NewEnterpriseRepo(db)
 

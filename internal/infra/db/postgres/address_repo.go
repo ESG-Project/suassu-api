@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
@@ -12,11 +13,28 @@ import (
 
 type AddressRepo struct{ q *sqlc.Queries }
 
-// Construtor que aceita qualquer sqlc.DBTX (ex.: *sql.DB ou *sql.Tx)
-func NewAddressRepoFrom(d dbtx) *AddressRepo { return &AddressRepo{q: sqlc.New(d)} }
+func NewAddressRepoFrom(d dbtx) *AddressRepo {
+	return &AddressRepo{q: sqlc.New(d)}
+}
 
-// Compatibilidade com construtor anterior
-func NewAddressRepo(db *sql.DB) *AddressRepo { return NewAddressRepoFrom(db) }
+func NewAddressRepo(db *sql.DB) *AddressRepo {
+	return &AddressRepo{q: sqlc.New(db)}
+}
+
+func (r *AddressRepo) Create(ctx context.Context, a *domainaddress.Address) error {
+	return r.q.CreateAddress(ctx, sqlc.CreateAddressParams{
+		ID:           a.ID,
+		ZipCode:      a.ZipCode,
+		State:        a.State,
+		City:         a.City,
+		Neighborhood: a.Neighborhood,
+		Street:       a.Street,
+		Num:          a.Num,
+		Latitude:     utils.ToNullString(a.Latitude),
+		Longitude:    utils.ToNullString(a.Longitude),
+		AddInfo:      utils.ToNullString(a.AddInfo),
+	})
+}
 
 func (r *AddressRepo) FindByDetails(ctx context.Context, params *domainaddress.SearchParams) (*domainaddress.Address, error) {
 	row, err := r.q.FindAddressByDetails(ctx, sqlc.FindAddressByDetailsParams{
@@ -32,45 +50,45 @@ func (r *AddressRepo) FindByDetails(ctx context.Context, params *domainaddress.S
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &domainaddress.Address{
+		ID:           row.ID,
+		ZipCode:      row.ZipCode,
+		State:        row.State,
+		City:         row.City,
+		Neighborhood: row.Neighborhood,
+		Street:       row.Street,
+		Num:          row.Num,
+		Latitude:     utils.FromNullString(row.Latitude),
+		Longitude:    utils.FromNullString(row.Longitude),
+		AddInfo:      utils.FromNullString(row.AddInfo),
+	}, nil
+}
+
+// GetByID retorna um endereço como UserAddress para uso na camada de aplicação
+func (r *AddressRepo) GetByID(ctx context.Context, addressID string) (*types.UserAddress, error) {
+	row, err := r.q.GetAddressByID(ctx, addressID)
+	if err != nil {
+		if err == sql.ErrNoRows {
 			return nil, apperr.New(apperr.CodeNotFound, "address not found")
 		}
 		return nil, err
 	}
 
-	out := domainaddress.NewAddress(
-		row.ID,
-		row.ZipCode,
-		row.State,
-		row.City,
-		row.Neighborhood,
-		row.Street,
-		row.Num,
-	)
-
-	if row.Latitude.Valid {
-		out.SetLatitude(&row.Latitude.String)
-	}
-	if row.Longitude.Valid {
-		out.SetLongitude(&row.Longitude.String)
-	}
-	if row.AddInfo.Valid {
-		out.SetAddInfo(&row.AddInfo.String)
-	}
-
-	return out, nil
-}
-
-func (r *AddressRepo) Create(ctx context.Context, u *domainaddress.Address) error {
-	return r.q.CreateAddress(ctx, sqlc.CreateAddressParams{
-		ID:           u.ID,
-		ZipCode:      u.ZipCode,
-		State:        u.State,
-		City:         u.City,
-		Neighborhood: u.Neighborhood,
-		Street:       u.Street,
-		Num:          u.Num,
-		Latitude:     utils.ToNullString(u.Latitude),
-		Longitude:    utils.ToNullString(u.Longitude),
-		AddInfo:      utils.ToNullString(u.AddInfo),
-	})
+	return &types.UserAddress{
+		ID:           row.ID,
+		ZipCode:      row.ZipCode,
+		State:        row.State,
+		City:         row.City,
+		Neighborhood: row.Neighborhood,
+		Street:       row.Street,
+		Num:          row.Num,
+		Latitude:     utils.FromNullString(row.Latitude),
+		Longitude:    utils.FromNullString(row.Longitude),
+		AddInfo:      utils.FromNullString(row.AddInfo),
+	}, nil
 }

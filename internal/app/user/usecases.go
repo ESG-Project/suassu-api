@@ -97,13 +97,6 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 	return id, err
 }
 
-func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
-	if email == "" {
-		return nil, apperr.New(apperr.CodeInvalid, "email is required")
-	}
-	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
-}
-
 func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
 	if limit <= 0 || limit > 1000 {
 		limit = 50

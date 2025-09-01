@@ -39,58 +39,30 @@ func (q *Queries) DeleteRole(ctx context.Context, id string) error {
 }
 
 const getRoleByID = `-- name: GetRoleByID :one
-SELECT r."id" as role_id,
-  r."title" as role_title,
-  r."enterpriseId" as enterprise_id,
-  COALESCE(
-    json_agg(
-      json_build_object(
-        'id',
-        p."id",
-        'feature_id',
-        p."featureId",
-        'feature_name',
-        f."name",
-        'create',
-        p."create",
-        'read',
-        p."read",
-        'update',
-        p."update",
-        'delete',
-        p."delete"
-      )
-      ORDER BY f."name"
-    ) FILTER (
-      WHERE p."id" IS NOT NULL
-    ),
-    '[]'::json
-  ) as permissions
-FROM "Role" r
-  LEFT JOIN "Permission" p ON r."id" = p."roleId"
-  LEFT JOIN "Feature" f ON p."featureId" = f."id"
-WHERE r."id" = $1
-GROUP BY r."id",
-  r."title",
-  r."enterpriseId"
+SELECT "id",
+  "title",
+  "enterpriseId" as enterprise_id
+FROM "Role"
+WHERE "enterpriseId" = $1
+  AND "id" = $2
+LIMIT 1
 `
 
-type GetRoleByIDRow struct {
-	RoleID       string      `json:"role_id"`
-	RoleTitle    string      `json:"role_title"`
-	EnterpriseID string      `json:"enterprise_id"`
-	Permissions  interface{} `json:"permissions"`
+type GetRoleByIDParams struct {
+	EnterpriseId string `json:"enterpriseId"`
+	ID           string `json:"id"`
 }
 
-func (q *Queries) GetRoleByID(ctx context.Context, id string) (GetRoleByIDRow, error) {
-	row := q.db.QueryRowContext(ctx, getRoleByID, id)
+type GetRoleByIDRow struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	EnterpriseID string `json:"enterprise_id"`
+}
+
+func (q *Queries) GetRoleByID(ctx context.Context, arg GetRoleByIDParams) (GetRoleByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getRoleByID, arg.EnterpriseId, arg.ID)
 	var i GetRoleByIDRow
-	err := row.Scan(
-		&i.RoleID,
-		&i.RoleTitle,
-		&i.EnterpriseID,
-		&i.Permissions,
-	)
+	err := row.Scan(&i.ID, &i.Title, &i.EnterpriseID)
 	return i, err
 }
 

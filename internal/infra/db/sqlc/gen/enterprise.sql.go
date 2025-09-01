@@ -47,8 +47,7 @@ func (q *Queries) CreateEnterprise(ctx context.Context, arg CreateEnterprisePara
 }
 
 const getEnterpriseByID = `-- name: GetEnterpriseByID :one
-SELECT
-  e.id,
+SELECT e.id,
   e.cnpj,
   e.email,
   e.name,
@@ -65,7 +64,7 @@ SELECT
   a.longitude,
   a."addInfo" AS add_info
 FROM "Enterprise" e
-JOIN "Address" a ON e."addressId" = a.id
+  JOIN "Address" a ON e."addressId" = a.id
 WHERE e.id = $1
 LIMIT 1
 `
@@ -115,8 +114,7 @@ func (q *Queries) GetEnterpriseByID(ctx context.Context, id string) (GetEnterpri
 
 const updateEnterprise = `-- name: UpdateEnterprise :exec
 UPDATE "Enterprise"
-SET
-  "cnpj" = $2,
+SET "cnpj" = $2,
   "addressId" = $3,
   "email" = $4,
   "fantasyName" = $5,

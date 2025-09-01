@@ -52,7 +52,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
-const getUserByEmailForAuth = `-- name: GetUserByEmailForAuth :one
+const findUserByEmailForAuth = `-- name: FindUserByEmailForAuth :one
 SELECT id,
   name,
   email,
@@ -67,7 +67,7 @@ WHERE email = $1
 LIMIT 1
 `
 
-type GetUserByEmailForAuthRow struct {
+type FindUserByEmailForAuthRow struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`
 	Email        string         `json:"email"`
@@ -79,9 +79,9 @@ type GetUserByEmailForAuthRow struct {
 	EnterpriseID string         `json:"enterprise_id"`
 }
 
-func (q *Queries) GetUserByEmailForAuth(ctx context.Context, email string) (GetUserByEmailForAuthRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmailForAuth, email)
-	var i GetUserByEmailForAuthRow
+func (q *Queries) FindUserByEmailForAuth(ctx context.Context, email string) (FindUserByEmailForAuthRow, error) {
+	row := q.db.QueryRowContext(ctx, findUserByEmailForAuth, email)
+	var i FindUserByEmailForAuthRow
 	err := row.Scan(
 		&i.ID,
 		&i.Name,
@@ -96,200 +96,17 @@ func (q *Queries) GetUserByEmailForAuth(ctx context.Context, email string) (GetU
 	return i, err
 }
 
-const getUserByEmailInTenant = `-- name: GetUserByEmailInTenant :one
-SELECT id,
-  name,
-  email,
-  password AS password_hash,
-  document,
-  phone,
-  "addressId" AS address_id,
-  "roleId" AS role_id,
-  "enterpriseId" AS enterprise_id
-FROM "User"
-WHERE "enterpriseId" = $1
-  AND email = $2
-LIMIT 1
-`
-
-type GetUserByEmailInTenantParams struct {
-	EnterpriseId string `json:"enterpriseId"`
-	Email        string `json:"email"`
-}
-
-type GetUserByEmailInTenantRow struct {
-	ID           string         `json:"id"`
-	Name         string         `json:"name"`
-	Email        string         `json:"email"`
-	PasswordHash string         `json:"password_hash"`
-	Document     string         `json:"document"`
-	Phone        sql.NullString `json:"phone"`
-	AddressID    sql.NullString `json:"address_id"`
-	RoleID       sql.NullString `json:"role_id"`
-	EnterpriseID string         `json:"enterprise_id"`
-}
-
-func (q *Queries) GetUserByEmailInTenant(ctx context.Context, arg GetUserByEmailInTenantParams) (GetUserByEmailInTenantRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserByEmailInTenant, arg.EnterpriseId, arg.Email)
-	var i GetUserByEmailInTenantRow
-	err := row.Scan(
-		&i.ID,
-		&i.Name,
-		&i.Email,
-		&i.PasswordHash,
-		&i.Document,
-		&i.Phone,
-		&i.AddressID,
-		&i.RoleID,
-		&i.EnterpriseID,
-	)
-	return i, err
-}
-
-const getUserPermissionsWithRole = `-- name: GetUserPermissionsWithRole :one
-SELECT u.id as user_id,
-  u.name as user_name,
-  r.id as role_id,
-  r.title as role_title,
-  COALESCE(
-    json_agg(
-      json_build_object(
-        'id',
-        p.id,
-        'feature_id',
-        p."featureId",
-        'feature_name',
-        f.name,
-        'create',
-        p."create",
-        'read',
-        p."read",
-        'update',
-        p."update",
-        'delete',
-        p."delete"
-      )
-      ORDER BY f.name
-    ) FILTER (
-      WHERE p.id IS NOT NULL
-    ),
-    '[]'::json
-  ) as permissions
-FROM "User" u
-  JOIN "Role" r ON u."roleId" = r.id
-  LEFT JOIN "Permission" p ON r.id = p."roleId"
-  LEFT JOIN "Feature" f ON p."featureId" = f.id
-WHERE u.id = $1
-  AND u."enterpriseId" = $2
-GROUP BY u.id,
-  u.name,
-  r.id,
-  r.title
-`
-
-type GetUserPermissionsWithRoleParams struct {
-	ID           string `json:"id"`
-	EnterpriseId string `json:"enterpriseId"`
-}
-
-type GetUserPermissionsWithRoleRow struct {
-	UserID      string      `json:"user_id"`
-	UserName    string      `json:"user_name"`
-	RoleID      string      `json:"role_id"`
-	RoleTitle   string      `json:"role_title"`
-	Permissions interface{} `json:"permissions"`
-}
-
-func (q *Queries) GetUserPermissionsWithRole(ctx context.Context, arg GetUserPermissionsWithRoleParams) (GetUserPermissionsWithRoleRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserPermissionsWithRole, arg.ID, arg.EnterpriseId)
-	var i GetUserPermissionsWithRoleRow
-	err := row.Scan(
-		&i.UserID,
-		&i.UserName,
-		&i.RoleID,
-		&i.RoleTitle,
-		&i.Permissions,
-	)
-	return i, err
-}
-
-const getUserWithDetails = `-- name: GetUserWithDetails :one
-SELECT u.id as user_id,
-  u.name as user_name,
-  u.email as user_email,
-  u.document as user_document,
-  u.phone as user_phone,
-  u."addressId" as user_address_id,
-  u."roleId" as user_role_id,
-  u."enterpriseId" as user_enterprise_id,
-  r.title as role_title,
-  e.id as enterprise_id,
-  e.name as enterprise_name,
-  e.cnpj as enterprise_cnpj,
-  e.email as enterprise_email,
-  e."fantasyName" as enterprise_fantasy_name,
-  e.phone as enterprise_phone,
-  e."addressId" as enterprise_address_id,
-  a.id as address_id,
-  a."zipCode" as address_zip_code,
-  a.state as address_state,
-  a.city as address_city,
-  a.neighborhood as address_neighborhood,
-  a.street as address_street,
-  a.num as address_num,
-  a.latitude as address_latitude,
-  a.longitude as address_longitude,
-  a."addInfo" as address_add_info,
-  COALESCE(
-    json_agg(
-      json_build_object(
-        'id',
-        p.id,
-        'feature_id',
-        p."featureId",
-        'feature_name',
-        f.name,
-        'create',
-        p."create",
-        'read',
-        p."read",
-        'update',
-        p."update",
-        'delete',
-        p."delete"
-      )
-      ORDER BY f.name
-    ) FILTER (
-      WHERE p.id IS NOT NULL
-    ),
-    '[]'::json
-  ) as permissions
-FROM "User" u
-  JOIN "Role" r ON u."roleId" = r.id
-  JOIN "Enterprise" e ON u."enterpriseId" = e.id
-  LEFT JOIN "Address" a ON u."addressId" = a.id
-  LEFT JOIN "Permission" p ON r.id = p."roleId"
-  LEFT JOIN "Feature" f ON p."featureId" = f.id
-WHERE u.id = $1
-  AND u."enterpriseId" = $2
-GROUP BY u.id,
+const getUserByID = `-- name: GetUserByID :one
+SELECT u.id,
   u.name,
   u.email,
+  u.password AS password_hash,
   u.document,
   u.phone,
-  u."addressId",
-  u."roleId",
-  u."enterpriseId",
-  r.title,
-  e.id,
-  e.name,
-  e.cnpj,
-  e.email,
-  e."fantasyName",
-  e.phone,
-  e."addressId",
-  a.id,
-  a."zipCode",
+  u."roleId" AS role_id,
+  u."enterpriseId" AS enterprise_id,
+  u."addressId" AS address_id,
+  a."zipCode" AS zip_code,
   a.state,
   a.city,
   a.neighborhood,
@@ -297,75 +114,62 @@ GROUP BY u.id,
   a.num,
   a.latitude,
   a.longitude,
-  a."addInfo"
+  a."addInfo" AS add_info
+FROM "User" u
+  LEFT JOIN "Address" a ON u."addressId" = a.id
+WHERE u."enterpriseId" = $1
+  AND u.id = $2
+LIMIT 1
 `
 
-type GetUserWithDetailsParams struct {
-	ID           string `json:"id"`
+type GetUserByIDParams struct {
 	EnterpriseId string `json:"enterpriseId"`
+	ID           string `json:"id"`
 }
 
-type GetUserWithDetailsRow struct {
-	UserID                string         `json:"user_id"`
-	UserName              string         `json:"user_name"`
-	UserEmail             string         `json:"user_email"`
-	UserDocument          string         `json:"user_document"`
-	UserPhone             sql.NullString `json:"user_phone"`
-	UserAddressID         sql.NullString `json:"user_address_id"`
-	UserRoleID            sql.NullString `json:"user_role_id"`
-	UserEnterpriseID      string         `json:"user_enterprise_id"`
-	RoleTitle             string         `json:"role_title"`
-	EnterpriseID          string         `json:"enterprise_id"`
-	EnterpriseName        string         `json:"enterprise_name"`
-	EnterpriseCnpj        string         `json:"enterprise_cnpj"`
-	EnterpriseEmail       string         `json:"enterprise_email"`
-	EnterpriseFantasyName sql.NullString `json:"enterprise_fantasy_name"`
-	EnterprisePhone       sql.NullString `json:"enterprise_phone"`
-	EnterpriseAddressID   sql.NullString `json:"enterprise_address_id"`
-	AddressID             sql.NullString `json:"address_id"`
-	AddressZipCode        sql.NullString `json:"address_zip_code"`
-	AddressState          sql.NullString `json:"address_state"`
-	AddressCity           sql.NullString `json:"address_city"`
-	AddressNeighborhood   sql.NullString `json:"address_neighborhood"`
-	AddressStreet         sql.NullString `json:"address_street"`
-	AddressNum            sql.NullString `json:"address_num"`
-	AddressLatitude       sql.NullString `json:"address_latitude"`
-	AddressLongitude      sql.NullString `json:"address_longitude"`
-	AddressAddInfo        sql.NullString `json:"address_add_info"`
-	Permissions           interface{}    `json:"permissions"`
+type GetUserByIDRow struct {
+	ID           string         `json:"id"`
+	Name         string         `json:"name"`
+	Email        string         `json:"email"`
+	PasswordHash string         `json:"password_hash"`
+	Document     string         `json:"document"`
+	Phone        sql.NullString `json:"phone"`
+	RoleID       sql.NullString `json:"role_id"`
+	EnterpriseID string         `json:"enterprise_id"`
+	AddressID    sql.NullString `json:"address_id"`
+	ZipCode      sql.NullString `json:"zip_code"`
+	State        sql.NullString `json:"state"`
+	City         sql.NullString `json:"city"`
+	Neighborhood sql.NullString `json:"neighborhood"`
+	Street       sql.NullString `json:"street"`
+	Num          sql.NullString `json:"num"`
+	Latitude     sql.NullString `json:"latitude"`
+	Longitude    sql.NullString `json:"longitude"`
+	AddInfo      sql.NullString `json:"add_info"`
 }
 
-func (q *Queries) GetUserWithDetails(ctx context.Context, arg GetUserWithDetailsParams) (GetUserWithDetailsRow, error) {
-	row := q.db.QueryRowContext(ctx, getUserWithDetails, arg.ID, arg.EnterpriseId)
-	var i GetUserWithDetailsRow
+func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (GetUserByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByID, arg.EnterpriseId, arg.ID)
+	var i GetUserByIDRow
 	err := row.Scan(
-		&i.UserID,
-		&i.UserName,
-		&i.UserEmail,
-		&i.UserDocument,
-		&i.UserPhone,
-		&i.UserAddressID,
-		&i.UserRoleID,
-		&i.UserEnterpriseID,
-		&i.RoleTitle,
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.PasswordHash,
+		&i.Document,
+		&i.Phone,
+		&i.RoleID,
 		&i.EnterpriseID,
-		&i.EnterpriseName,
-		&i.EnterpriseCnpj,
-		&i.EnterpriseEmail,
-		&i.EnterpriseFantasyName,
-		&i.EnterprisePhone,
-		&i.EnterpriseAddressID,
 		&i.AddressID,
-		&i.AddressZipCode,
-		&i.AddressState,
-		&i.AddressCity,
-		&i.AddressNeighborhood,
-		&i.AddressStreet,
-		&i.AddressNum,
-		&i.AddressLatitude,
-		&i.AddressLongitude,
-		&i.AddressAddInfo,
-		&i.Permissions,
+		&i.ZipCode,
+		&i.State,
+		&i.City,
+		&i.Neighborhood,
+		&i.Street,
+		&i.Num,
+		&i.Latitude,
+		&i.Longitude,
+		&i.AddInfo,
 	)
 	return i, err
 }

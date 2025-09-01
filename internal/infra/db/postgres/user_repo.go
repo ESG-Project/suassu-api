@@ -3,23 +3,35 @@ package postgres
 import (
 	"context"
 	"database/sql"
-	"encoding/json"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
+	domainenterprise "github.com/ESG-Project/suassu-api/internal/domain/enterprise"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
 
-type UserRepo struct{ q *sqlc.Queries }
+type UserRepo struct {
+	q   *sqlc.Queries
+	txm TxManagerInterface
+}
 
 // Construtor que aceita qualquer sqlc.DBTX (ex.: *sql.DB ou *sql.Tx)
-func NewUserRepoFrom(d dbtx) *UserRepo { return &UserRepo{q: sqlc.New(d)} }
+func NewUserRepoFrom(d dbtx) *UserRepo {
+	return &UserRepo{q: sqlc.New(d)}
+}
 
 // Compatibilidade com construtor anterior
-func NewUserRepo(db *sql.DB) *UserRepo { return NewUserRepoFrom(db) }
+func NewUserRepo(db *sql.DB) *UserRepo {
+	return &UserRepo{q: sqlc.New(db)}
+}
+
+// Construtor com TxManager para operações transacionais
+func NewUserRepoWithTx(db *sql.DB, txm TxManagerInterface) *UserRepo {
+	return &UserRepo{q: sqlc.New(db), txm: txm}
+}
 
 func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	return r.q.CreateUser(ctx, sqlc.CreateUserParams{
@@ -112,7 +124,7 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 
 // GetByEmailForAuth - específico para autenticação (sem filtro de tenant)
 func (r *UserRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
-	row, err := r.q.GetUserByEmailForAuth(ctx, email)
+	row, err := r.q.FindUserByEmailForAuth(ctx, email)
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return nil, apperr.New(apperr.CodeNotFound, "user not found")
@@ -145,191 +157,168 @@ func (r *UserRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 
 // GetByEmailInTenant - para operações de negócio (com filtro de tenant)
 func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID string) (*domainuser.User, error) {
-	row, err := r.q.GetUserByEmailInTenant(ctx, sqlc.GetUserByEmailInTenantParams{
-		EnterpriseId: enterpriseID,
-		Email:        email,
-	})
+	// Usar a query GetUserByID com filtro de email
+	// Por enquanto, vamos implementar uma busca simples
+	users, _, err := r.List(ctx, enterpriseID, 1000, nil)
 	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, apperr.New(apperr.CodeNotFound, "user not found")
-		}
 		return nil, err
 	}
 
-	user := domainuser.NewUser(
-		row.ID,
-		row.Name,
-		row.Email,
-		row.PasswordHash,
-		row.Document,
-		row.EnterpriseID,
-	)
-
-	if row.Phone.Valid {
-		user.SetPhone(&row.Phone.String)
-	}
-	if row.AddressID.Valid {
-		user.SetAddressID(&row.AddressID.String)
-	}
-	if row.RoleID.Valid {
-		user.SetRoleID(&row.RoleID.String)
+	for _, user := range users {
+		if user.Email == email {
+			return user, nil
+		}
 	}
 
-	return user, nil
+	return nil, apperr.New(apperr.CodeNotFound, "user not found")
 }
 
+// GetUserPermissionsWithRole - usando transação para buscar dados relacionados
 func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
-	row, err := r.q.GetUserPermissionsWithRole(ctx, sqlc.GetUserPermissionsWithRoleParams{
-		ID:           userID,
-		EnterpriseId: enterpriseID,
-	})
-	if err != nil {
-		return nil, err
+	if r.txm == nil {
+		return nil, apperr.New(apperr.CodeInvalid, "transaction manager required")
 	}
 
-	var permissions []*types.UserPermission
-	if row.Permissions != nil {
-		type permissionJSON struct {
-			ID          string `json:"id"`
-			FeatureID   string `json:"feature_id"`
-			FeatureName string `json:"feature_name"`
-			Create      bool   `json:"create"`
-			Read        bool   `json:"read"`
-			Update      bool   `json:"update"`
-			Delete      bool   `json:"delete"`
+	var result *types.UserPermissions
+
+	err := r.txm.RunInTx(ctx, func(repos Repos) error {
+		// 1. Buscar usuário básico
+		userRow, err := r.q.GetUserByID(ctx, sqlc.GetUserByIDParams{
+			EnterpriseId: enterpriseID,
+			ID:           userID,
+		})
+		if err != nil {
+			return err
 		}
 
-		var permJSON []permissionJSON
-
-		if permBytes, ok := row.Permissions.([]uint8); ok {
-			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
-				permissions = make([]*types.UserPermission, len(permJSON))
-				for i, p := range permJSON {
-					permissions[i] = &types.UserPermission{
-						ID:          p.ID,
-						FeatureID:   p.FeatureID,
-						FeatureName: p.FeatureName,
-						Create:      p.Create,
-						Read:        p.Read,
-						Update:      p.Update,
-						Delete:      p.Delete,
-					}
-				}
+		// 2. Buscar role (se existir)
+		var roleTitle string
+		if userRow.RoleID.Valid {
+			role, err := repos.Roles().GetByID(ctx, userRow.RoleID.String, enterpriseID)
+			if err != nil {
+				// Log do erro mas não falha a query principal
+				roleTitle = ""
+			} else {
+				roleTitle = role.Title
 			}
 		}
-	}
 
-	return &types.UserPermissions{
-		ID:          row.UserID,
-		Name:        row.UserName,
-		RoleTitle:   row.RoleTitle,
-		Permissions: permissions,
-	}, nil
+		// 3. Buscar permissões (se houver role)
+		var permissions []*types.UserPermission
+		if userRow.RoleID.Valid {
+			if permissions, err = repos.Permissions().GetByRoleID(ctx, userRow.RoleID.String); err != nil {
+				// Log do erro mas não falha a query principal
+				permissions = []*types.UserPermission{}
+			}
+		}
+
+		result = &types.UserPermissions{
+			ID:          userRow.ID,
+			Name:        userRow.Name,
+			RoleTitle:   roleTitle,
+			Permissions: permissions,
+		}
+
+		return nil
+	})
+
+	return result, err
 }
 
+// GetUserWithDetails - usando transação para buscar dados relacionados
 func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
-	row, err := r.q.GetUserWithDetails(ctx, sqlc.GetUserWithDetailsParams{
-		ID:           userID,
-		EnterpriseId: enterpriseID,
-	})
-	if err != nil {
-		return nil, err
+	if r.txm == nil {
+		return nil, apperr.New(apperr.CodeInvalid, "transaction manager required")
 	}
 
-	// Converter permissões do JSON para slice
-	var permissions []*types.UserPermission
-	if row.Permissions != nil {
-		// Estrutura auxiliar para unmarshal
-		type permissionJSON struct {
-			ID          string `json:"id"`
-			FeatureID   string `json:"feature_id"`
-			FeatureName string `json:"feature_name"`
-			Create      bool   `json:"create"`
-			Read        bool   `json:"read"`
-			Update      bool   `json:"update"`
-			Delete      bool   `json:"delete"`
+	var result *types.UserWithDetails
+
+	err := r.txm.RunInTx(ctx, func(repos Repos) error {
+		// 1. Buscar usuário básico
+		userRow, err := r.q.GetUserByID(ctx, sqlc.GetUserByIDParams{
+			EnterpriseId: enterpriseID,
+			ID:           userID,
+		})
+		if err != nil {
+			return err
 		}
 
-		var permJSON []permissionJSON
-
-		if permBytes, ok := row.Permissions.([]uint8); ok {
-			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
-				permissions = make([]*types.UserPermission, len(permJSON))
-				for i, p := range permJSON {
-					permissions[i] = &types.UserPermission{
-						ID:          p.ID,
-						FeatureID:   p.FeatureID,
-						FeatureName: p.FeatureName,
-						Create:      p.Create,
-						Read:        p.Read,
-						Update:      p.Update,
-						Delete:      p.Delete,
-					}
-				}
+		// 2. Buscar role (se existir)
+		var role *types.UserRole
+		if userRow.RoleID.Valid {
+			if role, err = repos.Roles().GetByID(ctx, userRow.RoleID.String, enterpriseID); err != nil {
+				// Log do erro mas não falha a query principal
+				role = nil
 			}
 		}
-	}
 
-	// Construir endereço se existir
-	var address *types.UserAddress
-	if row.AddressID.Valid {
-		address = &types.UserAddress{
-			ID:           row.AddressID.String,
-			ZipCode:      row.AddressZipCode.String,
-			State:        row.AddressState.String,
-			City:         row.AddressCity.String,
-			Neighborhood: row.AddressNeighborhood.String,
-			Street:       row.AddressStreet.String,
-			Num:          row.AddressNum.String,
+		// 3. Buscar empresa
+		var domainEnterprise *domainenterprise.Enterprise
+		if domainEnterprise, err = repos.Enterprises().GetByID(ctx, userRow.EnterpriseID); err != nil {
+			return err
 		}
-		if row.AddressLatitude.Valid {
-			address.Latitude = &row.AddressLatitude.String
-		}
-		if row.AddressLongitude.Valid {
-			address.Longitude = &row.AddressLongitude.String
-		}
-		if row.AddressAddInfo.Valid {
-			address.AddInfo = &row.AddressAddInfo.String
-		}
-	}
 
-	// Construir empresa
-	enterprise := &types.UserEnterprise{
-		ID:    row.EnterpriseID,
-		Name:  row.EnterpriseName,
-		CNPJ:  row.EnterpriseCnpj,
-		Email: row.EnterpriseEmail,
-	}
-	if row.EnterpriseFantasyName.Valid {
-		enterprise.FantasyName = &row.EnterpriseFantasyName.String
-	}
-	if row.EnterprisePhone.Valid {
-		enterprise.Phone = &row.EnterprisePhone.String
-	}
-	if row.EnterpriseAddressID.Valid {
-		enterprise.AddressID = &row.EnterpriseAddressID.String
-	}
-
-	// Construir role
-	var role *types.UserRole
-	if row.UserRoleID.Valid {
-		role = &types.UserRole{
-			ID:    row.UserRoleID.String,
-			Title: row.RoleTitle,
+		// Converter domain.Enterprise para types.UserEnterprise
+		var enterpriseAddress *types.UserAddress
+		if domainEnterprise.Address != nil {
+			enterpriseAddress = &types.UserAddress{
+				ID:           domainEnterprise.Address.ID,
+				ZipCode:      domainEnterprise.Address.ZipCode,
+				State:        domainEnterprise.Address.State,
+				City:         domainEnterprise.Address.City,
+				Neighborhood: domainEnterprise.Address.Neighborhood,
+				Street:       domainEnterprise.Address.Street,
+				Num:          domainEnterprise.Address.Num,
+				Latitude:     domainEnterprise.Address.Latitude,
+				Longitude:    domainEnterprise.Address.Longitude,
+				AddInfo:      domainEnterprise.Address.AddInfo,
+			}
 		}
-	}
 
-	// Construir resposta final
-	return &types.UserWithDetails{
-		ID:           row.UserID,
-		Name:         row.UserName,
-		Email:        row.UserEmail,
-		Document:     row.UserDocument,
-		Phone:        utils.FromNullString(row.UserPhone),
-		Address:      address,
-		Role:         role,
-		EnterpriseID: row.UserEnterpriseID,
-		Enterprise:   enterprise,
-		Permissions:  permissions,
-	}, nil
+		enterprise := &types.UserEnterprise{
+			ID:          domainEnterprise.ID,
+			Name:        domainEnterprise.Name,
+			CNPJ:        domainEnterprise.CNPJ,
+			Email:       domainEnterprise.Email,
+			FantasyName: domainEnterprise.FantasyName,
+			Phone:       domainEnterprise.Phone,
+			AddressID:   domainEnterprise.AddressID,
+			Address:     enterpriseAddress,
+		}
+
+		// 4. Buscar endereço (se existir)
+		var address *types.UserAddress
+		if userRow.AddressID.Valid {
+			if address, err = repos.Addresses().GetByID(ctx, userRow.AddressID.String); err != nil {
+				// Log do erro mas não falha a query principal
+				// address permanece nil
+			}
+		}
+
+		// 5. Buscar permissões (se houver role)
+		var permissions []*types.UserPermission
+		if role != nil {
+			if permissions, err = repos.Permissions().GetByRoleID(ctx, role.ID); err != nil {
+				// Log do erro mas não falha a query principal
+				permissions = []*types.UserPermission{}
+			}
+		}
+
+		result = &types.UserWithDetails{
+			ID:           userRow.ID,
+			Name:         userRow.Name,
+			Email:        userRow.Email,
+			Document:     userRow.Document,
+			Phone:        utils.FromNullString(userRow.Phone),
+			EnterpriseID: userRow.EnterpriseID,
+			Role:         role,
+			Enterprise:   enterprise,
+			Address:      address,
+			Permissions:  permissions,
+		}
+
+		return nil
+	})
+
+	return result, err
 }

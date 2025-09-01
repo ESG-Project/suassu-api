@@ -25,6 +25,23 @@ func convertUserWithDetailsToMeOut(user *types.UserWithDetails) *dto.MeOut {
 
 	var enterprise *dto.EnterpriseOut
 	if user.Enterprise != nil {
+		// Converter endereço da empresa se existir
+		var enterpriseAddress *dto.AddressOut
+		if user.Enterprise.Address != nil {
+			enterpriseAddress = &dto.AddressOut{
+				ID:           user.Enterprise.Address.ID,
+				ZipCode:      user.Enterprise.Address.ZipCode,
+				State:        user.Enterprise.Address.State,
+				City:         user.Enterprise.Address.City,
+				Neighborhood: user.Enterprise.Address.Neighborhood,
+				Street:       user.Enterprise.Address.Street,
+				Num:          user.Enterprise.Address.Num,
+				Latitude:     user.Enterprise.Address.Latitude,
+				Longitude:    user.Enterprise.Address.Longitude,
+				AddInfo:      user.Enterprise.Address.AddInfo,
+			}
+		}
+
 		enterprise = &dto.EnterpriseOut{
 			ID:          user.Enterprise.ID,
 			Name:        user.Enterprise.Name,
@@ -33,6 +50,7 @@ func convertUserWithDetailsToMeOut(user *types.UserWithDetails) *dto.MeOut {
 			FantasyName: user.Enterprise.FantasyName,
 			Phone:       user.Enterprise.Phone,
 			AddressID:   user.Enterprise.AddressID,
+			Address:     enterpriseAddress,
 		}
 	}
 

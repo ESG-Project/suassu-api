@@ -13,6 +13,10 @@ import (
 
 type EnterpriseRepo struct{ q *sqlc.Queries }
 
+func NewEnterpriseRepoFrom(d dbtx) *EnterpriseRepo {
+	return &EnterpriseRepo{q: sqlc.New(d)}
+}
+
 func NewEnterpriseRepo(db *sql.DB) *EnterpriseRepo {
 	return &EnterpriseRepo{q: sqlc.New(db)}
 }

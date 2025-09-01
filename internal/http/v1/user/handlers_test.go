@@ -36,16 +36,6 @@ func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, af
 	return f.users, &domainuser.PageInfo{HasMore: false, Next: nil}, nil
 }
 
-func (f *fakeSvc) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
-	// Simula busca por email
-	for _, user := range f.users {
-		if user.Email == email {
-			return &user, nil
-		}
-	}
-	return nil, apperr.New(apperr.CodeNotFound, "user not found")
-}
-
 func (f *fakeSvc) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	return nil, nil
 }

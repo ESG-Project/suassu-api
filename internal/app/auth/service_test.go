@@ -57,13 +57,6 @@ func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return nil, errors.New("user not found")
 }
 
-func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domain.User, error) {
-	if u, exists := f.users[email]; exists {
-		return u, nil
-	}
-	return nil, errors.New("user not found")
-}
-
 func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin"}, nil
 }
@@ -94,10 +87,6 @@ func (f *fakeUserService) Create(ctx context.Context, enterpriseID string, in ap
 
 func (f *fakeUserService) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]domain.User, *domain.PageInfo, error) {
 	return nil, nil, errors.New("not implemented in fake")
-}
-
-func (f *fakeUserService) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domain.User, error) {
-	return nil, errors.New("not implemented in fake")
 }
 
 func (f *fakeUserService) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {

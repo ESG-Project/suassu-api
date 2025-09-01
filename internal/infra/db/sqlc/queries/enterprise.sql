@@ -9,10 +9,17 @@ INSERT INTO "Enterprise" (
     "phone"
   )
 VALUES ($1, $2, $3, $4, $5, $6, $7);
-
+-- name: UpdateEnterprise :exec
+UPDATE "Enterprise"
+SET "cnpj" = $2,
+  "addressId" = $3,
+  "email" = $4,
+  "fantasyName" = $5,
+  "name" = $6,
+  "phone" = $7
+WHERE id = $1;
 -- name: GetEnterpriseByID :one
-SELECT
-  e.id,
+SELECT e.id,
   e.cnpj,
   e.email,
   e.name,
@@ -29,17 +36,6 @@ SELECT
   a.longitude,
   a."addInfo" AS add_info
 FROM "Enterprise" e
-JOIN "Address" a ON e."addressId" = a.id
+  JOIN "Address" a ON e."addressId" = a.id
 WHERE e.id = $1
 LIMIT 1;
-
--- name: UpdateEnterprise :exec
-UPDATE "Enterprise"
-SET
-  "cnpj" = $2,
-  "addressId" = $3,
-  "email" = $4,
-  "fantasyName" = $5,
-  "name" = $6,
-  "phone" = $7
-WHERE id = $1;
