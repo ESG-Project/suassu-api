@@ -213,6 +213,163 @@ func (q *Queries) GetUserPermissionsWithRole(ctx context.Context, arg GetUserPer
 	return i, err
 }
 
+const getUserWithDetails = `-- name: GetUserWithDetails :one
+SELECT u.id as user_id,
+  u.name as user_name,
+  u.email as user_email,
+  u.document as user_document,
+  u.phone as user_phone,
+  u."addressId" as user_address_id,
+  u."roleId" as user_role_id,
+  u."enterpriseId" as user_enterprise_id,
+  r.title as role_title,
+  e.id as enterprise_id,
+  e.name as enterprise_name,
+  e.cnpj as enterprise_cnpj,
+  e.email as enterprise_email,
+  e."fantasyName" as enterprise_fantasy_name,
+  e.phone as enterprise_phone,
+  e."addressId" as enterprise_address_id,
+  a.id as address_id,
+  a."zipCode" as address_zip_code,
+  a.state as address_state,
+  a.city as address_city,
+  a.neighborhood as address_neighborhood,
+  a.street as address_street,
+  a.num as address_num,
+  a.latitude as address_latitude,
+  a.longitude as address_longitude,
+  a."addInfo" as address_add_info,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id',
+        p.id,
+        'feature_id',
+        p."featureId",
+        'feature_name',
+        f.name,
+        'create',
+        p."create",
+        'read',
+        p."read",
+        'update',
+        p."update",
+        'delete',
+        p."delete"
+      )
+      ORDER BY f.name
+    ) FILTER (
+      WHERE p.id IS NOT NULL
+    ),
+    '[]'::json
+  ) as permissions
+FROM "User" u
+  JOIN "Role" r ON u."roleId" = r.id
+  JOIN "Enterprise" e ON u."enterpriseId" = e.id
+  LEFT JOIN "Address" a ON u."addressId" = a.id
+  LEFT JOIN "Permission" p ON r.id = p."roleId"
+  LEFT JOIN "Feature" f ON p."featureId" = f.id
+WHERE u.id = $1
+  AND u."enterpriseId" = $2
+GROUP BY u.id,
+  u.name,
+  u.email,
+  u.document,
+  u.phone,
+  u."addressId",
+  u."roleId",
+  u."enterpriseId",
+  r.title,
+  e.id,
+  e.name,
+  e.cnpj,
+  e.email,
+  e."fantasyName",
+  e.phone,
+  e."addressId",
+  a.id,
+  a."zipCode",
+  a.state,
+  a.city,
+  a.neighborhood,
+  a.street,
+  a.num,
+  a.latitude,
+  a.longitude,
+  a."addInfo"
+`
+
+type GetUserWithDetailsParams struct {
+	ID           string `json:"id"`
+	EnterpriseId string `json:"enterpriseId"`
+}
+
+type GetUserWithDetailsRow struct {
+	UserID                string         `json:"user_id"`
+	UserName              string         `json:"user_name"`
+	UserEmail             string         `json:"user_email"`
+	UserDocument          string         `json:"user_document"`
+	UserPhone             sql.NullString `json:"user_phone"`
+	UserAddressID         sql.NullString `json:"user_address_id"`
+	UserRoleID            sql.NullString `json:"user_role_id"`
+	UserEnterpriseID      string         `json:"user_enterprise_id"`
+	RoleTitle             string         `json:"role_title"`
+	EnterpriseID          string         `json:"enterprise_id"`
+	EnterpriseName        string         `json:"enterprise_name"`
+	EnterpriseCnpj        string         `json:"enterprise_cnpj"`
+	EnterpriseEmail       string         `json:"enterprise_email"`
+	EnterpriseFantasyName sql.NullString `json:"enterprise_fantasy_name"`
+	EnterprisePhone       sql.NullString `json:"enterprise_phone"`
+	EnterpriseAddressID   sql.NullString `json:"enterprise_address_id"`
+	AddressID             sql.NullString `json:"address_id"`
+	AddressZipCode        sql.NullString `json:"address_zip_code"`
+	AddressState          sql.NullString `json:"address_state"`
+	AddressCity           sql.NullString `json:"address_city"`
+	AddressNeighborhood   sql.NullString `json:"address_neighborhood"`
+	AddressStreet         sql.NullString `json:"address_street"`
+	AddressNum            sql.NullString `json:"address_num"`
+	AddressLatitude       sql.NullString `json:"address_latitude"`
+	AddressLongitude      sql.NullString `json:"address_longitude"`
+	AddressAddInfo        sql.NullString `json:"address_add_info"`
+	Permissions           interface{}    `json:"permissions"`
+}
+
+func (q *Queries) GetUserWithDetails(ctx context.Context, arg GetUserWithDetailsParams) (GetUserWithDetailsRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserWithDetails, arg.ID, arg.EnterpriseId)
+	var i GetUserWithDetailsRow
+	err := row.Scan(
+		&i.UserID,
+		&i.UserName,
+		&i.UserEmail,
+		&i.UserDocument,
+		&i.UserPhone,
+		&i.UserAddressID,
+		&i.UserRoleID,
+		&i.UserEnterpriseID,
+		&i.RoleTitle,
+		&i.EnterpriseID,
+		&i.EnterpriseName,
+		&i.EnterpriseCnpj,
+		&i.EnterpriseEmail,
+		&i.EnterpriseFantasyName,
+		&i.EnterprisePhone,
+		&i.EnterpriseAddressID,
+		&i.AddressID,
+		&i.AddressZipCode,
+		&i.AddressState,
+		&i.AddressCity,
+		&i.AddressNeighborhood,
+		&i.AddressStreet,
+		&i.AddressNum,
+		&i.AddressLatitude,
+		&i.AddressLongitude,
+		&i.AddressAddInfo,
+		&i.Permissions,
+	)
+	return i, err
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT u.id,
   u.name,

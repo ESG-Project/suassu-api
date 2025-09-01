@@ -132,3 +132,13 @@ func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string,
 
 	return userWithPermissions, nil
 }
+
+func (s *Service) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+	// Buscar usuário com todas as informações (incluindo endereço e empresa)
+	userWithDetails, err := s.repo.GetUserWithDetails(ctx, userID, enterpriseID)
+	if err != nil {
+		return nil, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	return userWithDetails, nil
+}

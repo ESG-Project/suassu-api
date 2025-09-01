@@ -57,7 +57,10 @@ func (s *Service) SignIn(ctx context.Context, in SignInInput) (SignInOutput, err
 	return SignInOutput{AccessToken: tok}, nil
 }
 
+func (s *Service) GetMe(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+	return s.userSvc.GetUserWithDetails(ctx, userID, enterpriseID)
+}
+
 func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
-	// Delega para o user service
 	return s.userSvc.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
 }

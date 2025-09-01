@@ -15,6 +15,7 @@ import (
 
 type Service interface {
 	SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error)
+	GetMe(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error)
 	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error)
 }
 
@@ -61,13 +62,19 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
 		return
 	}
-	writeJSON(w, http.StatusOK, map[string]any{
-		"sub":          claims.Subject,
-		"email":        claims.Email,
-		"name":         claims.Name,
-		"enterpriseId": claims.EnterpriseID,
-		"roleId":       claims.RoleID,
-	})
+
+	enterpriseID := httpmw.EnterpriseID(r.Context())
+	if enterpriseID == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
+		return
+	}
+
+	me, err := h.svc.GetMe(r.Context(), claims.Subject, enterpriseID)
+	if err != nil {
+		httperr.Handle(w, r, err)
+		return
+	}
+	writeJSON(w, http.StatusOK, me)
 }
 
 func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {

@@ -215,3 +215,103 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 		Permissions: permissions,
 	}, nil
 }
+
+func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+	row, err := r.q.GetUserWithDetails(ctx, sqlc.GetUserWithDetailsParams{
+		ID:           userID,
+		EnterpriseId: enterpriseID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	// Converter permissões do JSON para slice
+	var permissions []*dto.PermissionOut
+	if row.Permissions != nil {
+		// Estrutura auxiliar para unmarshal
+		type permissionJSON struct {
+			ID          string `json:"id"`
+			FeatureID   string `json:"feature_id"`
+			FeatureName string `json:"feature_name"`
+			Create      bool   `json:"create"`
+			Read        bool   `json:"read"`
+			Update      bool   `json:"update"`
+			Delete      bool   `json:"delete"`
+		}
+
+		var permJSON []permissionJSON
+
+		if permBytes, ok := row.Permissions.([]uint8); ok {
+			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
+				permissions = make([]*dto.PermissionOut, len(permJSON))
+				for i, p := range permJSON {
+					permissions[i] = &dto.PermissionOut{
+						ID:          p.ID,
+						FeatureID:   p.FeatureID,
+						FeatureName: p.FeatureName,
+						Create:      p.Create,
+						Read:        p.Read,
+						Update:      p.Update,
+						Delete:      p.Delete,
+					}
+				}
+			}
+		}
+	}
+
+	// Construir endereço se existir
+	var address *dto.AddressOut
+	if row.AddressID.Valid {
+		address = &dto.AddressOut{
+			ID:           row.AddressID.String,
+			ZipCode:      row.AddressZipCode.String,
+			State:        row.AddressState.String,
+			City:         row.AddressCity.String,
+			Neighborhood: row.AddressNeighborhood.String,
+			Street:       row.AddressStreet.String,
+			Num:          row.AddressNum.String,
+		}
+		if row.AddressLatitude.Valid {
+			address.Latitude = &row.AddressLatitude.String
+		}
+		if row.AddressLongitude.Valid {
+			address.Longitude = &row.AddressLongitude.String
+		}
+		if row.AddressAddInfo.Valid {
+			address.AddInfo = &row.AddressAddInfo.String
+		}
+	}
+
+	// Construir empresa
+	enterprise := &dto.EnterpriseOut{
+		ID:    row.EnterpriseID,
+		Name:  row.EnterpriseName,
+		CNPJ:  row.EnterpriseCnpj,
+		Email: row.EnterpriseEmail,
+	}
+	if row.EnterpriseFantasyName.Valid {
+		enterprise.FantasyName = &row.EnterpriseFantasyName.String
+	}
+	if row.EnterprisePhone.Valid {
+		enterprise.Phone = &row.EnterprisePhone.String
+	}
+	if row.EnterpriseAddressID.Valid {
+		enterprise.AddressID = &row.EnterpriseAddressID.String
+	}
+
+	// Construir resposta final
+	return &dto.MeOut{
+		ID:           row.UserID,
+		Name:         row.UserName,
+		Email:        row.UserEmail,
+		Document:     row.UserDocument,
+		Phone:        utils.FromNullString(row.UserPhone),
+		AddressID:    utils.FromNullString(row.UserAddressID),
+		Address:      address,
+		RoleID:       utils.FromNullString(row.UserRoleID),
+		RoleTitle:    &row.RoleTitle,
+		EnterpriseID: row.UserEnterpriseID,
+		Enterprise:   enterprise,
+		Permissions:  permissions,
+	}, nil
+}

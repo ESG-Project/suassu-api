@@ -12,6 +12,7 @@ type Repo interface {
 	List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error)
 	GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) // Para operações de negócio (com filtro de tenant)
 	GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error)                       // Para autenticação (sem filtro de tenant)
+	GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error)
 	GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error)
 }
 

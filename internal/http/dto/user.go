@@ -56,8 +56,8 @@ type MeOut struct {
 	Phone        *string          `json:"phone,omitempty"`
 	EnterpriseID string           `json:"enterpriseId"`
 	Enterprise   *EnterpriseOut   `json:"enterprise,omitempty"`
-	Address      *AddressOut      `json:"address,omitempty"`
 	AddressID    *string          `json:"addressId,omitempty"`
+	Address      *AddressOut      `json:"address,omitempty"`
 	RoleID       *string          `json:"roleId,omitempty"`
 	RoleTitle    *string          `json:"role,omitempty"`
 	Permissions  []*PermissionOut `json:"permissions,omitempty"`
