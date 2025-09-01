@@ -38,22 +38,86 @@ func (q *Queries) DeleteRole(ctx context.Context, id string) error {
 	return err
 }
 
+const getRoleByID = `-- name: GetRoleByID :one
+SELECT r."id" as role_id,
+  r."title" as role_title,
+  r."enterpriseId" as enterprise_id,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id',
+        p."id",
+        'feature_id',
+        p."featureId",
+        'feature_name',
+        f."name",
+        'create',
+        p."create",
+        'read',
+        p."read",
+        'update',
+        p."update",
+        'delete',
+        p."delete"
+      )
+      ORDER BY f."name"
+    ) FILTER (
+      WHERE p."id" IS NOT NULL
+    ),
+    '[]'::json
+  ) as permissions
+FROM "Role" r
+  LEFT JOIN "Permission" p ON r."id" = p."roleId"
+  LEFT JOIN "Feature" f ON p."featureId" = f."id"
+WHERE r."id" = $1
+GROUP BY r."id",
+  r."title",
+  r."enterpriseId"
+`
+
+type GetRoleByIDRow struct {
+	RoleID       string      `json:"role_id"`
+	RoleTitle    string      `json:"role_title"`
+	EnterpriseID string      `json:"enterprise_id"`
+	Permissions  interface{} `json:"permissions"`
+}
+
+func (q *Queries) GetRoleByID(ctx context.Context, id string) (GetRoleByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getRoleByID, id)
+	var i GetRoleByIDRow
+	err := row.Scan(
+		&i.RoleID,
+		&i.RoleTitle,
+		&i.EnterpriseID,
+		&i.Permissions,
+	)
+	return i, err
+}
+
 const listRolesByEnterprise = `-- name: ListRolesByEnterprise :many
-SELECT id, title, "enterpriseId"
+SELECT "id",
+  "title",
+  "enterpriseId" as enterprise_id
 FROM "Role"
 WHERE "enterpriseId" = $1
 `
 
-func (q *Queries) ListRolesByEnterprise(ctx context.Context, enterpriseid string) ([]Role, error) {
+type ListRolesByEnterpriseRow struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	EnterpriseID string `json:"enterprise_id"`
+}
+
+func (q *Queries) ListRolesByEnterprise(ctx context.Context, enterpriseid string) ([]ListRolesByEnterpriseRow, error) {
 	rows, err := q.db.QueryContext(ctx, listRolesByEnterprise, enterpriseid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Role
+	var items []ListRolesByEnterpriseRow
 	for rows.Next() {
-		var i Role
-		if err := rows.Scan(&i.ID, &i.Title, &i.EnterpriseId); err != nil {
+		var i ListRolesByEnterpriseRow
+		if err := rows.Scan(&i.ID, &i.Title, &i.EnterpriseID); err != nil {
 			return nil, err
 		}
 		items = append(items, i)

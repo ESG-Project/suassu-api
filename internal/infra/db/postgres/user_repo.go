@@ -3,10 +3,12 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
@@ -163,4 +165,53 @@ func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID s
 	}
 
 	return user, nil
+}
+
+func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+	row, err := r.q.GetUserPermissionsWithRole(ctx, sqlc.GetUserPermissionsWithRoleParams{
+		ID:           userID,
+		EnterpriseId: enterpriseID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	var permissions []*dto.PermissionOut
+	if row.Permissions != nil {
+		type permissionJSON struct {
+			ID          string `json:"id"`
+			FeatureID   string `json:"feature_id"`
+			FeatureName string `json:"feature_name"`
+			Create      bool   `json:"create"`
+			Read        bool   `json:"read"`
+			Update      bool   `json:"update"`
+			Delete      bool   `json:"delete"`
+		}
+
+		var permJSON []permissionJSON
+
+		if permBytes, ok := row.Permissions.([]uint8); ok {
+			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
+				permissions = make([]*dto.PermissionOut, len(permJSON))
+				for i, p := range permJSON {
+					permissions[i] = &dto.PermissionOut{
+						ID:          p.ID,
+						FeatureID:   p.FeatureID,
+						FeatureName: p.FeatureName,
+						Create:      p.Create,
+						Read:        p.Read,
+						Update:      p.Update,
+						Delete:      p.Delete,
+					}
+				}
+			}
+		}
+	}
+
+	return &dto.MyPermissionsOut{
+		ID:          row.UserID,
+		Name:        row.UserName,
+		RoleTitle:   row.RoleTitle,
+		Permissions: permissions,
+	}, nil
 }

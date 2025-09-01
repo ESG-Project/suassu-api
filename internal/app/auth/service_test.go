@@ -7,7 +7,9 @@ import (
 	"time"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -62,6 +64,10 @@ func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, 
 	return nil, errors.New("user not found")
 }
 
+func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+	return nil, errors.New("not implemented in fake")
+}
+
 func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
 	if f.err != nil {
 		return nil, domain.PageInfo{}, f.err
@@ -85,6 +91,24 @@ func (f *fakeHasher) Compare(hash, plain string) error {
 		return nil
 	}
 	return errors.New("password mismatch")
+}
+
+type fakeUserService struct{}
+
+func (f *fakeUserService) Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error) {
+	return "", errors.New("not implemented in fake")
+}
+
+func (f *fakeUserService) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]domain.User, *domain.PageInfo, error) {
+	return nil, nil, errors.New("not implemented in fake")
+}
+
+func (f *fakeUserService) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domain.User, error) {
+	return nil, errors.New("not implemented in fake")
+}
+
+func (f *fakeUserService) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+	return nil, errors.New("not implemented in fake")
 }
 
 type fakeTokenIssuer struct {
@@ -174,7 +198,9 @@ func TestService_SignIn(t *testing.T) {
 			hasher := tt.setupHasher()
 			tokens := tt.setupTokens()
 
-			svc := appauth.NewService(repo, hasher, tokens)
+			// Criar um fake user service
+			fakeUserSvc := &fakeUserService{}
+			svc := appauth.NewService(repo, fakeUserSvc, hasher, tokens)
 
 			// Execute
 			result, err := svc.SignIn(ctx, tt.input)

@@ -6,6 +6,7 @@ import (
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/dto"
 )
 
 type TokenIssuer interface {
@@ -22,13 +23,14 @@ type Claims struct {
 }
 
 type Service struct {
-	users  appuser.Repo
-	hasher appuser.Hasher
-	tokens TokenIssuer
+	users   appuser.Repo
+	userSvc appuser.ServiceInterface
+	hasher  appuser.Hasher
+	tokens  TokenIssuer
 }
 
-func NewService(users appuser.Repo, hasher appuser.Hasher, tokens TokenIssuer) *Service {
-	return &Service{users: users, hasher: hasher, tokens: tokens}
+func NewService(users appuser.Repo, userSvc appuser.ServiceInterface, hasher appuser.Hasher, tokens TokenIssuer) *Service {
+	return &Service{users: users, userSvc: userSvc, hasher: hasher, tokens: tokens}
 }
 
 type SignInInput struct {
@@ -53,4 +55,9 @@ func (s *Service) SignIn(ctx context.Context, in SignInInput) (SignInOutput, err
 		return SignInOutput{}, apperr.Wrap(err, apperr.CodeInternal, "failed to generate token")
 	}
 	return SignInOutput{AccessToken: tok}, nil
+}
+
+func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+	// Delega para o user service
+	return s.userSvc.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
 }

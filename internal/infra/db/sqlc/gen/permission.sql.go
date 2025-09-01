@@ -10,7 +10,15 @@ import (
 )
 
 const createPermission = `-- name: CreatePermission :one
-INSERT INTO "Permission" (id, "featureId", "roleId", "create", "read", "update", "delete")
+INSERT INTO "Permission" (
+    id,
+    "featureId",
+    "roleId",
+    "create",
+    "read",
+    "update",
+    "delete"
+  )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
 RETURNING id, "featureId", "roleId", "create", read, update, delete
 `
@@ -59,24 +67,44 @@ func (q *Queries) DeletePermission(ctx context.Context, id string) error {
 }
 
 const listPermissionsByRole = `-- name: ListPermissionsByRole :many
-SELECT id, "featureId", "roleId", "create", read, update, delete
-FROM "Permission"
+SELECT p."id",
+  p."featureId" as feature_id,
+  f."name" as feature_name,
+  p."roleId" as role_id,
+  p."create",
+  p."read",
+  p."update",
+  p."delete"
+FROM "Permission" p
+  JOIN "Feature" f ON p."featureId" = f."id"
 WHERE "roleId" = $1
 `
 
-func (q *Queries) ListPermissionsByRole(ctx context.Context, roleid string) ([]Permission, error) {
+type ListPermissionsByRoleRow struct {
+	ID          string `json:"id"`
+	FeatureID   string `json:"feature_id"`
+	FeatureName string `json:"feature_name"`
+	RoleID      string `json:"role_id"`
+	Create      bool   `json:"create"`
+	Read        bool   `json:"read"`
+	Update      bool   `json:"update"`
+	Delete      bool   `json:"delete"`
+}
+
+func (q *Queries) ListPermissionsByRole(ctx context.Context, roleid string) ([]ListPermissionsByRoleRow, error) {
 	rows, err := q.db.QueryContext(ctx, listPermissionsByRole, roleid)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []Permission
+	var items []ListPermissionsByRoleRow
 	for rows.Next() {
-		var i Permission
+		var i ListPermissionsByRoleRow
 		if err := rows.Scan(
 			&i.ID,
-			&i.FeatureId,
-			&i.RoleId,
+			&i.FeatureID,
+			&i.FeatureName,
+			&i.RoleID,
 			&i.Create,
 			&i.Read,
 			&i.Update,
@@ -97,7 +125,10 @@ func (q *Queries) ListPermissionsByRole(ctx context.Context, roleid string) ([]P
 
 const updatePermission = `-- name: UpdatePermission :one
 UPDATE "Permission"
-SET "create" = $2, "read" = $3, "update" = $4, "delete" = $5
+SET "create" = $2,
+  "read" = $3,
+  "update" = $4,
+  "delete" = $5
 WHERE id = $1
 RETURNING id, "featureId", "roleId", "create", read, update, delete
 `

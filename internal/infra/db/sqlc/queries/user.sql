@@ -31,7 +31,7 @@ SELECT u.id,
   a.longitude,
   a."addInfo" AS add_info
 FROM "User" u
-JOIN "Address" a ON u."addressId" = a.id
+  JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
     u.email > $3
@@ -70,3 +70,42 @@ SELECT id,
 FROM "User"
 WHERE email = $1
 LIMIT 1;
+-- name: GetUserPermissionsWithRole :one
+SELECT u.id as user_id,
+  u.name as user_name,
+  r.id as role_id,
+  r.title as role_title,
+  COALESCE(
+    json_agg(
+      json_build_object(
+        'id',
+        p.id,
+        'feature_id',
+        p."featureId",
+        'feature_name',
+        f.name,
+        'create',
+        p."create",
+        'read',
+        p."read",
+        'update',
+        p."update",
+        'delete',
+        p."delete"
+      )
+      ORDER BY f.name
+    ) FILTER (
+      WHERE p.id IS NOT NULL
+    ),
+    '[]'::json
+  ) as permissions
+FROM "User" u
+  JOIN "Role" r ON u."roleId" = r.id
+  LEFT JOIN "Permission" p ON r.id = p."roleId"
+  LEFT JOIN "Feature" f ON p."featureId" = f.id
+WHERE u.id = $1
+  AND u."enterpriseId" = $2
+GROUP BY u.id,
+  u.name,
+  r.id,
+  r.title;

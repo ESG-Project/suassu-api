@@ -64,7 +64,7 @@ func main() {
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
-	authSvc := appauth.NewService(userRepo, hasher, jwtIssuer)
+	authSvc := appauth.NewService(userRepo, userSvc, hasher, jwtIssuer)
 	authH := authhttp.NewHandler(authSvc)
 
 	// 4) HTTP router
@@ -85,6 +85,7 @@ func main() {
 			// privado
 			auth.Group(func(priv chi.Router) {
 				priv.Use(httpmw.AuthJWT(jwtIssuer))
+				priv.Use(httpmw.RequireEnterprise)
 				authH.RegisterPrivate(priv)
 			})
 		})

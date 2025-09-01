@@ -6,6 +6,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
@@ -121,4 +122,13 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 		result[i] = *user
 	}
 	return result, &pageInfo, nil
+}
+
+func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+	userWithPermissions, err := s.repo.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
+	if err != nil {
+		return nil, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	return userWithPermissions, nil
 }
