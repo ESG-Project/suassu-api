@@ -43,10 +43,18 @@ func (s *Service) HandleAddress(ctx context.Context, in *CreateInput) (string, e
 		in.AddInfo = nil
 	}
 	// REGRA DE NEGÓCIO: Verificar se endereço existe antes de criar
-	existingAddr, err := s.repo.FindByDetails(
-		ctx,
-		in,
+	searchParams := domainaddress.NewSearchParams(
+		in.ZipCode,
+		in.State,
+		in.City,
+		in.Neighborhood,
+		in.Street,
+		in.Num,
+		in.Latitude,
+		in.Longitude,
+		in.AddInfo,
 	)
+	existingAddr, err := s.repo.FindByDetails(ctx, searchParams)
 
 	// Se encontrou endereço existente, retorna o ID
 	if err == nil && existingAddr != nil {

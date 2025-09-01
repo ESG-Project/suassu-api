@@ -2,7 +2,6 @@ package user
 
 import (
 	"context"
-	"errors"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -99,7 +98,7 @@ func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInpu
 
 func (s *Service) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
 	if email == "" {
-		return nil, errors.New("email is required")
+		return nil, apperr.New(apperr.CodeInvalid, "email is required")
 	}
 	return s.repo.GetByEmailInTenant(ctx, enterpriseID, email)
 }
@@ -109,10 +108,12 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 		limit = 50
 	}
 
-	users, pageInfo, err := s.repo.List(ctx, enterpriseID, limit, after)
+	users, _, err := s.repo.List(ctx, enterpriseID, limit, after)
 	if err != nil {
 		return nil, nil, err
 	}
+
+	users, pageInfo := PaginateResult(users, limit)
 
 	// Converter ponteiros para valores
 	result := make([]domainuser.User, len(users))

@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 
-	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
@@ -19,17 +18,17 @@ func NewAddressRepoFrom(d dbtx) *AddressRepo { return &AddressRepo{q: sqlc.New(d
 // Compatibilidade com construtor anterior
 func NewAddressRepo(db *sql.DB) *AddressRepo { return NewAddressRepoFrom(db) }
 
-func (r *AddressRepo) FindByDetails(ctx context.Context, address *address.CreateInput) (*domainaddress.Address, error) {
+func (r *AddressRepo) FindByDetails(ctx context.Context, params *domainaddress.SearchParams) (*domainaddress.Address, error) {
 	row, err := r.q.FindAddressByDetails(ctx, sqlc.FindAddressByDetailsParams{
-		ZipCode:      address.ZipCode,
-		State:        address.State,
-		City:         address.City,
-		Neighborhood: address.Neighborhood,
-		Street:       address.Street,
-		Num:          address.Num,
-		Latitude:     utils.ToNullString(address.Latitude),
-		Longitude:    utils.ToNullString(address.Longitude),
-		AddInfo:      utils.ToNullString(address.AddInfo),
+		ZipCode:      params.ZipCode,
+		State:        params.State,
+		City:         params.City,
+		Neighborhood: params.Neighborhood,
+		Street:       params.Street,
+		Num:          params.Num,
+		Latitude:     utils.ToNullString(params.Latitude),
+		Longitude:    utils.ToNullString(params.Longitude),
+		AddInfo:      utils.ToNullString(params.AddInfo),
 	})
 	if err != nil {
 		if err == sql.ErrNoRows {

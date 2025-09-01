@@ -9,7 +9,6 @@ import (
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
-	"github.com/google/uuid"
 )
 
 type UserRepo struct{ q *sqlc.Queries }
@@ -54,23 +53,6 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 		return nil, domainuser.PageInfo{}, err
 	}
 
-	hasMore := false
-	var next *domainuser.UserCursorKey
-
-	if int32(len(rows)) > limit {
-		hasMore = true
-		// Calcular next ANTES de truncar
-		last := rows[limit-1] // Usar índice limit-1, não len(rows)-1
-		lastID, _ := uuid.Parse(last.ID)
-		next = &domainuser.UserCursorKey{Email: last.Email, ID: lastID}
-		rows = rows[:limit]
-	} else if len(rows) > 0 {
-		// Se não há mais páginas, next é nil
-		last := rows[len(rows)-1]
-		lastID, _ := uuid.Parse(last.ID)
-		next = &domainuser.UserCursorKey{Email: last.Email, ID: lastID}
-	}
-
 	out := make([]*domainuser.User, 0, len(rows))
 	for _, row := range rows {
 		u := domainuser.NewUser(
@@ -112,7 +94,7 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 		out = append(out, u)
 	}
 
-	return out, domainuser.PageInfo{Next: next, HasMore: hasMore}, nil
+	return out, domainuser.PageInfo{}, nil
 }
 
 // GetByEmailForAuth - específico para autenticação (sem filtro de tenant)

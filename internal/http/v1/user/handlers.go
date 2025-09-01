@@ -1,7 +1,6 @@
 package userhttp
 
 import (
-	"context"
 	"encoding/json"
 	"net/http"
 	"strconv"
@@ -11,16 +10,15 @@ import (
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
+	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/ESG-Project/suassu-api/internal/http/response"
 	"github.com/go-chi/chi/v5"
 )
 
-type Service interface {
-	Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error)
-	List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error)
-}
+// Service define a interface do serviço de usuários para a camada HTTP
+type Service = appuser.ServiceInterface
 
 func Routes(svc Service) chi.Router {
 	r := chi.NewRouter()
@@ -84,36 +82,11 @@ func Routes(svc Service) chi.Router {
 			return
 		}
 
-		type addressOut struct {
-			ID           string  `json:"id"`
-			State        string  `json:"state"`
-			ZipCode      string  `json:"zipCode"`
-			City         string  `json:"city"`
-			Neighborhood string  `json:"neighborhood"`
-			Street       string  `json:"street"`
-			Num          string  `json:"num"`
-			Latitude     *string `json:"latitude,omitempty"`
-			Longitude    *string `json:"longitude,omitempty"`
-			AddInfo      *string `json:"addInfo,omitempty"`
-		}
-
-		type userOut struct {
-			ID           string      `json:"id"`
-			Name         string      `json:"name"`
-			Email        string      `json:"email"`
-			Document     string      `json:"document"`
-			Phone        *string     `json:"phone,omitempty"`
-			AddressID    *string     `json:"addressId,omitempty"`
-			Address      *addressOut `json:"address,omitempty"`
-			RoleID       *string     `json:"roleId,omitempty"`
-			EnterpriseID string      `json:"enterpriseId"`
-		}
-
-		out := make([]userOut, 0, len(users))
+		out := make([]dto.UserOut, 0, len(users))
 		for _, u := range users {
-			var aOut *addressOut
+			var aOut *dto.AddressOut
 			if u.Address != nil {
-				aOut = &addressOut{
+				aOut = &dto.AddressOut{
 					ID:           u.Address.ID,
 					ZipCode:      u.Address.ZipCode,
 					State:        u.Address.State,
@@ -127,7 +100,7 @@ func Routes(svc Service) chi.Router {
 				}
 			}
 
-			out = append(out, userOut{
+			out = append(out, dto.UserOut{
 				ID: u.ID, Name: u.Name, Email: u.Email, Document: u.Document,
 				Phone: u.Phone, AddressID: u.AddressID, Address: aOut, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
 			})

@@ -35,8 +35,14 @@ func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, af
 	return f.users, &domainuser.PageInfo{HasMore: false, Next: nil}, nil
 }
 
-func (f *fakeSvc) ListAfter(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]domainuser.User, *domainuser.PageInfo, error) {
-	return f.users, &domainuser.PageInfo{HasMore: false}, nil
+func (f *fakeSvc) GetByEmailInTenant(ctx context.Context, enterpriseID string, email string) (*domainuser.User, error) {
+	// Simula busca por email
+	for _, user := range f.users {
+		if user.Email == email {
+			return &user, nil
+		}
+	}
+	return nil, apperr.New(apperr.CodeNotFound, "user not found")
 }
 
 // Helper para criar router de teste com middlewares simulados
