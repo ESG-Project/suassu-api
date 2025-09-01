@@ -8,6 +8,7 @@ import (
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
+	userdto "github.com/ESG-Project/suassu-api/internal/http/dto/user"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
@@ -76,7 +77,7 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Converter para DTO HTTP
-	meOut := convertUserWithDetailsToMeOut(me)
+	meOut := userdto.ToMeOut(me)
 	writeJSON(w, http.StatusOK, meOut)
 }
 
@@ -100,7 +101,7 @@ func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Converter para DTO HTTP
-	permissionsOut := convertUserPermissionsToMyPermissionsOut(permissions)
+	permissionsOut := userdto.ToMyPermissionsOut(permissions)
 	writeJSON(w, http.StatusOK, permissionsOut)
 }
 

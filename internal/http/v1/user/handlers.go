@@ -8,7 +8,7 @@ import (
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
+	userdto "github.com/ESG-Project/suassu-api/internal/http/dto/user"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/ESG-Project/suassu-api/internal/http/pagination"
@@ -67,28 +67,9 @@ func Routes(svc Service) chi.Router {
 			return
 		}
 
-		out := make([]dto.UserOut, 0, len(users))
+		out := make([]userdto.UserOut, 0, len(users))
 		for _, u := range users {
-			var aOut *dto.AddressOut
-			if u.Address != nil {
-				aOut = &dto.AddressOut{
-					ID:           u.Address.ID,
-					ZipCode:      u.Address.ZipCode,
-					State:        u.Address.State,
-					City:         u.Address.City,
-					Neighborhood: u.Address.Neighborhood,
-					Street:       u.Address.Street,
-					Num:          u.Address.Num,
-					Latitude:     u.Address.Latitude,
-					Longitude:    u.Address.Longitude,
-					AddInfo:      u.Address.AddInfo,
-				}
-			}
-
-			out = append(out, dto.UserOut{
-				ID: u.ID, Name: u.Name, Email: u.Email, Document: u.Document,
-				Phone: u.Phone, AddressID: u.AddressID, Address: aOut, RoleID: u.RoleID, EnterpriseID: u.EnterpriseID,
-			})
+			out = append(out, *userdto.ToUserOut(&u))
 		}
 
 		var nextCursor *string
