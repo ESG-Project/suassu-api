@@ -43,13 +43,13 @@ func (r *EnterpriseRepo) GetByID(ctx context.Context, id string) (*domainenterpr
 		CNPJ:        row.Cnpj,
 		Email:       row.Email,
 		Name:        row.Name,
-		FantasyName: &row.FantasyName.String,
-		Phone:       &row.Phone.String,
-		AddressID:   &row.AddressId.String,
+		FantasyName: utils.FromNullString(row.FantasyName),
+		Phone:       utils.FromNullString(row.Phone),
+		AddressID:   utils.FromNullString(row.AddressId),
 	}
 
 	if row.AddressId.Valid {
-		enterprise.Address = &domainaddress.Address{
+		addr := &domainaddress.Address{
 			ID:           row.AddressId.String,
 			ZipCode:      row.ZipCode,
 			State:        row.State,
@@ -57,10 +57,17 @@ func (r *EnterpriseRepo) GetByID(ctx context.Context, id string) (*domainenterpr
 			Neighborhood: row.Neighborhood,
 			Street:       row.Street,
 			Num:          row.Num,
-			Latitude:     &row.Latitude.String,
-			Longitude:    &row.Longitude.String,
-			AddInfo:      &row.AddInfo.String,
 		}
+		if row.Latitude.Valid {
+			addr.SetLatitude(&row.Latitude.String)
+		}
+		if row.Longitude.Valid {
+			addr.SetLongitude(&row.Longitude.String)
+		}
+		if row.AddInfo.Valid {
+			addr.SetAddInfo(&row.AddInfo.String)
+		}
+		enterprise.Address = addr
 	}
 
 	return enterprise, nil

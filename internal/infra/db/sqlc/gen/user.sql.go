@@ -390,7 +390,7 @@ SELECT u.id,
   a.longitude,
   a."addInfo" AS add_info
 FROM "User" u
-  JOIN "Address" a ON u."addressId" = a.id
+  LEFT JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
     u.email > $3
@@ -421,12 +421,12 @@ type ListUsersRow struct {
 	AddressID    sql.NullString `json:"address_id"`
 	RoleID       sql.NullString `json:"role_id"`
 	EnterpriseID string         `json:"enterprise_id"`
-	ZipCode      string         `json:"zip_code"`
-	State        string         `json:"state"`
-	City         string         `json:"city"`
-	Neighborhood string         `json:"neighborhood"`
-	Street       string         `json:"street"`
-	Num          string         `json:"num"`
+	ZipCode      sql.NullString `json:"zip_code"`
+	State        sql.NullString `json:"state"`
+	City         sql.NullString `json:"city"`
+	Neighborhood sql.NullString `json:"neighborhood"`
+	Street       sql.NullString `json:"street"`
+	Num          sql.NullString `json:"num"`
 	Latitude     sql.NullString `json:"latitude"`
 	Longitude    sql.NullString `json:"longitude"`
 	AddInfo      sql.NullString `json:"add_info"`

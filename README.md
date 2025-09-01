@@ -81,5 +81,5 @@ sqlc.yaml                → config do sqlc
 
 ## 📚 Documentação Complementar
 
-* [📐 Arquitetura e Padrões](docs/architecture.md)
-* [🏗️ Situação e Padrão do Banco de Dados](docs/database.md)
+* [📐 Arquitetura e Padrões](docs/ARCHITECTURE.md)
+* [🏗️ Situação e Padrão do Banco de Dados](docs/DATABASE.md)

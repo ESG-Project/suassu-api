@@ -5,14 +5,13 @@ import (
 	"net/http"
 	"strconv"
 
-	"encoding/base64"
-
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
+	"github.com/ESG-Project/suassu-api/internal/http/pagination"
 	"github.com/ESG-Project/suassu-api/internal/http/response"
 	"github.com/go-chi/chi/v5"
 )
@@ -26,10 +25,6 @@ func Routes(svc Service) chi.Router {
 	// POST /users
 	r.Post("/", func(w http.ResponseWriter, req *http.Request) {
 		enterpriseID := httpmw.EnterpriseID(req.Context())
-		if enterpriseID == "" {
-			httperr.Handle(w, req, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
-			return
-		}
 
 		var in appuser.CreateInput
 		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
@@ -50,10 +45,6 @@ func Routes(svc Service) chi.Router {
 	// GET /users?limit=50&cursor=...
 	r.Get("/", func(w http.ResponseWriter, req *http.Request) {
 		enterpriseID := httpmw.EnterpriseID(req.Context())
-		if enterpriseID == "" {
-			httperr.Handle(w, req, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
-			return
-		}
 
 		limit := parseInt32(req.URL.Query().Get("limit"), 50)
 		if limit > 1000 {
@@ -64,14 +55,8 @@ func Routes(svc Service) chi.Router {
 
 		var after *domainuser.UserCursorKey
 		if cursorStr != "" {
-			// Decodificar cursor base64 JSON
-			decoded, err := base64.StdEncoding.DecodeString(cursorStr)
-			if err != nil {
+			if err := pagination.Decode(cursorStr, &after); err != nil {
 				httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid cursor format"))
-				return
-			}
-			if err := json.Unmarshal(decoded, &after); err != nil {
-				httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid cursor data"))
 				return
 			}
 		}
@@ -108,9 +93,9 @@ func Routes(svc Service) chi.Router {
 
 		var nextCursor *string
 		if pageInfo.Next != nil {
-			cursorData, _ := json.Marshal(pageInfo.Next)
-			encoded := base64.StdEncoding.EncodeToString(cursorData)
-			nextCursor = &encoded
+			if encoded, err := pagination.Encode(pageInfo.Next); err == nil {
+				nextCursor = &encoded
+			}
 		}
 
 		meta := response.MetaCursor{

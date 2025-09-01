@@ -71,24 +71,35 @@ func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 		}
 		if row.AddressID.Valid {
 			u.SetAddressID(&row.AddressID.String)
-			u.SetAddress(&domainaddress.Address{
-				ID:           row.AddressID.String,
-				ZipCode:      row.ZipCode,
-				Street:       row.Street,
-				City:         row.City,
-				State:        row.State,
-				Neighborhood: row.Neighborhood,
-				Num:          row.Num,
-			})
+			addr := &domainaddress.Address{ID: row.AddressID.String}
+			if row.ZipCode.Valid {
+				addr.ZipCode = row.ZipCode.String
+			}
+			if row.State.Valid {
+				addr.State = row.State.String
+			}
+			if row.City.Valid {
+				addr.City = row.City.String
+			}
+			if row.Neighborhood.Valid {
+				addr.Neighborhood = row.Neighborhood.String
+			}
+			if row.Street.Valid {
+				addr.Street = row.Street.String
+			}
+			if row.Num.Valid {
+				addr.Num = row.Num.String
+			}
 			if row.Latitude.Valid {
-				u.Address.SetLatitude(&row.Latitude.String)
+				addr.SetLatitude(&row.Latitude.String)
 			}
 			if row.Longitude.Valid {
-				u.Address.SetLongitude(&row.Longitude.String)
+				addr.SetLongitude(&row.Longitude.String)
 			}
 			if row.AddInfo.Valid {
-				u.Address.SetAddInfo(&row.AddInfo.String)
+				addr.SetAddInfo(&row.AddInfo.String)
 			}
+			u.SetAddress(addr)
 		}
 		if row.RoleID.Valid {
 			u.SetRoleID(&row.RoleID.String)

@@ -31,7 +31,7 @@ SELECT u.id,
   a.longitude,
   a."addInfo" AS add_info
 FROM "User" u
-  JOIN "Address" a ON u."addressId" = a.id
+  LEFT JOIN "Address" a ON u."addressId" = a.id
 WHERE "enterpriseId" = $1
   AND (
     u.email > $3
