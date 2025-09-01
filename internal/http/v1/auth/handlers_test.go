@@ -10,6 +10,7 @@ import (
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
@@ -30,6 +31,14 @@ func (f *fakeAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (a
 		return appauth.SignInOutput{}, apperr.New(apperr.CodeUnauthorized, "invalid credentials")
 	}
 	return appauth.SignInOutput{AccessToken: f.token}, nil
+}
+
+func (f *fakeAuthService) GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return &types.UserWithDetails{ID: userID, Name: "Ana", Email: "ana@ex.com", EnterpriseID: enterpriseID}, nil
+}
+
+func (f *fakeAuthService) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin", Permissions: nil}, nil
 }
 
 // fakeTokenIssuer implementa appauth.TokenIssuer.
@@ -76,6 +85,7 @@ func newAuthRouterPrivate(tokenIssuer *fakeTokenIssuer) http.Handler {
 		v1.Route("/auth", func(auth chi.Router) {
 			auth.Group(func(priv chi.Router) {
 				priv.Use(httpmw.AuthJWT(tokenIssuer))
+				priv.Use(httpmw.RequireEnterprise)
 				h.RegisterPrivate(priv) // GET /api/v1/auth/me
 			})
 		})
@@ -163,10 +173,10 @@ func TestAuth_Me_OK(t *testing.T) {
 	require.Equal(t, http.StatusOK, rr.Code)
 	var resp map[string]any
 	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
-	require.Equal(t, "u1", resp["sub"])
-	require.Equal(t, "ana@ex.com", resp["email"])
-	require.Equal(t, "Ana", resp["name"])
-	require.Equal(t, "ent-1", resp["enterpriseId"])
+	require.Equal(t, "u1", resp["id"])              // MeOut.id
+	require.Equal(t, "ana@ex.com", resp["email"])   // MeOut.email
+	require.Equal(t, "Ana", resp["name"])           // MeOut.name
+	require.Equal(t, "ent-1", resp["enterpriseId"]) // MeOut.enterpriseId
 }
 
 func TestAuth_Me_Unauthorized_NoHeader(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"time"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/stretchr/testify/require"
 )
 
@@ -64,19 +64,12 @@ func (f *fakeRepo) GetByEmailInTenant(ctx context.Context, enterpriseID string, 
 	return nil, errors.New("user not found")
 }
 
-func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
-	return nil, errors.New("not implemented in fake")
+func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin"}, nil
 }
 
-func (f *fakeRepo) ListAfterAsc(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
-	if f.err != nil {
-		return nil, domain.PageInfo{}, f.err
-	}
-	users := []*domain.User{
-		{ID: "user-1", Name: "Ana", Email: "ana@ex.com", EnterpriseID: "ent-1"},
-		{ID: "user-2", Name: "Bob", Email: "bob@ex.com", EnterpriseID: "ent-1"},
-	}
-	return users, domain.PageInfo{}, nil
+func (f *fakeRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return &types.UserWithDetails{ID: userID, Name: "Ana", Email: "ana@ex.com", EnterpriseID: enterpriseID}, nil
 }
 
 type fakeHasher struct{}
@@ -107,8 +100,12 @@ func (f *fakeUserService) GetByEmailInTenant(ctx context.Context, enterpriseID s
 	return nil, errors.New("not implemented in fake")
 }
 
-func (f *fakeUserService) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+func (f *fakeUserService) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	return nil, errors.New("not implemented in fake")
+}
+
+func (f *fakeUserService) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin"}, nil
 }
 
 type fakeTokenIssuer struct {

@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
@@ -55,6 +56,14 @@ func (f *fakeRepo) ListAfter(ctx context.Context, enterpriseID string, limit int
 		return nil, domainuser.PageInfo{}, f.err
 	}
 	return f.users, domainuser.PageInfo{}, nil
+}
+
+func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return &types.UserPermissions{ID: userID, Name: "", RoleTitle: ""}, nil
+}
+
+func (f *fakeRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return &types.UserWithDetails{ID: userID, Name: "", Email: "", EnterpriseID: enterpriseID}, nil
 }
 
 type fakeHasher struct{ err error }

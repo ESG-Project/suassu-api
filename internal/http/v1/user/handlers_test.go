@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
@@ -43,6 +44,14 @@ func (f *fakeSvc) GetByEmailInTenant(ctx context.Context, enterpriseID string, e
 		}
 	}
 	return nil, apperr.New(apperr.CodeNotFound, "user not found")
+}
+
+func (f *fakeSvc) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
+	return nil, nil
+}
+
+func (f *fakeSvc) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
+	return nil, nil
 }
 
 // Helper para criar router de teste com middlewares simulados
