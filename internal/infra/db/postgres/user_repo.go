@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"encoding/json"
 
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainaddress "github.com/ESG-Project/suassu-api/internal/domain/address"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
@@ -167,7 +167,7 @@ func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID s
 	return user, nil
 }
 
-func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	row, err := r.q.GetUserPermissionsWithRole(ctx, sqlc.GetUserPermissionsWithRoleParams{
 		ID:           userID,
 		EnterpriseId: enterpriseID,
@@ -176,7 +176,7 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 		return nil, err
 	}
 
-	var permissions []*dto.PermissionOut
+	var permissions []*types.UserPermission
 	if row.Permissions != nil {
 		type permissionJSON struct {
 			ID          string `json:"id"`
@@ -192,9 +192,9 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 
 		if permBytes, ok := row.Permissions.([]uint8); ok {
 			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
-				permissions = make([]*dto.PermissionOut, len(permJSON))
+				permissions = make([]*types.UserPermission, len(permJSON))
 				for i, p := range permJSON {
-					permissions[i] = &dto.PermissionOut{
+					permissions[i] = &types.UserPermission{
 						ID:          p.ID,
 						FeatureID:   p.FeatureID,
 						FeatureName: p.FeatureName,
@@ -208,7 +208,7 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 		}
 	}
 
-	return &dto.MyPermissionsOut{
+	return &types.UserPermissions{
 		ID:          row.UserID,
 		Name:        row.UserName,
 		RoleTitle:   row.RoleTitle,
@@ -216,7 +216,7 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 	}, nil
 }
 
-func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	row, err := r.q.GetUserWithDetails(ctx, sqlc.GetUserWithDetailsParams{
 		ID:           userID,
 		EnterpriseId: enterpriseID,
@@ -226,7 +226,7 @@ func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 	}
 
 	// Converter permissões do JSON para slice
-	var permissions []*dto.PermissionOut
+	var permissions []*types.UserPermission
 	if row.Permissions != nil {
 		// Estrutura auxiliar para unmarshal
 		type permissionJSON struct {
@@ -243,9 +243,9 @@ func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 
 		if permBytes, ok := row.Permissions.([]uint8); ok {
 			if err := json.Unmarshal(permBytes, &permJSON); err == nil {
-				permissions = make([]*dto.PermissionOut, len(permJSON))
+				permissions = make([]*types.UserPermission, len(permJSON))
 				for i, p := range permJSON {
-					permissions[i] = &dto.PermissionOut{
+					permissions[i] = &types.UserPermission{
 						ID:          p.ID,
 						FeatureID:   p.FeatureID,
 						FeatureName: p.FeatureName,
@@ -260,9 +260,9 @@ func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 	}
 
 	// Construir endereço se existir
-	var address *dto.AddressOut
+	var address *types.UserAddress
 	if row.AddressID.Valid {
-		address = &dto.AddressOut{
+		address = &types.UserAddress{
 			ID:           row.AddressID.String,
 			ZipCode:      row.AddressZipCode.String,
 			State:        row.AddressState.String,
@@ -283,7 +283,7 @@ func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 	}
 
 	// Construir empresa
-	enterprise := &dto.EnterpriseOut{
+	enterprise := &types.UserEnterprise{
 		ID:    row.EnterpriseID,
 		Name:  row.EnterpriseName,
 		CNPJ:  row.EnterpriseCnpj,
@@ -299,17 +299,24 @@ func (r *UserRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 		enterprise.AddressID = &row.EnterpriseAddressID.String
 	}
 
+	// Construir role
+	var role *types.UserRole
+	if row.UserRoleID.Valid {
+		role = &types.UserRole{
+			ID:    row.UserRoleID.String,
+			Title: row.RoleTitle,
+		}
+	}
+
 	// Construir resposta final
-	return &dto.MeOut{
+	return &types.UserWithDetails{
 		ID:           row.UserID,
 		Name:         row.UserName,
 		Email:        row.UserEmail,
 		Document:     row.UserDocument,
 		Phone:        utils.FromNullString(row.UserPhone),
-		AddressID:    utils.FromNullString(row.UserAddressID),
 		Address:      address,
-		RoleID:       utils.FromNullString(row.UserRoleID),
-		RoleTitle:    &row.RoleTitle,
+		Role:         role,
 		EnterpriseID: row.UserEnterpriseID,
 		Enterprise:   enterprise,
 		Permissions:  permissions,

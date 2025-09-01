@@ -6,8 +6,8 @@ import (
 	"net/http"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/go-chi/chi/v5"
@@ -15,8 +15,8 @@ import (
 
 type Service interface {
 	SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error)
-	GetMe(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error)
-	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error)
+	GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error)
+	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error)
 }
 
 type Handler struct {
@@ -74,7 +74,10 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 		httperr.Handle(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, me)
+
+	// Converter para DTO HTTP
+	meOut := convertUserWithDetailsToMeOut(me)
+	writeJSON(w, http.StatusOK, meOut)
 }
 
 func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
@@ -90,13 +93,15 @@ func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	me, err := h.svc.GetMyPermissions(r.Context(), claims.Subject, enterpriseID)
+	permissions, err := h.svc.GetMyPermissions(r.Context(), claims.Subject, enterpriseID)
 	if err != nil {
 		httperr.Handle(w, r, err)
 		return
 	}
-	writeJSON(w, http.StatusOK, me)
 
+	// Converter para DTO HTTP
+	permissionsOut := convertUserPermissionsToMyPermissionsOut(permissions)
+	writeJSON(w, http.StatusOK, permissionsOut)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

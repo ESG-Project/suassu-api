@@ -4,9 +4,9 @@ import (
 	"context"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainuser "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
 	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
@@ -124,7 +124,7 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 	return result, &pageInfo, nil
 }
 
-func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	userWithPermissions, err := s.repo.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
 	if err != nil {
 		return nil, apperr.Wrap(err, apperr.CodeNotFound, "user not found")
@@ -133,7 +133,7 @@ func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string,
 	return userWithPermissions, nil
 }
 
-func (s *Service) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+func (s *Service) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	// Buscar usuário com todas as informações (incluindo endereço e empresa)
 	userWithDetails, err := s.repo.GetUserWithDetails(ctx, userID, enterpriseID)
 	if err != nil {

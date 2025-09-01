@@ -3,10 +3,10 @@ package auth
 import (
 	"context"
 
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domain "github.com/ESG-Project/suassu-api/internal/domain/user"
-	"github.com/ESG-Project/suassu-api/internal/http/dto"
 )
 
 type TokenIssuer interface {
@@ -57,10 +57,10 @@ func (s *Service) SignIn(ctx context.Context, in SignInInput) (SignInOutput, err
 	return SignInOutput{AccessToken: tok}, nil
 }
 
-func (s *Service) GetMe(ctx context.Context, userID string, enterpriseID string) (*dto.MeOut, error) {
+func (s *Service) GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	return s.userSvc.GetUserWithDetails(ctx, userID, enterpriseID)
 }
 
-func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*dto.MyPermissionsOut, error) {
+func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return s.userSvc.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
 }
