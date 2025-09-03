@@ -18,6 +18,7 @@ type Service interface {
 	SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error)
 	GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error)
 	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error)
+	ValidateToken(ctx context.Context, token string) (bool, error)
 }
 
 type Handler struct {
@@ -31,6 +32,7 @@ func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 // RegisterPublic registra rotas públicas de /auth (sem JWT)
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Post("/login", h.login)
+	r.Post("/validate-token", h.validateToken)
 }
 
 // RegisterPrivate registra rotas privadas de /auth (com JWT)
@@ -103,6 +105,34 @@ func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
 	// Converter para DTO HTTP
 	permissionsOut := userdto.ToMyPermissionsOut(permissions)
 	writeJSON(w, http.StatusOK, permissionsOut)
+}
+
+func (h *Handler) validateToken(w http.ResponseWriter, r *http.Request) {
+	var req struct {
+		Token string `json:"token"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "invalid request body"))
+		return
+	}
+
+	if req.Token == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "token is required"))
+		return
+	}
+
+	valid, err := h.svc.ValidateToken(r.Context(), req.Token)
+	if err != nil {
+		httperr.Handle(w, r, err)
+		return
+	}
+
+	if valid {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]bool{"valid": false})
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

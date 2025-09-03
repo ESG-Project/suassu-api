@@ -22,8 +22,10 @@ import (
 /*** FAKES ***/
 
 type fakeAuthService struct {
-	token string
-	err   error
+	token               string
+	err                 error
+	validateTokenResult bool
+	validateTokenErr    error
 }
 
 func (f *fakeAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error) {
@@ -39,6 +41,13 @@ func (f *fakeAuthService) GetMe(ctx context.Context, userID string, enterpriseID
 
 func (f *fakeAuthService) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin", Permissions: nil}, nil
+}
+
+func (f *fakeAuthService) ValidateToken(ctx context.Context, token string) (bool, error) {
+	if f.validateTokenErr != nil {
+		return false, f.validateTokenErr
+	}
+	return f.validateTokenResult, nil
 }
 
 // fakeTokenIssuer implementa appauth.TokenIssuer.
@@ -208,4 +217,79 @@ func TestAuth_Me_Unauthorized_BadToken(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+func TestAuth_ValidateToken_OK(t *testing.T) {
+	svc := &fakeAuthService{
+		validateTokenResult: true,
+	}
+	router := newAuthRouterPublic(svc)
+
+	body := map[string]any{
+		"token": "valid-token",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusNoContent, rr.Code)
+	require.Empty(t, rr.Body.String())
+}
+
+func TestAuth_ValidateToken_InvalidToken(t *testing.T) {
+	svc := &fakeAuthService{
+		validateTokenResult: false,
+	}
+	router := newAuthRouterPublic(svc)
+
+	body := map[string]any{
+		"token": "invalid-token",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]bool
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.False(t, resp["valid"])
+}
+
+func TestAuth_ValidateToken_EmptyToken(t *testing.T) {
+	svc := &fakeAuthService{}
+	router := newAuthRouterPublic(svc)
+
+	body := map[string]any{
+		"token": "",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+}
+
+func TestAuth_ValidateToken_InvalidBody(t *testing.T) {
+	svc := &fakeAuthService{}
+	router := newAuthRouterPublic(svc)
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewBufferString("{bad json"))
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
 }

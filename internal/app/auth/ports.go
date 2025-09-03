@@ -64,3 +64,11 @@ func (s *Service) GetMe(ctx context.Context, userID string, enterpriseID string)
 func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return s.userSvc.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
 }
+
+func (s *Service) ValidateToken(ctx context.Context, token string) (bool, error) {
+	_, err := s.tokens.Parse(token)
+	if err != nil {
+		return false, nil
+	}
+	return true, nil
+}
