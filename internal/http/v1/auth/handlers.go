@@ -32,7 +32,7 @@ func NewHandler(svc Service) *Handler { return &Handler{svc: svc} }
 // RegisterPublic registra rotas públicas de /auth (sem JWT)
 func (h *Handler) RegisterPublic(r chi.Router) {
 	r.Post("/login", h.login)
-	r.Post("/validate-token", h.validateToken)
+	r.Get("/validate-token", h.validateToken)
 }
 
 // RegisterPrivate registra rotas privadas de /auth (com JWT)
@@ -108,20 +108,24 @@ func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) validateToken(w http.ResponseWriter, r *http.Request) {
-	var req struct {
-		Token string `json:"token"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "invalid request body"))
+	authHeader := r.Header.Get("Authorization")
+	if authHeader == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "authorization header is required"))
 		return
 	}
 
-	if req.Token == "" {
+	// Remove "Bearer " prefix if present
+	token := authHeader
+	if len(authHeader) > 7 && authHeader[:7] == "Bearer " {
+		token = authHeader[7:]
+	}
+
+	if token == "" {
 		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "token is required"))
 		return
 	}
 
-	valid, err := h.svc.ValidateToken(r.Context(), req.Token)
+	valid, err := h.svc.ValidateToken(r.Context(), token)
 	if err != nil {
 		httperr.Handle(w, r, err)
 		return

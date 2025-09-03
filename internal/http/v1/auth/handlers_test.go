@@ -225,13 +225,8 @@ func TestAuth_ValidateToken_OK(t *testing.T) {
 	}
 	router := newAuthRouterPublic(svc)
 
-	body := map[string]any{
-		"token": "valid-token",
-	}
-	b, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/validate-token", nil)
+	req.Header.Set("Authorization", "Bearer valid-token")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -246,13 +241,8 @@ func TestAuth_ValidateToken_InvalidToken(t *testing.T) {
 	}
 	router := newAuthRouterPublic(svc)
 
-	body := map[string]any{
-		"token": "invalid-token",
-	}
-	b, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/validate-token", nil)
+	req.Header.Set("Authorization", "Bearer invalid-token")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -267,13 +257,7 @@ func TestAuth_ValidateToken_EmptyToken(t *testing.T) {
 	svc := &fakeAuthService{}
 	router := newAuthRouterPublic(svc)
 
-	body := map[string]any{
-		"token": "",
-	}
-	b, _ := json.Marshal(body)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewReader(b))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/validate-token", nil)
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
@@ -281,15 +265,18 @@ func TestAuth_ValidateToken_EmptyToken(t *testing.T) {
 	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
 }
 
-func TestAuth_ValidateToken_InvalidBody(t *testing.T) {
-	svc := &fakeAuthService{}
+func TestAuth_ValidateToken_WithoutBearerPrefix(t *testing.T) {
+	svc := &fakeAuthService{
+		validateTokenResult: true,
+	}
 	router := newAuthRouterPublic(svc)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/auth/validate-token", bytes.NewBufferString("{bad json"))
-	req.Header.Set("Content-Type", "application/json")
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/auth/validate-token", nil)
+	req.Header.Set("Authorization", "valid-token")
 	rr := httptest.NewRecorder()
 
 	router.ServeHTTP(rr, req)
 
-	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+	require.Equal(t, http.StatusNoContent, rr.Code)
+	require.Empty(t, rr.Body.String())
 }

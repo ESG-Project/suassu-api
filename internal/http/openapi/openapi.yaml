@@ -71,18 +71,20 @@ paths:
                 $ref: '#/components/schemas/ErrorResponse'
 
   /auth/validate-token:
-    post:
+    get:
       summary: Validar token JWT
       description: Valida um token JWT e retorna informações sobre sua validade
       operationId: validateToken
       tags:
         - Authentication
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ValidateTokenInput'
+      parameters:
+        - name: Authorization
+          in: header
+          required: true
+          schema:
+            type: string
+            description: Token JWT para validação no formato "Bearer <token>"
+            example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
         '204':
           description: Token válido
@@ -267,15 +269,7 @@ components:
           description: Token JWT para autenticação
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
-    ValidateTokenInput:
-      type: object
-      required:
-        - token
-      properties:
-        token:
-          type: string
-          description: Token JWT para validação
-          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+
 
 
     UserMeResponse:
