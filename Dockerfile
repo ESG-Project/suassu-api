@@ -1,55 +1,48 @@
-# Build stage
-FROM golang:tip-alpine3.22 AS builder
+# ===== Build stage =====
+FROM golang:1.25.1-alpine3.22 AS builder
 
-# Instalar dependências necessárias para o build
+# deps de build
 RUN apk add --no-cache git ca-certificates tzdata
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar arquivos de dependências
+# deps
 COPY go.mod go.sum ./
-
-# Baixar dependências
 RUN go mod download
 
-# Copiar código fonte
+# fonte
 COPY . .
 
-# Build da aplicação
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd/api
+# build estático, menor e reprodutível
+RUN CGO_ENABLED=0 GOOS=linux \
+    go build -trimpath -ldflags="-s -w" -o main ./cmd/api
 
-# Runtime stage
-FROM alpine:latest
+# ===== Runtime stage =====
+FROM alpine:3.20
 
-# Instalar ca-certificates e tzdata para HTTPS e timezone
-RUN apk --no-cache add ca-certificates tzdata
+# HTTPS, timezone e curl p/ healthcheck
+RUN apk --no-cache add ca-certificates tzdata curl
 
-# Criar usuário não-root para segurança
+# usuário não-root
 RUN addgroup -g 1001 -S appgroup && \
     adduser -u 1001 -S appuser -G appgroup
 
-# Definir diretório de trabalho
 WORKDIR /app
 
-# Copiar binário da aplicação do stage de build
+# binário
 COPY --from=builder /app/main .
 
-# Copiar arquivos de configuração se necessário
+# (opcional) config-example
 COPY --from=builder /app/internal/config/example.env ./config/
 
-# Mudar propriedade dos arquivos para o usuário da aplicação
+# perms
 RUN chown -R appuser:appgroup /app
-
-# Mudar para usuário não-root
 USER appuser
 
-# Expor porta da aplicação
 EXPOSE 8080
 
-# Healthcheck
+# Healthcheck com curl
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD wget --no-verbose --tries=1 --spider http://localhost:8080/healthz || exit 1
+  CMD curl -fsS http://127.0.0.1:8080/healthz || exit 1
 
-# Comando para executar a aplicação
 CMD ["./main"]

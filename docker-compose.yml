@@ -2,10 +2,10 @@ services:
   # Aplicação Go
   api:
     container_name: suassu-api-container
-    image: suassu-api
+    image: ghcr.io/esg-project/suassu-api:master
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.dev
     ports:
       - "8080:8080"
     env_file:
