@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainenterprise "github.com/ESG-Project/suassu-api/internal/domain/enterprise"
@@ -15,7 +16,7 @@ import (
 
 // Service interface defines the methods for the enterprise service
 type Service interface {
-	Create(ctx context.Context, in appenterprise.CreateInput) (string, error)
+	Create(ctx context.Context, in appenterprise.CreateInput) (enterpriseID string, userID string, err error)
 	GetByID(ctx context.Context, id string) (*domainenterprise.Enterprise, error)
 	Update(ctx context.Context, in appenterprise.UpdateInput) error
 }
@@ -24,20 +25,83 @@ type Service interface {
 func Routes(svc Service) chi.Router {
 	r := chi.NewRouter()
 
-	// POST /enterprises
+	// POST /enterprises - creates enterprise with products, parameters, roles, permissions and admin user
 	r.Post("/", func(w http.ResponseWriter, req *http.Request) {
-		var in appenterprise.CreateInput
-		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
+		var reqBody struct {
+			Enterprise struct {
+				Name        string  `json:"name"`
+				CNPJ        string  `json:"cnpj"`
+				Email       string  `json:"email"`
+				FantasyName *string `json:"fantasyName,omitempty"`
+				Phone       *string `json:"phone,omitempty"`
+				Address     *struct {
+					State        string  `json:"state"`
+					ZipCode      string  `json:"zipCode"`
+					City         string  `json:"city"`
+					Neighborhood string  `json:"neighborhood"`
+					Street       string  `json:"street"`
+					Num          string  `json:"num"`
+					Latitude     *string `json:"latitude,omitempty"`
+					Longitude    *string `json:"longitude,omitempty"`
+					AddInfo      *string `json:"addInfo,omitempty"`
+				} `json:"address,omitempty"`
+			} `json:"enterprise"`
+			User struct {
+				Name     string  `json:"name"`
+				Email    string  `json:"email"`
+				Password string  `json:"password"`
+				Document string  `json:"document"`
+				Phone    *string `json:"phone,omitempty"`
+			} `json:"user"`
+		}
+
+		if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
 			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
 			return
 		}
 
-		id, err := svc.Create(req.Context(), in)
+		// Convert to CreateInput
+		input := appenterprise.CreateInput{
+			Name:        reqBody.Enterprise.Name,
+			CNPJ:        reqBody.Enterprise.CNPJ,
+			Email:       reqBody.Enterprise.Email,
+			FantasyName: reqBody.Enterprise.FantasyName,
+			Phone:       reqBody.Enterprise.Phone,
+			User: appenterprise.UserInput{
+				Name:     reqBody.User.Name,
+				Email:    reqBody.User.Email,
+				Password: reqBody.User.Password,
+				Document: reqBody.User.Document,
+				Phone:    reqBody.User.Phone,
+			},
+		}
+
+		// Handle address if provided
+		if reqBody.Enterprise.Address != nil {
+			input.Address = &appaddress.CreateInput{
+				State:        reqBody.Enterprise.Address.State,
+				ZipCode:      reqBody.Enterprise.Address.ZipCode,
+				City:         reqBody.Enterprise.Address.City,
+				Neighborhood: reqBody.Enterprise.Address.Neighborhood,
+				Street:       reqBody.Enterprise.Address.Street,
+				Num:          reqBody.Enterprise.Address.Num,
+				Latitude:     reqBody.Enterprise.Address.Latitude,
+				Longitude:    reqBody.Enterprise.Address.Longitude,
+				AddInfo:      reqBody.Enterprise.Address.AddInfo,
+			}
+		}
+
+		enterpriseID, userID, err := svc.Create(req.Context(), input)
 		if err != nil {
 			httperr.Handle(w, req, err)
 			return
 		}
-		response.JSON(w, http.StatusCreated, map[string]string{"id": id}, nil)
+
+		response.JSON(w, http.StatusCreated, map[string]string{
+			"enterpriseId": enterpriseID,
+			"userId":       userID,
+			"message":      "Enterprise created successfully with default configuration",
+		}, nil)
 	})
 
 	// GET /enterprises/{id}

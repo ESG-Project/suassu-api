@@ -24,7 +24,7 @@ import (
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
-	openapi "github.com/ESG-Project/suassu-api/internal/http/openapi"
+	"github.com/ESG-Project/suassu-api/internal/http/openapi"
 	authhttp "github.com/ESG-Project/suassu-api/internal/http/v1/auth"
 	infraauth "github.com/ESG-Project/suassu-api/internal/infra/auth"
 )
@@ -61,7 +61,7 @@ func main() {
 
 	addressSvc := appaddress.NewService(addressRepo, hasher)
 	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
-	enterpriseSvc := appenterprise.NewService(enterpriseRepo, addressSvc, hasher)
+	enterpriseSvc := appenterprise.NewServiceWithTx(enterpriseRepo, addressSvc, hasher, txm)
 
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
@@ -86,6 +86,12 @@ func main() {
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Route("/api/v1", func(v1 chi.Router) {
+		// Rotas públicas (sem autenticação)
+		v1.Group(func(pub chi.Router) {
+			// POST /enterprises - Criação de enterprise é pública
+			pub.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
+		})
+
 		v1.Route("/auth", func(auth chi.Router) {
 			// público
 			auth.Group(func(pub chi.Router) {
@@ -99,11 +105,11 @@ func main() {
 			})
 		})
 
+		// Rotas privadas (requerem autenticação)
 		v1.Group(func(priv chi.Router) {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
-			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
 		})
 
 		v1.Mount("/", openapi.Routes())

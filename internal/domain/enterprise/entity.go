@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"github.com/ESG-Project/suassu-api/internal/domain/address"
+	"github.com/ESG-Project/suassu-api/internal/domain/parameter"
+	"github.com/ESG-Project/suassu-api/internal/domain/product"
 	"github.com/ESG-Project/suassu-api/internal/domain/user"
 )
 
@@ -18,6 +20,8 @@ type Enterprise struct {
 	Name        string
 	Phone       *string
 	Users       []*user.User
+	Products    []product.Product
+	Parameters  []parameter.Parameter
 }
 
 func NewEnterprise(id, cnpj, email, name string) *Enterprise {
