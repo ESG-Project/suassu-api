@@ -36,6 +36,14 @@ type Feature struct {
 	Name string `json:"name"`
 }
 
+type Parameter struct {
+	ID           string         `json:"id"`
+	Title        string         `json:"title"`
+	Value        sql.NullString `json:"value"`
+	EnterpriseId string         `json:"enterpriseId"`
+	IsDefault    bool           `json:"isDefault"`
+}
+
 type Permission struct {
 	ID        string `json:"id"`
 	FeatureId string `json:"featureId"`
@@ -44,6 +52,17 @@ type Permission struct {
 	Read      bool   `json:"read"`
 	Update    bool   `json:"update"`
 	Delete    bool   `json:"delete"`
+}
+
+type Product struct {
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	SuggestedValue sql.NullString `json:"suggestedValue"`
+	EnterpriseId   string         `json:"enterpriseId"`
+	ParameterId    sql.NullString `json:"parameterId"`
+	Deliverable    bool           `json:"deliverable"`
+	TypeProductId  sql.NullString `json:"typeProductId"`
+	IsDefault      bool           `json:"isDefault"`
 }
 
 type Role struct {

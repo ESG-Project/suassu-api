@@ -9,6 +9,49 @@ import (
 	"context"
 )
 
+const getFeatureByName = `-- name: GetFeatureByName :one
+SELECT id, name
+FROM "Feature"
+WHERE name = $1
+LIMIT 1
+`
+
+func (q *Queries) GetFeatureByName(ctx context.Context, name string) (Feature, error) {
+	row := q.db.QueryRowContext(ctx, getFeatureByName, name)
+	var i Feature
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const listAllFeatures = `-- name: ListAllFeatures :many
+SELECT id, name
+FROM "Feature"
+ORDER BY name
+`
+
+func (q *Queries) ListAllFeatures(ctx context.Context) ([]Feature, error) {
+	rows, err := q.db.QueryContext(ctx, listAllFeatures)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Feature
+	for rows.Next() {
+		var i Feature
+		if err := rows.Scan(&i.ID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertFeature = `-- name: UpsertFeature :exec
 INSERT INTO "Feature" (id, name)
 VALUES (gen_random_uuid(), $1)
