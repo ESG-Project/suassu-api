@@ -1,0 +1,57 @@
+name: Deploy
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.HOST }}
+          username: ${{ secrets.USER }}
+          key: ${{ secrets.SSH_KEY }}
+          script_stop: true
+          script: |
+            set -euo pipefail
+
+            REPO_DIR=${{ secrets.REPO_DIR }}
+            COMPOSE_DIR=${{ secrets.COMPOSE_DIR }}
+
+            # Atualiza o código do app (repo Git)
+            cd "$REPO_DIR"
+            git fetch --all --tags
+            git checkout master
+            git reset --hard origin/master
+
+            # Sobe com compose a partir da raiz onde está docker-compose.yml
+            cd "$COMPOSE_DIR"
+
+            # Verifica .env (compose usa env_file: .env na raiz)
+            if [ ! -f .env ]; then
+              echo ".env não encontrado em $COMPOSE_DIR"; exit 1
+            fi
+
+            docker compose pull || true
+            docker compose up -d --build
+
+            # Aguarda health via status do container 'api'
+            api_id=$(docker compose ps -q api)
+            if [ -z "$api_id" ]; then
+              echo "Container da api não encontrado"; exit 1
+            fi
+
+            for i in $(seq 1 15); do
+              status=$(docker inspect -f '{{.State.Health.Status}}' "$api_id" || echo "unknown")
+              echo "Health da api: $status (tentativa $i)"
+              if [ "$status" = "healthy" ]; then
+                echo "API saudável"; exit 0
+              fi
+              sleep 3
+            done
+
+            echo "API não ficou saudável a tempo"; exit 1
