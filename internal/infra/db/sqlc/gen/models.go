@@ -6,7 +6,184 @@ package sqlcgen
 
 import (
 	"database/sql"
+	"database/sql/driver"
+	"fmt"
+	"time"
 )
+
+type LawScope string
+
+const (
+	LawScopeFederal   LawScope = "Federal"
+	LawScopeState     LawScope = "State"
+	LawScopeMunicipal LawScope = "Municipal"
+)
+
+func (e *LawScope) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = LawScope(s)
+	case string:
+		*e = LawScope(s)
+	default:
+		return fmt.Errorf("unsupported scan type for LawScope: %T", src)
+	}
+	return nil
+}
+
+type NullLawScope struct {
+	LawScope LawScope `json:"LawScope"`
+	Valid    bool     `json:"valid"` // Valid is true if LawScope is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullLawScope) Scan(value interface{}) error {
+	if value == nil {
+		ns.LawScope, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.LawScope.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullLawScope) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.LawScope), nil
+}
+
+type OriginType string
+
+const (
+	OriginTypeEX  OriginType = "EX"
+	OriginTypeEXI OriginType = "EXI"
+	OriginTypeN   OriginType = "N"
+)
+
+func (e *OriginType) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = OriginType(s)
+	case string:
+		*e = OriginType(s)
+	default:
+		return fmt.Errorf("unsupported scan type for OriginType: %T", src)
+	}
+	return nil
+}
+
+type NullOriginType struct {
+	OriginType OriginType `json:"OriginType"`
+	Valid      bool       `json:"valid"` // Valid is true if OriginType is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullOriginType) Scan(value interface{}) error {
+	if value == nil {
+		ns.OriginType, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.OriginType.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullOriginType) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.OriginType), nil
+}
+
+type SpeciesChangeStatus string
+
+const (
+	SpeciesChangeStatusPENDING  SpeciesChangeStatus = "PENDING"
+	SpeciesChangeStatusAPPROVED SpeciesChangeStatus = "APPROVED"
+	SpeciesChangeStatusREFUSED  SpeciesChangeStatus = "REFUSED"
+)
+
+func (e *SpeciesChangeStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpeciesChangeStatus(s)
+	case string:
+		*e = SpeciesChangeStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpeciesChangeStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSpeciesChangeStatus struct {
+	SpeciesChangeStatus SpeciesChangeStatus `json:"species_change_status"`
+	Valid               bool                `json:"valid"` // Valid is true if SpeciesChangeStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpeciesChangeStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpeciesChangeStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpeciesChangeStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpeciesChangeStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpeciesChangeStatus), nil
+}
+
+type ThreatStatus string
+
+const (
+	ThreatStatusLC ThreatStatus = "LC"
+	ThreatStatusCR ThreatStatus = "CR"
+	ThreatStatusNT ThreatStatus = "NT"
+	ThreatStatusEN ThreatStatus = "EN"
+	ThreatStatusVU ThreatStatus = "VU"
+)
+
+func (e *ThreatStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = ThreatStatus(s)
+	case string:
+		*e = ThreatStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for ThreatStatus: %T", src)
+	}
+	return nil
+}
+
+type NullThreatStatus struct {
+	ThreatStatus ThreatStatus `json:"ThreatStatus"`
+	Valid        bool         `json:"valid"` // Valid is true if ThreatStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullThreatStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.ThreatStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.ThreatStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullThreatStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.ThreatStatus), nil
+}
 
 type Address struct {
 	ID           string         `json:"id"`
@@ -46,10 +223,98 @@ type Permission struct {
 	Delete    bool   `json:"delete"`
 }
 
+type PhytoAnalysis struct {
+	ID              string         `json:"id"`
+	Title           string         `json:"title"`
+	InitialDate     time.Time      `json:"initial_date"`
+	PortionQuantity int32          `json:"portion_quantity"`
+	PortionArea     string         `json:"portion_area"`
+	TotalArea       string         `json:"total_area"`
+	SampledArea     string         `json:"sampled_area"`
+	Description     sql.NullString `json:"description"`
+	ProjectID       string         `json:"project_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type Project struct {
+	ID             string         `json:"id"`
+	Title          string         `json:"title"`
+	Cnpj           sql.NullString `json:"cnpj"`
+	Activity       string         `json:"activity"`
+	Codram         sql.NullString `json:"codram"`
+	UsefulArea     sql.NullString `json:"usefulArea"`
+	TotalArea      sql.NullString `json:"totalArea"`
+	PollutingPower sql.NullString `json:"pollutingPower"`
+	Stage          sql.NullString `json:"stage"`
+	Situation      sql.NullString `json:"situation"`
+	AddressId      string         `json:"addressId"`
+	ClientId       string         `json:"clientId"`
+	Size           sql.NullString `json:"size"`
+}
+
 type Role struct {
 	ID           string `json:"id"`
 	Title        string `json:"title"`
 	EnterpriseId string `json:"enterpriseId"`
+}
+
+type Species struct {
+	ID              string         `json:"id"`
+	ScientificName  string         `json:"scientific_name"`
+	Family          string         `json:"family"`
+	PopularName     sql.NullString `json:"popular_name"`
+	SpeciesDetailID string         `json:"species_detail_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type SpeciesChange struct {
+	ID                 string              `json:"id"`
+	FieldChanged       string              `json:"field_changed"`
+	NewValue           string              `json:"new_value"`
+	OldValue           string              `json:"old_value"`
+	Comment            string              `json:"comment"`
+	Status             SpeciesChangeStatus `json:"status"`
+	RefuseReason       sql.NullString      `json:"refuse_reason"`
+	SolicitationDate   time.Time           `json:"solicitation_date"`
+	EvaluationDate     time.Time           `json:"evaluation_date"`
+	SpecieID           string              `json:"specie_id"`
+	SolicitationUserID string              `json:"solicitation_user_id"`
+	EvaluationUserID   sql.NullString      `json:"evaluation_user_id"`
+}
+
+type SpeciesDetail struct {
+	ID                  string       `json:"id"`
+	LawScope            LawScope     `json:"law_scope"`
+	LawID               string       `json:"law_id"`
+	IsLawActive         bool         `json:"is_law_active"`
+	SpeciesFormFactor   string       `json:"species_form_factor"`
+	IsSpeciesProtected  bool         `json:"is_species_protected"`
+	SpeciesThreatStatus ThreatStatus `json:"species_threat_status"`
+	SuccessionalEcology OriginType   `json:"successional_ecology"`
+	CreatedAt           time.Time    `json:"created_at"`
+	UpdatedAt           time.Time    `json:"updated_at"`
+}
+
+type Specimen struct {
+	ID              string         `json:"id"`
+	Portion         string         `json:"portion"`
+	Height          string         `json:"height"`
+	Cap1            string         `json:"cap1"`
+	Cap2            sql.NullString `json:"cap2"`
+	Cap3            sql.NullString `json:"cap3"`
+	Cap4            sql.NullString `json:"cap4"`
+	Cap5            sql.NullString `json:"cap5"`
+	Cap6            sql.NullString `json:"cap6"`
+	AverageDap      string         `json:"average_dap"`
+	BasalArea       string         `json:"basal_area"`
+	Volume          string         `json:"volume"`
+	RegisterDate    time.Time      `json:"register_date"`
+	PhytoAnalysisID string         `json:"phyto_analysis_id"`
+	SpecieID        string         `json:"specie_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
 type User struct {

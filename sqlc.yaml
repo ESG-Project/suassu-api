@@ -8,6 +8,11 @@ sql:
       - "internal/infra/db/sqlc/schema_roles.sql"
       - "internal/infra/db/sqlc/schema_feature.sql"
       - "internal/infra/db/sqlc/schema_permission.sql"
+      - "internal/infra/db/sqlc/schema_project.sql"
+      - "internal/infra/db/sqlc/schema_species.sql"
+      - "internal/infra/db/sqlc/schema_phyto_analysis.sql"
+      - "internal/infra/db/sqlc/schema_specimen.sql"
+      - "internal/infra/db/sqlc/schema_species_change.sql"
     queries: "internal/infra/db/sqlc/queries"
     gen:
       go:

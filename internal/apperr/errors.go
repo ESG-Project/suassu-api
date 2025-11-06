@@ -28,6 +28,9 @@ type Error struct {
 
 func (e *Error) Error() string {
 	if e.Msg != "" {
+		if e.Cause != nil {
+			return fmt.Sprintf("%s: %v", e.Msg, e.Cause)
+		}
 		return e.Msg
 	}
 	if e.Cause != nil {
