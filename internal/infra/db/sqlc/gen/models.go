@@ -198,6 +198,12 @@ type Address struct {
 	AddInfo      sql.NullString `json:"addInfo"`
 }
 
+type Client struct {
+	ID          string         `json:"id"`
+	FantasyName sql.NullString `json:"fantasyName"`
+	UserId      string         `json:"userId"`
+}
+
 type Enterprise struct {
 	ID          string         `json:"id"`
 	Cnpj        string         `json:"cnpj"`

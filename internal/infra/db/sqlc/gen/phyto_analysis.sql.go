@@ -366,6 +366,88 @@ func (q *Queries) ListAllPhytoAnalyses(ctx context.Context, arg ListAllPhytoAnal
 	return items, nil
 }
 
+const listPhytoAnalysesByEnterprise = `-- name: ListPhytoAnalysesByEnterprise :many
+SELECT 
+    pa.id,
+    pa.title,
+    pa.initial_date,
+    pa.portion_quantity,
+    pa.portion_area,
+    pa.total_area,
+    pa.sampled_area,
+    pa.description,
+    pa.project_id,
+    pa.created_at,
+    pa.updated_at,
+    p.title AS project_title,
+    p.cnpj AS project_cnpj,
+    p.activity AS project_activity,
+    p."clientId" AS project_client_id
+FROM public.phyto_analyses pa
+INNER JOIN public."Project" p ON pa.project_id = p.id
+INNER JOIN public."Client" c ON p."clientId" = c.id
+INNER JOIN public."User" u ON c."userId" = u.id
+WHERE u."enterpriseId" = $1
+ORDER BY pa.initial_date DESC, pa.created_at DESC
+`
+
+type ListPhytoAnalysesByEnterpriseRow struct {
+	ID              string         `json:"id"`
+	Title           string         `json:"title"`
+	InitialDate     time.Time      `json:"initial_date"`
+	PortionQuantity int32          `json:"portion_quantity"`
+	PortionArea     string         `json:"portion_area"`
+	TotalArea       string         `json:"total_area"`
+	SampledArea     string         `json:"sampled_area"`
+	Description     sql.NullString `json:"description"`
+	ProjectID       string         `json:"project_id"`
+	CreatedAt       time.Time      `json:"created_at"`
+	UpdatedAt       time.Time      `json:"updated_at"`
+	ProjectTitle    string         `json:"project_title"`
+	ProjectCnpj     sql.NullString `json:"project_cnpj"`
+	ProjectActivity string         `json:"project_activity"`
+	ProjectClientID string         `json:"project_client_id"`
+}
+
+func (q *Queries) ListPhytoAnalysesByEnterprise(ctx context.Context, enterpriseid string) ([]ListPhytoAnalysesByEnterpriseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPhytoAnalysesByEnterprise, enterpriseid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPhytoAnalysesByEnterpriseRow
+	for rows.Next() {
+		var i ListPhytoAnalysesByEnterpriseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Title,
+			&i.InitialDate,
+			&i.PortionQuantity,
+			&i.PortionArea,
+			&i.TotalArea,
+			&i.SampledArea,
+			&i.Description,
+			&i.ProjectID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.ProjectTitle,
+			&i.ProjectCnpj,
+			&i.ProjectActivity,
+			&i.ProjectClientID,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPhytoAnalysesByProject = `-- name: ListPhytoAnalysesByProject :many
 SELECT 
     pa.id,

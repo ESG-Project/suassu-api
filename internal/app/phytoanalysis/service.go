@@ -18,6 +18,7 @@ type ServiceInterface interface {
 	GetByID(ctx context.Context, id string) (*types.PhytoAnalysisWithProject, error)
 	GetWithSpecimens(ctx context.Context, id string) (*types.PhytoAnalysisComplete, error)
 	ListByProject(ctx context.Context, projectID string) ([]*types.PhytoAnalysisWithProject, error)
+	ListByEnterprise(ctx context.Context, enterpriseID string) ([]*types.PhytoAnalysisWithProject, error)
 	ListAll(ctx context.Context, limit, offset int32) ([]*types.PhytoAnalysisWithProject, error)
 	Update(ctx context.Context, id string, in UpdateInput) error
 	Delete(ctx context.Context, id string) error
@@ -218,6 +219,10 @@ func (s *Service) GetWithSpecimens(ctx context.Context, id string) (*types.Phyto
 
 func (s *Service) ListByProject(ctx context.Context, projectID string) ([]*types.PhytoAnalysisWithProject, error) {
 	return s.repo.ListByProject(ctx, projectID)
+}
+
+func (s *Service) ListByEnterprise(ctx context.Context, enterpriseID string) ([]*types.PhytoAnalysisWithProject, error) {
+	return s.repo.ListByEnterprise(ctx, enterpriseID)
 }
 
 func (s *Service) ListAll(ctx context.Context, limit, offset int32) ([]*types.PhytoAnalysisWithProject, error) {

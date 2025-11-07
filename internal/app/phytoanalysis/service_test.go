@@ -46,6 +46,13 @@ func (f *fakePhytoRepo) ListByProject(ctx context.Context, projectID string) ([]
 	return f.phytos, nil
 }
 
+func (f *fakePhytoRepo) ListByEnterprise(ctx context.Context, enterpriseID string) ([]*types.PhytoAnalysisWithProject, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	return f.phytos, nil
+}
+
 func (f *fakePhytoRepo) ListAll(ctx context.Context, limit, offset int32) ([]*types.PhytoAnalysisWithProject, error) {
 	if f.err != nil {
 		return nil, f.err

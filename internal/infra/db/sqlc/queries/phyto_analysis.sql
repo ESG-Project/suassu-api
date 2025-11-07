@@ -80,6 +80,30 @@ INNER JOIN public."Project" p ON pa.project_id = p.id
 ORDER BY pa.initial_date DESC, pa.created_at DESC
 LIMIT $1 OFFSET $2;
 
+-- name: ListPhytoAnalysesByEnterprise :many
+SELECT 
+    pa.id,
+    pa.title,
+    pa.initial_date,
+    pa.portion_quantity,
+    pa.portion_area,
+    pa.total_area,
+    pa.sampled_area,
+    pa.description,
+    pa.project_id,
+    pa.created_at,
+    pa.updated_at,
+    p.title AS project_title,
+    p.cnpj AS project_cnpj,
+    p.activity AS project_activity,
+    p."clientId" AS project_client_id
+FROM public.phyto_analyses pa
+INNER JOIN public."Project" p ON pa.project_id = p.id
+INNER JOIN public."Client" c ON p."clientId" = c.id
+INNER JOIN public."User" u ON c."userId" = u.id
+WHERE u."enterpriseId" = $1
+ORDER BY pa.initial_date DESC, pa.created_at DESC;
+
 -- name: UpdatePhytoAnalysis :exec
 UPDATE public.phyto_analyses
 SET

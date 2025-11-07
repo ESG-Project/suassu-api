@@ -96,6 +96,24 @@ func Routes(svc Service) chi.Router {
 		response.JSON(w, http.StatusOK, phytoList, nil)
 	})
 
+	// GET /phyto-analyses/enterprise/:enterpriseId - Listar análises por enterprise
+	r.Get("/enterprise/{enterpriseId}", func(w http.ResponseWriter, req *http.Request) {
+		enterpriseID := chi.URLParam(req, "enterpriseId")
+
+		list, err := svc.ListByEnterprise(req.Context(), enterpriseID)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		phytoList := make([]*phytodto.PhytoAnalysisResponse, 0, len(list))
+		for _, p := range list {
+			phytoList = append(phytoList, phytodto.ToPhytoAnalysisResponse(p))
+		}
+
+		response.JSON(w, http.StatusOK, phytoList, nil)
+	})
+
 	// GET /phyto-analyses/:id - Buscar análise por ID
 	r.Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "id")

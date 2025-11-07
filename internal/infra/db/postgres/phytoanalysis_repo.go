@@ -105,6 +105,39 @@ func (r *PhytoAnalysisRepo) ListByProject(ctx context.Context, projectID string)
 	return result, nil
 }
 
+func (r *PhytoAnalysisRepo) ListByEnterprise(ctx context.Context, enterpriseID string) ([]*types.PhytoAnalysisWithProject, error) {
+	rows, err := r.q.ListPhytoAnalysesByEnterprise(ctx, enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+
+	result := make([]*types.PhytoAnalysisWithProject, 0, len(rows))
+	for _, row := range rows {
+		portionArea, _ := utils.StringToFloat64(row.PortionArea)
+		totalArea, _ := utils.StringToFloat64(row.TotalArea)
+		sampledArea, _ := utils.StringToFloat64(row.SampledArea)
+
+		result = append(result, &types.PhytoAnalysisWithProject{
+			ID:              row.ID,
+			Title:           row.Title,
+			InitialDate:     row.InitialDate,
+			PortionQuantity: int(row.PortionQuantity),
+			PortionArea:     portionArea,
+			TotalArea:       totalArea,
+			SampledArea:     sampledArea,
+			Description:     utils.FromNullString(row.Description),
+			ProjectID:       row.ProjectID,
+			CreatedAt:       row.CreatedAt,
+			UpdatedAt:       row.UpdatedAt,
+			ProjectTitle:    row.ProjectTitle,
+			ProjectCNPJ:     utils.FromNullString(row.ProjectCnpj),
+			ProjectActivity: row.ProjectActivity,
+		})
+	}
+
+	return result, nil
+}
+
 func (r *PhytoAnalysisRepo) ListAll(ctx context.Context, limit, offset int32) ([]*types.PhytoAnalysisWithProject, error) {
 	rows, err := r.q.ListAllPhytoAnalyses(ctx, sqlc.ListAllPhytoAnalysesParams{
 		Limit:  limit,
