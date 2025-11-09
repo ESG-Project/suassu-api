@@ -14,9 +14,9 @@ import (
 type LawScope string
 
 const (
-	LawScopeFederal   LawScope = "Federal"
-	LawScopeState     LawScope = "State"
-	LawScopeMunicipal LawScope = "Municipal"
+	LawScopeFEDERAL   LawScope = "FEDERAL"
+	LawScopeSTATE     LawScope = "STATE"
+	LawScopeMUNICIPAL LawScope = "MUNICIPAL"
 )
 
 func (e *LawScope) Scan(src interface{}) error {
@@ -138,6 +138,102 @@ func (ns NullSpeciesChangeStatus) Value() (driver.Value, error) {
 		return nil, nil
 	}
 	return string(ns.SpeciesChangeStatus), nil
+}
+
+type SpeciesHabit string
+
+const (
+	SpeciesHabitARB    SpeciesHabit = "ARB"
+	SpeciesHabitANF    SpeciesHabit = "ANF"
+	SpeciesHabitARV    SpeciesHabit = "ARV"
+	SpeciesHabitEMEFIX SpeciesHabit = "EME FIX"
+	SpeciesHabitFLUFIX SpeciesHabit = "FLU FIX"
+	SpeciesHabitFLULIV SpeciesHabit = "FLU LIV"
+	SpeciesHabitHERB   SpeciesHabit = "HERB"
+	SpeciesHabitPAL    SpeciesHabit = "PAL"
+	SpeciesHabitTREP   SpeciesHabit = "TREP"
+)
+
+func (e *SpeciesHabit) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpeciesHabit(s)
+	case string:
+		*e = SpeciesHabit(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpeciesHabit: %T", src)
+	}
+	return nil
+}
+
+type NullSpeciesHabit struct {
+	SpeciesHabit SpeciesHabit `json:"SpeciesHabit"`
+	Valid        bool         `json:"valid"` // Valid is true if SpeciesHabit is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpeciesHabit) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpeciesHabit, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpeciesHabit.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpeciesHabit) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpeciesHabit), nil
+}
+
+type SpeciesSuccessionalEcology string
+
+const (
+	SpeciesSuccessionalEcologyP  SpeciesSuccessionalEcology = "P"
+	SpeciesSuccessionalEcologyIS SpeciesSuccessionalEcology = "IS"
+	SpeciesSuccessionalEcologyS  SpeciesSuccessionalEcology = "S"
+	SpeciesSuccessionalEcologyC  SpeciesSuccessionalEcology = "C"
+	SpeciesSuccessionalEcologyLS SpeciesSuccessionalEcology = "LS"
+	SpeciesSuccessionalEcologyMS SpeciesSuccessionalEcology = "MS"
+	SpeciesSuccessionalEcologyAS SpeciesSuccessionalEcology = "AS"
+)
+
+func (e *SpeciesSuccessionalEcology) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpeciesSuccessionalEcology(s)
+	case string:
+		*e = SpeciesSuccessionalEcology(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpeciesSuccessionalEcology: %T", src)
+	}
+	return nil
+}
+
+type NullSpeciesSuccessionalEcology struct {
+	SpeciesSuccessionalEcology SpeciesSuccessionalEcology `json:"SpeciesSuccessionalEcology"`
+	Valid                      bool                       `json:"valid"` // Valid is true if SpeciesSuccessionalEcology is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpeciesSuccessionalEcology) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpeciesSuccessionalEcology, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpeciesSuccessionalEcology.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpeciesSuccessionalEcology) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpeciesSuccessionalEcology), nil
 }
 
 type ThreatStatus string
@@ -266,13 +362,13 @@ type Role struct {
 }
 
 type Species struct {
-	ID              string         `json:"id"`
-	ScientificName  string         `json:"scientific_name"`
-	Family          string         `json:"family"`
-	PopularName     sql.NullString `json:"popular_name"`
-	SpeciesDetailID string         `json:"species_detail_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID             string           `json:"id"`
+	ScientificName string           `json:"scientific_name"`
+	Family         string           `json:"family"`
+	PopularName    sql.NullString   `json:"popular_name"`
+	Habit          NullSpeciesHabit `json:"habit"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 }
 
 type SpeciesChange struct {
@@ -290,20 +386,22 @@ type SpeciesChange struct {
 	EvaluationUserID   sql.NullString      `json:"evaluation_user_id"`
 }
 
-type SpeciesDetail struct {
-	ID                  string       `json:"id"`
-	LawScope            LawScope     `json:"law_scope"`
-	LawID               string       `json:"law_id"`
-	IsLawActive         bool         `json:"is_law_active"`
-	SpeciesFormFactor   string       `json:"species_form_factor"`
-	IsSpeciesProtected  bool         `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus `json:"species_threat_status"`
-	SuccessionalEcology OriginType   `json:"successional_ecology"`
-	CreatedAt           time.Time    `json:"created_at"`
-	UpdatedAt           time.Time    `json:"updated_at"`
+type SpeciesLegislation struct {
+	ID                  string                     `json:"id"`
+	LawScope            LawScope                   `json:"law_scope"`
+	LawID               sql.NullString             `json:"law_id"`
+	IsLawActive         bool                       `json:"is_law_active"`
+	SpeciesFormFactor   string                     `json:"species_form_factor"`
+	IsSpeciesProtected  bool                       `json:"is_species_protected"`
+	SpeciesThreatStatus ThreatStatus               `json:"species_threat_status"`
+	SpeciesOrigin       OriginType                 `json:"species_origin"`
+	SuccessionalEcology SpeciesSuccessionalEcology `json:"successional_ecology"`
+	SpeciesID           sql.NullString             `json:"species_id"`
+	CreatedAt           time.Time                  `json:"created_at"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
 }
 
-type Specimen struct {
+type Speciman struct {
 	ID              string         `json:"id"`
 	Portion         string         `json:"portion"`
 	Height          string         `json:"height"`

@@ -17,22 +17,22 @@ INSERT INTO public.species (
     scientific_name,
     family,
     popular_name,
-    species_detail_id,
+    habit,
     created_at,
     updated_at
 )
 VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, scientific_name, family, popular_name, species_detail_id, created_at, updated_at
+RETURNING id, scientific_name, family, popular_name, habit, created_at, updated_at
 `
 
 type CreateSpeciesParams struct {
-	ID              string         `json:"id"`
-	ScientificName  string         `json:"scientific_name"`
-	Family          string         `json:"family"`
-	PopularName     sql.NullString `json:"popular_name"`
-	SpeciesDetailID string         `json:"species_detail_id"`
-	CreatedAt       time.Time      `json:"created_at"`
-	UpdatedAt       time.Time      `json:"updated_at"`
+	ID             string           `json:"id"`
+	ScientificName string           `json:"scientific_name"`
+	Family         string           `json:"family"`
+	PopularName    sql.NullString   `json:"popular_name"`
+	Habit          NullSpeciesHabit `json:"habit"`
+	CreatedAt      time.Time        `json:"created_at"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 }
 
 func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (Species, error) {
@@ -41,7 +41,7 @@ func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (S
 		arg.ScientificName,
 		arg.Family,
 		arg.PopularName,
-		arg.SpeciesDetailID,
+		arg.Habit,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -51,7 +51,7 @@ func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (S
 		&i.ScientificName,
 		&i.Family,
 		&i.PopularName,
-		&i.SpeciesDetailID,
+		&i.Habit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -59,7 +59,7 @@ func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (S
 }
 
 const createSpeciesLegislation = `-- name: CreateSpeciesLegislation :one
-INSERT INTO public.species_details (
+INSERT INTO public.species_legislations (
     id,
     law_scope,
     law_id,
@@ -67,28 +67,32 @@ INSERT INTO public.species_details (
     species_form_factor,
     is_species_protected,
     species_threat_status,
+    species_origin,
     successional_ecology,
+    species_id,
     created_at,
     updated_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-RETURNING id, law_scope, law_id, is_law_active, species_form_factor, is_species_protected, species_threat_status, successional_ecology, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, law_scope, law_id, is_law_active, species_form_factor, is_species_protected, species_threat_status, species_origin, successional_ecology, species_id, created_at, updated_at
 `
 
 type CreateSpeciesLegislationParams struct {
-	ID                  string       `json:"id"`
-	LawScope            LawScope     `json:"law_scope"`
-	LawID               string       `json:"law_id"`
-	IsLawActive         bool         `json:"is_law_active"`
-	SpeciesFormFactor   string       `json:"species_form_factor"`
-	IsSpeciesProtected  bool         `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus `json:"species_threat_status"`
-	SuccessionalEcology OriginType   `json:"successional_ecology"`
-	CreatedAt           time.Time    `json:"created_at"`
-	UpdatedAt           time.Time    `json:"updated_at"`
+	ID                  string                     `json:"id"`
+	LawScope            LawScope                   `json:"law_scope"`
+	LawID               sql.NullString             `json:"law_id"`
+	IsLawActive         bool                       `json:"is_law_active"`
+	SpeciesFormFactor   string                     `json:"species_form_factor"`
+	IsSpeciesProtected  bool                       `json:"is_species_protected"`
+	SpeciesThreatStatus ThreatStatus               `json:"species_threat_status"`
+	SpeciesOrigin       OriginType                 `json:"species_origin"`
+	SuccessionalEcology SpeciesSuccessionalEcology `json:"successional_ecology"`
+	SpeciesID           sql.NullString             `json:"species_id"`
+	CreatedAt           time.Time                  `json:"created_at"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
 }
 
-func (q *Queries) CreateSpeciesLegislation(ctx context.Context, arg CreateSpeciesLegislationParams) (SpeciesDetail, error) {
+func (q *Queries) CreateSpeciesLegislation(ctx context.Context, arg CreateSpeciesLegislationParams) (SpeciesLegislation, error) {
 	row := q.db.QueryRowContext(ctx, createSpeciesLegislation,
 		arg.ID,
 		arg.LawScope,
@@ -97,11 +101,13 @@ func (q *Queries) CreateSpeciesLegislation(ctx context.Context, arg CreateSpecie
 		arg.SpeciesFormFactor,
 		arg.IsSpeciesProtected,
 		arg.SpeciesThreatStatus,
+		arg.SpeciesOrigin,
 		arg.SuccessionalEcology,
+		arg.SpeciesID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	var i SpeciesDetail
+	var i SpeciesLegislation
 	err := row.Scan(
 		&i.ID,
 		&i.LawScope,
@@ -110,11 +116,23 @@ func (q *Queries) CreateSpeciesLegislation(ctx context.Context, arg CreateSpecie
 		&i.SpeciesFormFactor,
 		&i.IsSpeciesProtected,
 		&i.SpeciesThreatStatus,
+		&i.SpeciesOrigin,
 		&i.SuccessionalEcology,
+		&i.SpeciesID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const deleteSpeciesLegislation = `-- name: DeleteSpeciesLegislation :exec
+DELETE FROM public.species_legislations
+WHERE id = $1
+`
+
+func (q *Queries) DeleteSpeciesLegislation(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteSpeciesLegislation, id)
+	return err
 }
 
 const getSpeciesByID = `-- name: GetSpeciesByID :one
@@ -123,63 +141,25 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name,
-    s.species_detail_id,
+    s.habit,
     s.created_at,
-    s.updated_at,
-    sd.law_scope,
-    sd.law_id,
-    sd.is_law_active,
-    sd.species_form_factor,
-    sd.is_species_protected,
-    sd.species_threat_status,
-    sd.successional_ecology,
-    sd.created_at AS detail_created_at,
-    sd.updated_at AS detail_updated_at
+    s.updated_at
 FROM public.species s
-INNER JOIN public.species_details sd ON s.species_detail_id = sd.id
 WHERE s.id = $1
 LIMIT 1
 `
 
-type GetSpeciesByIDRow struct {
-	ID                  string         `json:"id"`
-	ScientificName      string         `json:"scientific_name"`
-	Family              string         `json:"family"`
-	PopularName         sql.NullString `json:"popular_name"`
-	SpeciesDetailID     string         `json:"species_detail_id"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
-	LawScope            LawScope       `json:"law_scope"`
-	LawID               string         `json:"law_id"`
-	IsLawActive         bool           `json:"is_law_active"`
-	SpeciesFormFactor   string         `json:"species_form_factor"`
-	IsSpeciesProtected  bool           `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus   `json:"species_threat_status"`
-	SuccessionalEcology OriginType     `json:"successional_ecology"`
-	DetailCreatedAt     time.Time      `json:"detail_created_at"`
-	DetailUpdatedAt     time.Time      `json:"detail_updated_at"`
-}
-
-func (q *Queries) GetSpeciesByID(ctx context.Context, id string) (GetSpeciesByIDRow, error) {
+func (q *Queries) GetSpeciesByID(ctx context.Context, id string) (Species, error) {
 	row := q.db.QueryRowContext(ctx, getSpeciesByID, id)
-	var i GetSpeciesByIDRow
+	var i Species
 	err := row.Scan(
 		&i.ID,
 		&i.ScientificName,
 		&i.Family,
 		&i.PopularName,
-		&i.SpeciesDetailID,
+		&i.Habit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LawScope,
-		&i.LawID,
-		&i.IsLawActive,
-		&i.SpeciesFormFactor,
-		&i.IsSpeciesProtected,
-		&i.SpeciesThreatStatus,
-		&i.SuccessionalEcology,
-		&i.DetailCreatedAt,
-		&i.DetailUpdatedAt,
 	)
 	return i, err
 }
@@ -190,65 +170,82 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name,
-    s.species_detail_id,
+    s.habit,
     s.created_at,
-    s.updated_at,
-    sd.law_scope,
-    sd.law_id,
-    sd.is_law_active,
-    sd.species_form_factor,
-    sd.is_species_protected,
-    sd.species_threat_status,
-    sd.successional_ecology,
-    sd.created_at AS detail_created_at,
-    sd.updated_at AS detail_updated_at
+    s.updated_at
 FROM public.species s
-INNER JOIN public.species_details sd ON s.species_detail_id = sd.id
 WHERE s.scientific_name = $1
 LIMIT 1
 `
 
-type GetSpeciesByScientificNameRow struct {
-	ID                  string         `json:"id"`
-	ScientificName      string         `json:"scientific_name"`
-	Family              string         `json:"family"`
-	PopularName         sql.NullString `json:"popular_name"`
-	SpeciesDetailID     string         `json:"species_detail_id"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
-	LawScope            LawScope       `json:"law_scope"`
-	LawID               string         `json:"law_id"`
-	IsLawActive         bool           `json:"is_law_active"`
-	SpeciesFormFactor   string         `json:"species_form_factor"`
-	IsSpeciesProtected  bool           `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus   `json:"species_threat_status"`
-	SuccessionalEcology OriginType     `json:"successional_ecology"`
-	DetailCreatedAt     time.Time      `json:"detail_created_at"`
-	DetailUpdatedAt     time.Time      `json:"detail_updated_at"`
-}
-
-func (q *Queries) GetSpeciesByScientificName(ctx context.Context, scientificName string) (GetSpeciesByScientificNameRow, error) {
+func (q *Queries) GetSpeciesByScientificName(ctx context.Context, scientificName string) (Species, error) {
 	row := q.db.QueryRowContext(ctx, getSpeciesByScientificName, scientificName)
-	var i GetSpeciesByScientificNameRow
+	var i Species
 	err := row.Scan(
 		&i.ID,
 		&i.ScientificName,
 		&i.Family,
 		&i.PopularName,
-		&i.SpeciesDetailID,
+		&i.Habit,
 		&i.CreatedAt,
 		&i.UpdatedAt,
-		&i.LawScope,
-		&i.LawID,
-		&i.IsLawActive,
-		&i.SpeciesFormFactor,
-		&i.IsSpeciesProtected,
-		&i.SpeciesThreatStatus,
-		&i.SuccessionalEcology,
-		&i.DetailCreatedAt,
-		&i.DetailUpdatedAt,
 	)
 	return i, err
+}
+
+const getSpeciesLegislationsBySpeciesID = `-- name: GetSpeciesLegislationsBySpeciesID :many
+SELECT 
+    sl.id,
+    sl.law_scope,
+    sl.law_id,
+    sl.is_law_active,
+    sl.species_form_factor,
+    sl.is_species_protected,
+    sl.species_threat_status,
+    sl.species_origin,
+    sl.successional_ecology,
+    sl.species_id,
+    sl.created_at,
+    sl.updated_at
+FROM public.species_legislations sl
+WHERE sl.species_id = $1
+ORDER BY sl.created_at DESC
+`
+
+func (q *Queries) GetSpeciesLegislationsBySpeciesID(ctx context.Context, speciesID sql.NullString) ([]SpeciesLegislation, error) {
+	rows, err := q.db.QueryContext(ctx, getSpeciesLegislationsBySpeciesID, speciesID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []SpeciesLegislation
+	for rows.Next() {
+		var i SpeciesLegislation
+		if err := rows.Scan(
+			&i.ID,
+			&i.LawScope,
+			&i.LawID,
+			&i.IsLawActive,
+			&i.SpeciesFormFactor,
+			&i.IsSpeciesProtected,
+			&i.SpeciesThreatStatus,
+			&i.SpeciesOrigin,
+			&i.SuccessionalEcology,
+			&i.SpeciesID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listSpecies = `-- name: ListSpecies :many
@@ -257,18 +254,10 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name,
-    s.species_detail_id,
+    s.habit,
     s.created_at,
-    s.updated_at,
-    sd.law_scope,
-    sd.law_id,
-    sd.is_law_active,
-    sd.species_form_factor,
-    sd.is_species_protected,
-    sd.species_threat_status,
-    sd.successional_ecology
+    s.updated_at
 FROM public.species s
-INNER JOIN public.species_details sd ON s.species_detail_id = sd.id
 ORDER BY s.scientific_name ASC
 LIMIT $1 OFFSET $2
 `
@@ -278,47 +267,23 @@ type ListSpeciesParams struct {
 	Offset int32 `json:"offset"`
 }
 
-type ListSpeciesRow struct {
-	ID                  string         `json:"id"`
-	ScientificName      string         `json:"scientific_name"`
-	Family              string         `json:"family"`
-	PopularName         sql.NullString `json:"popular_name"`
-	SpeciesDetailID     string         `json:"species_detail_id"`
-	CreatedAt           time.Time      `json:"created_at"`
-	UpdatedAt           time.Time      `json:"updated_at"`
-	LawScope            LawScope       `json:"law_scope"`
-	LawID               string         `json:"law_id"`
-	IsLawActive         bool           `json:"is_law_active"`
-	SpeciesFormFactor   string         `json:"species_form_factor"`
-	IsSpeciesProtected  bool           `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus   `json:"species_threat_status"`
-	SuccessionalEcology OriginType     `json:"successional_ecology"`
-}
-
-func (q *Queries) ListSpecies(ctx context.Context, arg ListSpeciesParams) ([]ListSpeciesRow, error) {
+func (q *Queries) ListSpecies(ctx context.Context, arg ListSpeciesParams) ([]Species, error) {
 	rows, err := q.db.QueryContext(ctx, listSpecies, arg.Limit, arg.Offset)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var items []ListSpeciesRow
+	var items []Species
 	for rows.Next() {
-		var i ListSpeciesRow
+		var i Species
 		if err := rows.Scan(
 			&i.ID,
 			&i.ScientificName,
 			&i.Family,
 			&i.PopularName,
-			&i.SpeciesDetailID,
+			&i.Habit,
 			&i.CreatedAt,
 			&i.UpdatedAt,
-			&i.LawScope,
-			&i.LawID,
-			&i.IsLawActive,
-			&i.SpeciesFormFactor,
-			&i.IsSpeciesProtected,
-			&i.SpeciesThreatStatus,
-			&i.SuccessionalEcology,
 		); err != nil {
 			return nil, err
 		}
@@ -339,16 +304,18 @@ SET
     scientific_name = $2,
     family = $3,
     popular_name = $4,
-    updated_at = $5
+    habit = $5,
+    updated_at = $6
 WHERE id = $1
 `
 
 type UpdateSpeciesParams struct {
-	ID             string         `json:"id"`
-	ScientificName string         `json:"scientific_name"`
-	Family         string         `json:"family"`
-	PopularName    sql.NullString `json:"popular_name"`
-	UpdatedAt      time.Time      `json:"updated_at"`
+	ID             string           `json:"id"`
+	ScientificName string           `json:"scientific_name"`
+	Family         string           `json:"family"`
+	PopularName    sql.NullString   `json:"popular_name"`
+	Habit          NullSpeciesHabit `json:"habit"`
+	UpdatedAt      time.Time        `json:"updated_at"`
 }
 
 func (q *Queries) UpdateSpecies(ctx context.Context, arg UpdateSpeciesParams) error {
@@ -357,13 +324,14 @@ func (q *Queries) UpdateSpecies(ctx context.Context, arg UpdateSpeciesParams) er
 		arg.ScientificName,
 		arg.Family,
 		arg.PopularName,
+		arg.Habit,
 		arg.UpdatedAt,
 	)
 	return err
 }
 
 const updateSpeciesLegislation = `-- name: UpdateSpeciesLegislation :exec
-UPDATE public.species_details
+UPDATE public.species_legislations
 SET
     law_scope = $2,
     law_id = $3,
@@ -371,21 +339,23 @@ SET
     species_form_factor = $5,
     is_species_protected = $6,
     species_threat_status = $7,
-    successional_ecology = $8,
-    updated_at = $9
+    species_origin = $8,
+    successional_ecology = $9,
+    updated_at = $10
 WHERE id = $1
 `
 
 type UpdateSpeciesLegislationParams struct {
-	ID                  string       `json:"id"`
-	LawScope            LawScope     `json:"law_scope"`
-	LawID               string       `json:"law_id"`
-	IsLawActive         bool         `json:"is_law_active"`
-	SpeciesFormFactor   string       `json:"species_form_factor"`
-	IsSpeciesProtected  bool         `json:"is_species_protected"`
-	SpeciesThreatStatus ThreatStatus `json:"species_threat_status"`
-	SuccessionalEcology OriginType   `json:"successional_ecology"`
-	UpdatedAt           time.Time    `json:"updated_at"`
+	ID                  string                     `json:"id"`
+	LawScope            LawScope                   `json:"law_scope"`
+	LawID               sql.NullString             `json:"law_id"`
+	IsLawActive         bool                       `json:"is_law_active"`
+	SpeciesFormFactor   string                     `json:"species_form_factor"`
+	IsSpeciesProtected  bool                       `json:"is_species_protected"`
+	SpeciesThreatStatus ThreatStatus               `json:"species_threat_status"`
+	SpeciesOrigin       OriginType                 `json:"species_origin"`
+	SuccessionalEcology SpeciesSuccessionalEcology `json:"successional_ecology"`
+	UpdatedAt           time.Time                  `json:"updated_at"`
 }
 
 func (q *Queries) UpdateSpeciesLegislation(ctx context.Context, arg UpdateSpeciesLegislationParams) error {
@@ -397,6 +367,7 @@ func (q *Queries) UpdateSpeciesLegislation(ctx context.Context, arg UpdateSpecie
 		arg.SpeciesFormFactor,
 		arg.IsSpeciesProtected,
 		arg.SpeciesThreatStatus,
+		arg.SpeciesOrigin,
 		arg.SuccessionalEcology,
 		arg.UpdatedAt,
 	)

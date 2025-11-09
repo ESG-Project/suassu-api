@@ -1,5 +1,5 @@
 -- Apenas para o sqlc entender tipos (não roda no banco).
-CREATE TABLE specimens (
+CREATE TABLE specimen (
   id varchar(36) PRIMARY KEY,
   portion varchar(50) NOT NULL,
   height numeric NOT NULL,
@@ -17,7 +17,7 @@ CREATE TABLE specimens (
   specie_id varchar(36) NOT NULL,
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL,
-  FOREIGN KEY (phyto_analysis_id) REFERENCES phyto_analyses (id),
+  FOREIGN KEY (phyto_analysis_id) REFERENCES phyto_analysis (id),
   FOREIGN KEY (specie_id) REFERENCES species (id)
 );
 

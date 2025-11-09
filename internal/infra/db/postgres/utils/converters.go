@@ -4,6 +4,8 @@ import (
 	"database/sql"
 	"fmt"
 	"strconv"
+
+	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
 
 // ToNullString converte *string para sql.NullString
@@ -83,4 +85,26 @@ func Float64PtrToString(f *float64) sql.NullString {
 		return sql.NullString{Valid: false}
 	}
 	return sql.NullString{String: fmt.Sprintf("%v", *f), Valid: true}
+}
+
+// ToNullSpeciesHabit converte *string para sqlc.NullSpeciesHabit
+func ToNullSpeciesHabit(s *string) sqlc.NullSpeciesHabit {
+	if s == nil {
+		return sqlc.NullSpeciesHabit{Valid: false}
+	}
+	return sqlc.NullSpeciesHabit{SpeciesHabit: sqlc.SpeciesHabit(*s), Valid: true}
+}
+
+// FromNullSpeciesHabit converte sqlc.NullSpeciesHabit para *string
+func FromNullSpeciesHabit(nh sqlc.NullSpeciesHabit) *string {
+	if !nh.Valid {
+		return nil
+	}
+	str := string(nh.SpeciesHabit)
+	return &str
+}
+
+// StringToNullString converte string para sql.NullString
+func StringToNullString(s string) sql.NullString {
+	return sql.NullString{String: s, Valid: true}
 }

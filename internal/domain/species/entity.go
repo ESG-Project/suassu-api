@@ -8,52 +8,55 @@ import (
 
 // Species representa a entidade de espécie no domínio
 type Species struct {
-	ID               string
-	ScientificName   string
-	Family           string
-	PopularName      *string
-	SpeciesDetailID  string
-	CreatedAt        time.Time
-	UpdatedAt        time.Time
-	SpeciesDetail    *SpeciesLegislation
+	ID             string
+	ScientificName string
+	Family         string
+	PopularName    *string
+	Habit          *string // ARB, ANF, ARV, EME FIX, FLU FIX, FLU LIV, HERB, PAL, TREP
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	Legislations   []*SpeciesLegislation
 }
 
 // SpeciesLegislation representa a legislação da espécie
 type SpeciesLegislation struct {
-	ID                   string
-	LawScope             string // Federal, State, Municipal
-	LawID                string
-	IsLawActive          bool
-	SpeciesFormFactor    float64
-	IsSpeciesProtected   bool
-	SpeciesThreatStatus  string // LC, CR, NT, EN, VU
-	SpeciesOrigin        string // EX, EXI, N
-	CreatedAt            time.Time
-	UpdatedAt            time.Time
+	ID                  string
+	LawScope            string // FEDERAL, STATE, MUNICIPAL
+	LawID               *string
+	IsLawActive         bool
+	SpeciesFormFactor   float64
+	IsSpeciesProtected  bool
+	SpeciesThreatStatus string // LC, CR, NT, EN, VU
+	SpeciesOrigin       string // EX, EXI, N
+	SuccessionalEcology string // P, IS, S, C, LS, MS, AS
+	SpeciesID           *string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
 
 // NewSpecies cria uma nova instância de Species
 func NewSpecies(
-	id, scientificName, family, speciesDetailID string,
+	id, scientificName, family string,
 ) *Species {
 	now := time.Now()
 	return &Species{
-		ID:              id,
-		ScientificName:  scientificName,
-		Family:          family,
-		SpeciesDetailID: speciesDetailID,
-		CreatedAt:       now,
-		UpdatedAt:       now,
+		ID:             id,
+		ScientificName: scientificName,
+		Family:         family,
+		CreatedAt:      now,
+		UpdatedAt:      now,
 	}
 }
 
 // NewSpeciesLegislation cria uma nova instância de SpeciesLegislation
 func NewSpeciesLegislation(
-	id, lawScope, lawID string,
+	id, lawScope string,
+	lawID *string,
 	isLawActive bool,
 	speciesFormFactor float64,
 	isSpeciesProtected bool,
-	speciesThreatStatus, speciesOrigin string,
+	speciesThreatStatus, speciesOrigin, successionalEcology string,
+	speciesID *string,
 ) *SpeciesLegislation {
 	now := time.Now()
 	return &SpeciesLegislation{
@@ -65,6 +68,8 @@ func NewSpeciesLegislation(
 		IsSpeciesProtected:  isSpeciesProtected,
 		SpeciesThreatStatus: speciesThreatStatus,
 		SpeciesOrigin:       speciesOrigin,
+		SuccessionalEcology: successionalEcology,
+		SpeciesID:           speciesID,
 		CreatedAt:           now,
 		UpdatedAt:           now,
 	}
@@ -78,15 +83,24 @@ func (s *Species) Validate() error {
 	if strings.TrimSpace(s.Family) == "" {
 		return errors.New("family is required")
 	}
-	if strings.TrimSpace(s.SpeciesDetailID) == "" {
-		return errors.New("species detail ID is required")
+
+	// Validar habit se fornecido
+	if s.Habit != nil {
+		validHabits := map[string]bool{
+			"ARB": true, "ANF": true, "ARV": true, "EME FIX": true,
+			"FLU FIX": true, "FLU LIV": true, "HERB": true, "PAL": true, "TREP": true,
+		}
+		if !validHabits[*s.Habit] {
+			return errors.New("invalid habit")
+		}
 	}
+
 	return nil
 }
 
 // Validate valida se a legislação está em um estado válido
 func (sl *SpeciesLegislation) Validate() error {
-	validLawScopes := map[string]bool{"Federal": true, "State": true, "Municipal": true}
+	validLawScopes := map[string]bool{"FEDERAL": true, "STATE": true, "MUNICIPAL": true}
 	if !validLawScopes[sl.LawScope] {
 		return errors.New("invalid law scope")
 	}
@@ -101,8 +115,9 @@ func (sl *SpeciesLegislation) Validate() error {
 		return errors.New("invalid species origin")
 	}
 
-	if strings.TrimSpace(sl.LawID) == "" {
-		return errors.New("law ID is required")
+	validSuccessionalEcologies := map[string]bool{"P": true, "IS": true, "S": true, "C": true, "LS": true, "MS": true, "AS": true}
+	if !validSuccessionalEcologies[sl.SuccessionalEcology] {
+		return errors.New("invalid successional ecology")
 	}
 
 	if sl.SpeciesFormFactor <= 0 {
@@ -117,8 +132,12 @@ func (s *Species) SetPopularName(popularName *string) {
 	s.PopularName = popularName
 }
 
-// SetSpeciesDetail define os detalhes da legislação
-func (s *Species) SetSpeciesDetail(detail *SpeciesLegislation) {
-	s.SpeciesDetail = detail
+// SetHabit define o hábito da espécie
+func (s *Species) SetHabit(habit *string) {
+	s.Habit = habit
 }
 
+// AddLegislation adiciona uma legislação à espécie
+func (s *Species) AddLegislation(legislation *SpeciesLegislation) {
+	s.Legislations = append(s.Legislations, legislation)
+}

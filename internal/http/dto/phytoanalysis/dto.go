@@ -32,19 +32,8 @@ type SpecimenInput struct {
 	BasalArea    float64   `json:"basalArea"`
 	Volume       float64   `json:"volume"`
 	RegisterDate time.Time `json:"registerDate"`
-	// Dados da espécie
-	SpecieID       *string `json:"specieId,omitempty"`
-	ScientificName *string `json:"scientificName,omitempty"`
-	Family         *string `json:"family,omitempty"`
-	PopularName    *string `json:"popularName,omitempty"`
-	// Dados da legislação (opcional, com valores padrão)
-	LawScope            *string  `json:"lawScope,omitempty"`
-	LawID               *string  `json:"lawId,omitempty"`
-	IsLawActive         *bool    `json:"isLawActive,omitempty"`
-	SpeciesFormFactor   *float64 `json:"speciesFormFactor,omitempty"`
-	IsSpeciesProtected  *bool    `json:"isSpeciesProtected,omitempty"`
-	SpeciesThreatStatus *string  `json:"speciesThreatStatus,omitempty"`
-	SpeciesOrigin       *string  `json:"speciesOrigin,omitempty"`
+	// Nome científico da espécie (obrigatório)
+	ScientificName string `json:"scientificName"`
 }
 
 // UpdatePhytoAnalysisRequest representa a requisição para atualizar uma análise fitossociológica

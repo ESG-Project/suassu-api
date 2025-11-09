@@ -13,7 +13,7 @@ import (
 
 const countSpecimensByPhytoAnalysis = `-- name: CountSpecimensByPhytoAnalysis :one
 SELECT COUNT(*) as total
-FROM public.specimens
+FROM public.specimen
 WHERE phyto_analysis_id = $1
 `
 
@@ -25,7 +25,7 @@ func (q *Queries) CountSpecimensByPhytoAnalysis(ctx context.Context, phytoAnalys
 }
 
 const createSpecimen = `-- name: CreateSpecimen :one
-INSERT INTO public.specimens (
+INSERT INTO public.specimen (
     id,
     portion,
     height,
@@ -68,7 +68,7 @@ type CreateSpecimenParams struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
-func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) (Specimen, error) {
+func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) (Speciman, error) {
 	row := q.db.QueryRowContext(ctx, createSpecimen,
 		arg.ID,
 		arg.Portion,
@@ -88,7 +88,7 @@ func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) 
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
-	var i Specimen
+	var i Speciman
 	err := row.Scan(
 		&i.ID,
 		&i.Portion,
@@ -112,7 +112,7 @@ func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) 
 }
 
 const deleteSpecimen = `-- name: DeleteSpecimen :exec
-DELETE FROM public.specimens
+DELETE FROM public.specimen
 WHERE id = $1
 `
 
@@ -143,7 +143,7 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name
-FROM public.specimens sp
+FROM public.specimen sp
 INNER JOIN public.species s ON sp.specie_id = s.id
 WHERE sp.id = $1
 LIMIT 1
@@ -222,7 +222,7 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name
-FROM public.specimens sp
+FROM public.specimen sp
 INNER JOIN public.species s ON sp.specie_id = s.id
 WHERE sp.phyto_analysis_id = $1
 ORDER BY sp.portion ASC, sp.created_at ASC
@@ -296,7 +296,7 @@ func (q *Queries) ListSpecimensByPhytoAnalysis(ctx context.Context, phytoAnalysi
 }
 
 const updateSpecimen = `-- name: UpdateSpecimen :exec
-UPDATE public.specimens
+UPDATE public.specimen
 SET
     portion = $2,
     height = $3,

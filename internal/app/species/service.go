@@ -29,13 +29,15 @@ type CreateInput struct {
 	ScientificName      string
 	Family              string
 	PopularName         *string
+	Habit               *string
 	LawScope            string
-	LawID               string
+	LawID               *string
 	IsLawActive         bool
 	SpeciesFormFactor   float64
 	IsSpeciesProtected  bool
 	SpeciesThreatStatus string
 	SpeciesOrigin       string
+	SuccessionalEcology string
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
@@ -43,7 +45,31 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		return "", apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 
-	// Criar legislação primeiro
+	// Criar espécie primeiro
+	speciesID := uuid.NewString()
+	species := domainspecies.NewSpecies(
+		speciesID,
+		in.ScientificName,
+		in.Family,
+	)
+
+	if in.PopularName != nil {
+		species.SetPopularName(in.PopularName)
+	}
+
+	if in.Habit != nil {
+		species.SetHabit(in.Habit)
+	}
+
+	if err := species.Validate(); err != nil {
+		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid species data")
+	}
+
+	if err := s.repo.CreateSpecies(ctx, species); err != nil {
+		return "", apperr.Wrap(err, apperr.CodeInternal, "failed to create species")
+	}
+
+	// Criar legislação associada à espécie
 	legislationID := uuid.NewString()
 	legislation := domainspecies.NewSpeciesLegislation(
 		legislationID,
@@ -54,6 +80,8 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		in.IsSpeciesProtected,
 		in.SpeciesThreatStatus,
 		in.SpeciesOrigin,
+		in.SuccessionalEcology,
+		&speciesID,
 	)
 
 	if err := legislation.Validate(); err != nil {
@@ -62,27 +90,6 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 
 	if err := s.repo.CreateLegislation(ctx, legislation); err != nil {
 		return "", apperr.Wrap(err, apperr.CodeInternal, "failed to create species legislation")
-	}
-
-	// Criar espécie
-	speciesID := uuid.NewString()
-	species := domainspecies.NewSpecies(
-		speciesID,
-		in.ScientificName,
-		in.Family,
-		legislationID,
-	)
-
-	if in.PopularName != nil {
-		species.SetPopularName(in.PopularName)
-	}
-
-	if err := species.Validate(); err != nil {
-		return "", apperr.Wrap(err, apperr.CodeInvalid, "invalid species data")
-	}
-
-	if err := s.repo.CreateSpecies(ctx, species); err != nil {
-		return "", apperr.Wrap(err, apperr.CodeInternal, "failed to create species")
 	}
 
 	return speciesID, nil

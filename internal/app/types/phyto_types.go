@@ -69,22 +69,31 @@ type SpecimenWithSpecies struct {
 	PopularName    *string
 }
 
-// SpeciesWithLegislation representa uma espécie com dados da legislação
+// SpeciesWithLegislation representa uma espécie com dados das legislações
 type SpeciesWithLegislation struct {
-	ID              string
-	ScientificName  string
-	Family          string
-	PopularName     *string
-	SpeciesDetailID string
-	CreatedAt       time.Time
-	UpdatedAt       time.Time
-	// Dados da legislação
+	ID             string
+	ScientificName string
+	Family         string
+	PopularName    *string
+	Habit          *string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+	// Lista de legislações associadas
+	Legislations []LegislationData
+}
+
+// LegislationData representa os dados de uma legislação
+type LegislationData struct {
+	ID                  string
 	LawScope            string
-	LawID               string
+	LawID               *string
 	IsLawActive         bool
 	SpeciesFormFactor   float64
 	IsSpeciesProtected  bool
 	SpeciesThreatStatus string
 	SpeciesOrigin       string
+	SuccessionalEcology string
+	SpeciesID           *string
+	CreatedAt           time.Time
+	UpdatedAt           time.Time
 }
-
