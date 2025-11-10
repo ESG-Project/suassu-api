@@ -46,27 +46,42 @@ type UpdatePhytoAnalysisRequest struct {
 
 // PhytoAnalysisResponse representa a resposta de uma análise fitossociológica
 type PhytoAnalysisResponse struct {
-	ID              string             `json:"id"`
-	Title           string             `json:"title"`
-	InitialDate     time.Time          `json:"initialDate"`
-	PortionQuantity int                `json:"portionQuantity"`
-	PortionArea     float64            `json:"portionArea"`
-	TotalArea       float64            `json:"totalArea"`
-	SampledArea     float64            `json:"sampledArea"`
-	Description     *string            `json:"description,omitempty"`
-	ProjectID       string             `json:"projectId"`
-	CreatedAt       time.Time          `json:"createdAt"`
-	UpdatedAt       time.Time          `json:"updatedAt"`
-	Project         *ProjectInfo       `json:"project,omitempty"`
-	Specimens       []SpecimenResponse `json:"specimens,omitempty"`
+	ID               string             `json:"id"`
+	Title            string             `json:"title"`
+	InitialDate      time.Time          `json:"initialDate"`
+	PortionQuantity  int                `json:"portionQuantity"`
+	PortionArea      float64            `json:"portionArea"`
+	TotalArea        float64            `json:"totalArea"`
+	SampledArea      float64            `json:"sampledArea"`
+	Description      *string            `json:"description,omitempty"`
+	ProjectID        string             `json:"projectId"`
+	CreatedAt        time.Time          `json:"createdAt"`
+	UpdatedAt        time.Time          `json:"updatedAt"`
+	Project          *ProjectInfo       `json:"project,omitempty"`
+	Specimens        []SpecimenResponse `json:"specimens,omitempty"`
+	IndividualsCount int                `json:"individualsCount"` // Número de indivíduos (total de specimens)
+	SpeciesCount     int                `json:"speciesCount"`     // Número de espécies (scientific names únicos)
 }
 
 type ProjectInfo struct {
-	ID       string  `json:"id"`
-	Title    string  `json:"title"`
-	CNPJ     *string `json:"cnpj,omitempty"`
-	Activity string  `json:"activity"`
-	ClientID string  `json:"clientId"`
+	ID       string          `json:"id"`
+	Title    string          `json:"title"`
+	CNPJ     *string         `json:"cnpj,omitempty"`
+	Activity string          `json:"activity"`
+	ClientID string          `json:"clientId"`
+	Address  *ProjectAddress `json:"address,omitempty"`
+}
+
+type ProjectAddress struct {
+	ZipCode      *string `json:"zipCode,omitempty"`
+	State        *string `json:"state,omitempty"`
+	City         *string `json:"city,omitempty"`
+	Neighborhood *string `json:"neighborhood,omitempty"`
+	Street       *string `json:"street,omitempty"`
+	Num          *string `json:"num,omitempty"`
+	Latitude     *string `json:"latitude,omitempty"`
+	Longitude    *string `json:"longitude,omitempty"`
+	AddInfo      *string `json:"addInfo,omitempty"`
 }
 
 type SpecimenResponse struct {
@@ -113,6 +128,8 @@ func ToPhytoAnalysisResponse(p *types.PhytoAnalysisWithProject) *PhytoAnalysisRe
 // ToPhytoAnalysisCompleteResponse converte análise completa para resposta HTTP
 func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnalysisResponse {
 	specimens := make([]SpecimenResponse, 0, len(p.Specimens))
+	uniqueSpecies := make(map[string]bool) // Para contar espécies únicas
+
 	for _, s := range p.Specimens {
 		specimens = append(specimens, SpecimenResponse{
 			ID:             s.ID,
@@ -130,6 +147,27 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 			Family:         s.Family,
 			PopularName:    s.PopularName,
 		})
+
+		// Adicionar nome científico ao mapa para contar espécies únicas
+		if s.ScientificName != "" {
+			uniqueSpecies[s.ScientificName] = true
+		}
+	}
+
+	// Montar endereço do projeto se houver dados
+	var projectAddress *ProjectAddress
+	if p.ProjectZipCode != nil || p.ProjectState != nil || p.ProjectCity != nil {
+		projectAddress = &ProjectAddress{
+			ZipCode:      p.ProjectZipCode,
+			State:        p.ProjectState,
+			City:         p.ProjectCity,
+			Neighborhood: p.ProjectNeighborhood,
+			Street:       p.ProjectStreet,
+			Num:          p.ProjectNum,
+			Latitude:     p.ProjectLatitude,
+			Longitude:    p.ProjectLongitude,
+			AddInfo:      p.ProjectAddInfo,
+		}
 	}
 
 	return &PhytoAnalysisResponse{
@@ -150,7 +188,10 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 			CNPJ:     p.ProjectCNPJ,
 			Activity: p.ProjectActivity,
 			ClientID: p.ProjectClientID,
+			Address:  projectAddress,
 		},
-		Specimens: specimens,
+		Specimens:        specimens,
+		IndividualsCount: len(p.Specimens),   // Total de specimens
+		SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
 	}
 }
