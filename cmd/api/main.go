@@ -15,9 +15,11 @@ import (
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
 	appfeatures "github.com/ESG-Project/suassu-api/internal/app/feature"
+	appphyto "github.com/ESG-Project/suassu-api/internal/app/phytoanalysis"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
+	phytohttp "github.com/ESG-Project/suassu-api/internal/http/v1/phytoanalysis"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
@@ -63,6 +65,10 @@ func main() {
 	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
 	enterpriseSvc := appenterprise.NewService(enterpriseRepo, addressSvc, hasher)
 
+	// PhytoAnalysis
+	phytoRepo := postgres.NewPhytoAnalysisRepo(db)
+	phytoSvc := appphyto.NewService(phytoRepo, txm)
+
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
 	authSvc := appauth.NewService(userRepo, userSvc, hasher, jwtIssuer)
@@ -104,6 +110,7 @@ func main() {
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
 			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
+			priv.Mount("/phyto-analyses", phytohttp.Routes(phytoSvc))
 		})
 
 		v1.Mount("/", openapi.Routes())
