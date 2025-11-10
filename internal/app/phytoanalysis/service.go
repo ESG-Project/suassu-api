@@ -57,9 +57,6 @@ type SpecimenInput struct {
 	Cap4         *float64
 	Cap5         *float64
 	Cap6         *float64
-	AverageDap   float64
-	BasalArea    float64
-	Volume       float64
 	RegisterDate time.Time
 	// Dados da espécie - buscar pelo nome científico
 	ScientificName string // Nome científico da espécie (obrigatório)
@@ -137,9 +134,6 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 				Cap4:            specimenIn.Cap4,
 				Cap5:            specimenIn.Cap5,
 				Cap6:            specimenIn.Cap6,
-				AverageDap:      specimenIn.AverageDap,
-				BasalArea:       specimenIn.BasalArea,
-				Volume:          specimenIn.Volume,
 				RegisterDate:    specimenIn.RegisterDate,
 				PhytoAnalysisID: phytoID,
 				SpecieID:        speciesData.ID,

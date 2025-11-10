@@ -34,9 +34,6 @@ func (r *SpecimenRepo) Create(ctx context.Context, s *domainspecimen.Specimen) e
 		Cap4:            utils.Float64PtrToString(s.Cap4),
 		Cap5:            utils.Float64PtrToString(s.Cap5),
 		Cap6:            utils.Float64PtrToString(s.Cap6),
-		AverageDap:      utils.Float64ToString(s.AverageDap),
-		BasalArea:       utils.Float64ToString(s.BasalArea),
-		Volume:          utils.Float64ToString(s.Volume),
 		RegisterDate:    s.RegisterDate,
 		PhytoAnalysisID: s.PhytoAnalysisID,
 		SpecieID:        s.SpecieID,
@@ -57,9 +54,6 @@ func (r *SpecimenRepo) GetByID(ctx context.Context, id string) (*types.SpecimenW
 
 	height, _ := utils.StringToFloat64(row.Height)
 	cap1, _ := utils.StringToFloat64(row.Cap1)
-	averageDap, _ := utils.StringToFloat64(row.AverageDap)
-	basalArea, _ := utils.StringToFloat64(row.BasalArea)
-	volume, _ := utils.StringToFloat64(row.Volume)
 
 	return &types.SpecimenWithSpecies{
 		ID:              row.ID,
@@ -71,9 +65,6 @@ func (r *SpecimenRepo) GetByID(ctx context.Context, id string) (*types.SpecimenW
 		Cap4:            utils.NullStringToNullFloat64(row.Cap4),
 		Cap5:            utils.NullStringToNullFloat64(row.Cap5),
 		Cap6:            utils.NullStringToNullFloat64(row.Cap6),
-		AverageDap:      averageDap,
-		BasalArea:       basalArea,
-		Volume:          volume,
 		RegisterDate:    row.RegisterDate,
 		PhytoAnalysisID: row.PhytoAnalysisID,
 		SpecieID:        row.SpecieID,
@@ -95,9 +86,6 @@ func (r *SpecimenRepo) ListByPhytoAnalysis(ctx context.Context, phytoAnalysisID 
 	for _, row := range rows {
 		height, _ := utils.StringToFloat64(row.Height)
 		cap1, _ := utils.StringToFloat64(row.Cap1)
-		averageDap, _ := utils.StringToFloat64(row.AverageDap)
-		basalArea, _ := utils.StringToFloat64(row.BasalArea)
-		volume, _ := utils.StringToFloat64(row.Volume)
 
 		result = append(result, &types.SpecimenWithSpecies{
 			ID:              row.ID,
@@ -109,9 +97,6 @@ func (r *SpecimenRepo) ListByPhytoAnalysis(ctx context.Context, phytoAnalysisID 
 			Cap4:            utils.NullStringToNullFloat64(row.Cap4),
 			Cap5:            utils.NullStringToNullFloat64(row.Cap5),
 			Cap6:            utils.NullStringToNullFloat64(row.Cap6),
-			AverageDap:      averageDap,
-			BasalArea:       basalArea,
-			Volume:          volume,
 			RegisterDate:    row.RegisterDate,
 			PhytoAnalysisID: row.PhytoAnalysisID,
 			SpecieID:        row.SpecieID,
@@ -137,9 +122,6 @@ func (r *SpecimenRepo) Update(ctx context.Context, s *domainspecimen.Specimen) e
 		Cap4:         utils.Float64PtrToString(s.Cap4),
 		Cap5:         utils.Float64PtrToString(s.Cap5),
 		Cap6:         utils.Float64PtrToString(s.Cap6),
-		AverageDap:   utils.Float64ToString(s.AverageDap),
-		BasalArea:    utils.Float64ToString(s.BasalArea),
-		Volume:       utils.Float64ToString(s.Volume),
 		RegisterDate: s.RegisterDate,
 		SpecieID:     s.SpecieID,
 		UpdatedAt:    s.UpdatedAt,

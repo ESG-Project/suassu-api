@@ -174,9 +174,6 @@ SELECT
     sp.cap4,
     sp.cap5,
     sp.cap6,
-    sp.average_dap,
-    sp.basal_area,
-    sp.volume,
     sp.register_date,
     sp.specie_id,
     s.scientific_name,
@@ -215,9 +212,6 @@ type GetPhytoAnalysisWithSpecimensRow struct {
 	Cap4             sql.NullString `json:"cap4"`
 	Cap5             sql.NullString `json:"cap5"`
 	Cap6             sql.NullString `json:"cap6"`
-	AverageDap       sql.NullString `json:"average_dap"`
-	BasalArea        sql.NullString `json:"basal_area"`
-	Volume           sql.NullString `json:"volume"`
 	RegisterDate     sql.NullTime   `json:"register_date"`
 	SpecieID         sql.NullString `json:"specie_id"`
 	ScientificName   sql.NullString `json:"scientific_name"`
@@ -259,9 +253,6 @@ func (q *Queries) GetPhytoAnalysisWithSpecimens(ctx context.Context, id string) 
 			&i.Cap4,
 			&i.Cap5,
 			&i.Cap6,
-			&i.AverageDap,
-			&i.BasalArea,
-			&i.Volume,
 			&i.RegisterDate,
 			&i.SpecieID,
 			&i.ScientificName,

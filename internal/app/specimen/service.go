@@ -35,9 +35,6 @@ type CreateInput struct {
 	Cap4            *float64
 	Cap5            *float64
 	Cap6            *float64
-	AverageDap      float64
-	BasalArea       float64
-	Volume          float64
 	RegisterDate    time.Time
 	PhytoAnalysisID string
 	SpecieID        string
@@ -52,9 +49,6 @@ type UpdateInput struct {
 	Cap4         *float64
 	Cap5         *float64
 	Cap6         *float64
-	AverageDap   float64
-	BasalArea    float64
-	Volume       float64
 	RegisterDate time.Time
 	SpecieID     string
 }
@@ -70,9 +64,6 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		in.Portion,
 		in.Height,
 		in.Cap1,
-		in.AverageDap,
-		in.BasalArea,
-		in.Volume,
 		in.RegisterDate,
 		in.PhytoAnalysisID,
 		in.SpecieID,
@@ -113,9 +104,6 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 		in.Portion,
 		in.Height,
 		in.Cap1,
-		in.AverageDap,
-		in.BasalArea,
-		in.Volume,
 		in.RegisterDate,
 		"", // phytoAnalysisID não é alterado
 		in.SpecieID,
