@@ -9,17 +9,14 @@ INSERT INTO public.specimen (
     cap4,
     cap5,
     cap6,
-    average_dap,
-    basal_area,
-    volume,
     register_date,
     phyto_analysis_id,
     specie_id,
     created_at,
     updated_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-RETURNING *;
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, portion, height, cap1, cap2, cap3, cap4, cap5, cap6, register_date, phyto_analysis_id, specie_id, created_at, updated_at;
 
 -- name: GetSpecimenByID :one
 SELECT 
@@ -32,9 +29,6 @@ SELECT
     sp.cap4,
     sp.cap5,
     sp.cap6,
-    sp.average_dap,
-    sp.basal_area,
-    sp.volume,
     sp.register_date,
     sp.phyto_analysis_id,
     sp.specie_id,
@@ -59,9 +53,6 @@ SELECT
     sp.cap4,
     sp.cap5,
     sp.cap6,
-    sp.average_dap,
-    sp.basal_area,
-    sp.volume,
     sp.register_date,
     sp.phyto_analysis_id,
     sp.specie_id,
@@ -86,12 +77,9 @@ SET
     cap4 = $7,
     cap5 = $8,
     cap6 = $9,
-    average_dap = $10,
-    basal_area = $11,
-    volume = $12,
-    register_date = $13,
-    specie_id = $14,
-    updated_at = $15
+    register_date = $10,
+    specie_id = $11,
+    updated_at = $12
 WHERE id = $1;
 
 -- name: DeleteSpecimen :exec

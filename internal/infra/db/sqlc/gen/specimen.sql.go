@@ -35,17 +35,14 @@ INSERT INTO public.specimen (
     cap4,
     cap5,
     cap6,
-    average_dap,
-    basal_area,
-    volume,
     register_date,
     phyto_analysis_id,
     specie_id,
     created_at,
     updated_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
-RETURNING id, portion, height, cap1, cap2, cap3, cap4, cap5, cap6, average_dap, basal_area, volume, register_date, phyto_analysis_id, specie_id, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+RETURNING id, portion, height, cap1, cap2, cap3, cap4, cap5, cap6, register_date, phyto_analysis_id, specie_id, created_at, updated_at
 `
 
 type CreateSpecimenParams struct {
@@ -58,9 +55,6 @@ type CreateSpecimenParams struct {
 	Cap4            sql.NullString `json:"cap4"`
 	Cap5            sql.NullString `json:"cap5"`
 	Cap6            sql.NullString `json:"cap6"`
-	AverageDap      string         `json:"average_dap"`
-	BasalArea       string         `json:"basal_area"`
-	Volume          string         `json:"volume"`
 	RegisterDate    time.Time      `json:"register_date"`
 	PhytoAnalysisID string         `json:"phyto_analysis_id"`
 	SpecieID        string         `json:"specie_id"`
@@ -79,9 +73,6 @@ func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) 
 		arg.Cap4,
 		arg.Cap5,
 		arg.Cap6,
-		arg.AverageDap,
-		arg.BasalArea,
-		arg.Volume,
 		arg.RegisterDate,
 		arg.PhytoAnalysisID,
 		arg.SpecieID,
@@ -99,9 +90,6 @@ func (q *Queries) CreateSpecimen(ctx context.Context, arg CreateSpecimenParams) 
 		&i.Cap4,
 		&i.Cap5,
 		&i.Cap6,
-		&i.AverageDap,
-		&i.BasalArea,
-		&i.Volume,
 		&i.RegisterDate,
 		&i.PhytoAnalysisID,
 		&i.SpecieID,
@@ -132,9 +120,6 @@ SELECT
     sp.cap4,
     sp.cap5,
     sp.cap6,
-    sp.average_dap,
-    sp.basal_area,
-    sp.volume,
     sp.register_date,
     sp.phyto_analysis_id,
     sp.specie_id,
@@ -159,9 +144,6 @@ type GetSpecimenByIDRow struct {
 	Cap4            sql.NullString `json:"cap4"`
 	Cap5            sql.NullString `json:"cap5"`
 	Cap6            sql.NullString `json:"cap6"`
-	AverageDap      string         `json:"average_dap"`
-	BasalArea       string         `json:"basal_area"`
-	Volume          string         `json:"volume"`
 	RegisterDate    time.Time      `json:"register_date"`
 	PhytoAnalysisID string         `json:"phyto_analysis_id"`
 	SpecieID        string         `json:"specie_id"`
@@ -185,9 +167,6 @@ func (q *Queries) GetSpecimenByID(ctx context.Context, id string) (GetSpecimenBy
 		&i.Cap4,
 		&i.Cap5,
 		&i.Cap6,
-		&i.AverageDap,
-		&i.BasalArea,
-		&i.Volume,
 		&i.RegisterDate,
 		&i.PhytoAnalysisID,
 		&i.SpecieID,
@@ -211,9 +190,6 @@ SELECT
     sp.cap4,
     sp.cap5,
     sp.cap6,
-    sp.average_dap,
-    sp.basal_area,
-    sp.volume,
     sp.register_date,
     sp.phyto_analysis_id,
     sp.specie_id,
@@ -238,9 +214,6 @@ type ListSpecimensByPhytoAnalysisRow struct {
 	Cap4            sql.NullString `json:"cap4"`
 	Cap5            sql.NullString `json:"cap5"`
 	Cap6            sql.NullString `json:"cap6"`
-	AverageDap      string         `json:"average_dap"`
-	BasalArea       string         `json:"basal_area"`
-	Volume          string         `json:"volume"`
 	RegisterDate    time.Time      `json:"register_date"`
 	PhytoAnalysisID string         `json:"phyto_analysis_id"`
 	SpecieID        string         `json:"specie_id"`
@@ -270,9 +243,6 @@ func (q *Queries) ListSpecimensByPhytoAnalysis(ctx context.Context, phytoAnalysi
 			&i.Cap4,
 			&i.Cap5,
 			&i.Cap6,
-			&i.AverageDap,
-			&i.BasalArea,
-			&i.Volume,
 			&i.RegisterDate,
 			&i.PhytoAnalysisID,
 			&i.SpecieID,
@@ -306,12 +276,9 @@ SET
     cap4 = $7,
     cap5 = $8,
     cap6 = $9,
-    average_dap = $10,
-    basal_area = $11,
-    volume = $12,
-    register_date = $13,
-    specie_id = $14,
-    updated_at = $15
+    register_date = $10,
+    specie_id = $11,
+    updated_at = $12
 WHERE id = $1
 `
 
@@ -325,9 +292,6 @@ type UpdateSpecimenParams struct {
 	Cap4         sql.NullString `json:"cap4"`
 	Cap5         sql.NullString `json:"cap5"`
 	Cap6         sql.NullString `json:"cap6"`
-	AverageDap   string         `json:"average_dap"`
-	BasalArea    string         `json:"basal_area"`
-	Volume       string         `json:"volume"`
 	RegisterDate time.Time      `json:"register_date"`
 	SpecieID     string         `json:"specie_id"`
 	UpdatedAt    time.Time      `json:"updated_at"`
@@ -344,9 +308,6 @@ func (q *Queries) UpdateSpecimen(ctx context.Context, arg UpdateSpecimenParams) 
 		arg.Cap4,
 		arg.Cap5,
 		arg.Cap6,
-		arg.AverageDap,
-		arg.BasalArea,
-		arg.Volume,
 		arg.RegisterDate,
 		arg.SpecieID,
 		arg.UpdatedAt,

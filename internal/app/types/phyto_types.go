@@ -55,9 +55,6 @@ type SpecimenWithSpecies struct {
 	Cap4            *float64
 	Cap5            *float64
 	Cap6            *float64
-	AverageDap      float64
-	BasalArea       float64
-	Volume          float64
 	RegisterDate    time.Time
 	PhytoAnalysisID string
 	SpecieID        string

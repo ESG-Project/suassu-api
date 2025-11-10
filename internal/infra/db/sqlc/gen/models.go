@@ -411,9 +411,6 @@ type Speciman struct {
 	Cap4            sql.NullString `json:"cap4"`
 	Cap5            sql.NullString `json:"cap5"`
 	Cap6            sql.NullString `json:"cap6"`
-	AverageDap      string         `json:"average_dap"`
-	BasalArea       string         `json:"basal_area"`
-	Volume          string         `json:"volume"`
 	RegisterDate    time.Time      `json:"register_date"`
 	PhytoAnalysisID string         `json:"phyto_analysis_id"`
 	SpecieID        string         `json:"specie_id"`

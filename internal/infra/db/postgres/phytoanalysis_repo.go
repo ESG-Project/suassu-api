@@ -241,9 +241,6 @@ func (r *PhytoAnalysisRepo) GetWithSpecimens(ctx context.Context, id string) (*t
 
 		height := utils.NullStringToNullFloat64(row.Height)
 		cap1 := utils.NullStringToNullFloat64(row.Cap1)
-		averageDap := utils.NullStringToNullFloat64(row.AverageDap)
-		basalArea := utils.NullStringToNullFloat64(row.BasalArea)
-		volume := utils.NullStringToNullFloat64(row.Volume)
 
 		specimen := &types.SpecimenWithSpecies{
 			ID:              row.SpecimenID.String,
@@ -255,9 +252,6 @@ func (r *PhytoAnalysisRepo) GetWithSpecimens(ctx context.Context, id string) (*t
 			Cap4:            utils.NullStringToNullFloat64(row.Cap4),
 			Cap5:            utils.NullStringToNullFloat64(row.Cap5),
 			Cap6:            utils.NullStringToNullFloat64(row.Cap6),
-			AverageDap:      *averageDap,
-			BasalArea:       *basalArea,
-			Volume:          *volume,
 			RegisterDate:    row.RegisterDate.Time,
 			PhytoAnalysisID: firstRow.PhytoID,
 			SpecieID:        row.SpecieID.String,

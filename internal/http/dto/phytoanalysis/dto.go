@@ -28,9 +28,6 @@ type SpecimenInput struct {
 	Cap4         *float64  `json:"cap4,omitempty"`
 	Cap5         *float64  `json:"cap5,omitempty"`
 	Cap6         *float64  `json:"cap6,omitempty"`
-	AverageDap   float64   `json:"averageDap"`
-	BasalArea    float64   `json:"basalArea"`
-	Volume       float64   `json:"volume"`
 	RegisterDate time.Time `json:"registerDate"`
 	// Nome científico da espécie (obrigatório)
 	ScientificName string `json:"scientificName"`
@@ -82,9 +79,6 @@ type SpecimenResponse struct {
 	Cap4           *float64  `json:"cap4,omitempty"`
 	Cap5           *float64  `json:"cap5,omitempty"`
 	Cap6           *float64  `json:"cap6,omitempty"`
-	AverageDap     float64   `json:"averageDap"`
-	BasalArea      float64   `json:"basalArea"`
-	Volume         float64   `json:"volume"`
 	RegisterDate   time.Time `json:"registerDate"`
 	SpecieID       string    `json:"specieId"`
 	ScientificName string    `json:"scientificName"`
@@ -130,9 +124,6 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 			Cap4:           s.Cap4,
 			Cap5:           s.Cap5,
 			Cap6:           s.Cap6,
-			AverageDap:     s.AverageDap,
-			BasalArea:      s.BasalArea,
-			Volume:         s.Volume,
 			RegisterDate:   s.RegisterDate,
 			SpecieID:       s.SpecieID,
 			ScientificName: s.ScientificName,
