@@ -61,19 +61,8 @@ type SpecimenInput struct {
 	BasalArea    float64
 	Volume       float64
 	RegisterDate time.Time
-	// Dados da espécie (para criar ou buscar)
-	SpecieID       *string // Se já existe
-	ScientificName *string // Se precisa criar/buscar
-	Family         *string
-	PopularName    *string
-	// Dados da legislação (se criar nova espécie)
-	LawScope            *string
-	LawID               *string
-	IsLawActive         *bool
-	SpeciesFormFactor   *float64
-	IsSpeciesProtected  *bool
-	SpeciesThreatStatus *string
-	SpeciesOrigin       *string
+	// Dados da espécie - buscar pelo nome científico
+	ScientificName string // Nome científico da espécie (obrigatório)
 }
 
 type UpdateInput struct {
@@ -132,40 +121,10 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 
 		// 3. Criar specimens
 		for _, specimenIn := range in.Specimens {
-			// Determinar o SpecieID
-			var specieID string
-			if specimenIn.SpecieID != nil {
-				specieID = *specimenIn.SpecieID
-			} else if specimenIn.ScientificName != nil {
-				// Validar campos obrigatórios para criar espécie
-				if specimenIn.Family == nil || *specimenIn.Family == "" {
-					return apperr.New(apperr.CodeInvalid, "family is required when creating a new species")
-				}
-				if specimenIn.LawID == nil || *specimenIn.LawID == "" {
-					return apperr.New(apperr.CodeInvalid, "lawId is required when creating a new species")
-				}
-
-				// Buscar ou criar espécie
-				speciesInput := species.CreateInput{
-					ScientificName:      *specimenIn.ScientificName,
-					Family:              *specimenIn.Family,
-					PopularName:         specimenIn.PopularName,
-					LawScope:            getStringOrDefault(specimenIn.LawScope, "Federal"),
-					LawID:               *specimenIn.LawID,
-					IsLawActive:         getBoolOrDefault(specimenIn.IsLawActive, true),
-					SpeciesFormFactor:   getFloat64OrDefault(specimenIn.SpeciesFormFactor, 0.7),
-					IsSpeciesProtected:  getBoolOrDefault(specimenIn.IsSpeciesProtected, false),
-					SpeciesThreatStatus: getStringOrDefault(specimenIn.SpeciesThreatStatus, "LC"),
-					SpeciesOrigin:       getStringOrDefault(specimenIn.SpeciesOrigin, "N"),
-				}
-
-				speciesData, err := speciesSvc.GetOrCreate(ctx, speciesInput)
-				if err != nil {
-					return apperr.Wrap(err, apperr.CodeInvalid, "failed to get or create species")
-				}
-				specieID = speciesData.ID
-			} else {
-				return apperr.New(apperr.CodeInvalid, "either specieID or scientificName must be provided for specimen")
+			// Buscar espécie pelo nome científico
+			speciesData, err := speciesSvc.GetByScientificName(ctx, specimenIn.ScientificName)
+			if err != nil {
+				return apperr.Wrap(err, apperr.CodeNotFound, "species not found with scientific name: "+specimenIn.ScientificName)
 			}
 
 			// Criar specimen
@@ -183,7 +142,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 				Volume:          specimenIn.Volume,
 				RegisterDate:    specimenIn.RegisterDate,
 				PhytoAnalysisID: phytoID,
-				SpecieID:        specieID,
+				SpecieID:        speciesData.ID,
 			}
 
 			if _, err := specimenSvc.Create(ctx, specimenInput); err != nil {
@@ -274,26 +233,4 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 
 func (s *Service) Delete(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
-}
-
-// Helper functions
-func getStringOrDefault(s *string, defaultVal string) string {
-	if s != nil {
-		return *s
-	}
-	return defaultVal
-}
-
-func getBoolOrDefault(b *bool, defaultVal bool) bool {
-	if b != nil {
-		return *b
-	}
-	return defaultVal
-}
-
-func getFloat64OrDefault(f *float64, defaultVal float64) float64 {
-	if f != nil {
-		return *f
-	}
-	return defaultVal
 }

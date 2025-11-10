@@ -12,7 +12,7 @@ import (
 )
 
 const createPhytoAnalysis = `-- name: CreatePhytoAnalysis :one
-INSERT INTO public.phyto_analyses (
+INSERT INTO public.phyto_analysis (
     id,
     title,
     initial_date,
@@ -75,7 +75,7 @@ func (q *Queries) CreatePhytoAnalysis(ctx context.Context, arg CreatePhytoAnalys
 }
 
 const deletePhytoAnalysis = `-- name: DeletePhytoAnalysis :exec
-DELETE FROM public.phyto_analyses
+DELETE FROM public.phyto_analysis
 WHERE id = $1
 `
 
@@ -101,7 +101,7 @@ SELECT
     p.cnpj AS project_cnpj,
     p.activity AS project_activity,
     p."clientId" AS project_client_id
-FROM public.phyto_analyses pa
+FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
 WHERE pa.id = $1
 LIMIT 1
@@ -182,9 +182,9 @@ SELECT
     s.scientific_name,
     s.family,
     s.popular_name
-FROM public.phyto_analyses pa
+FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
-LEFT JOIN public.specimens sp ON sp.phyto_analysis_id = pa.id
+LEFT JOIN public.specimen sp ON sp.phyto_analysis_id = pa.id
 LEFT JOIN public.species s ON sp.specie_id = s.id
 WHERE pa.id = $1
 ORDER BY sp.portion ASC, sp.created_at ASC
@@ -298,7 +298,7 @@ SELECT
     p.cnpj AS project_cnpj,
     p.activity AS project_activity,
     p."clientId" AS project_client_id
-FROM public.phyto_analyses pa
+FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
 ORDER BY pa.initial_date DESC, pa.created_at DESC
 LIMIT $1 OFFSET $2
@@ -383,7 +383,7 @@ SELECT
     p.cnpj AS project_cnpj,
     p.activity AS project_activity,
     p."clientId" AS project_client_id
-FROM public.phyto_analyses pa
+FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
 INNER JOIN public."Client" c ON p."clientId" = c.id
 INNER JOIN public."User" u ON c."userId" = u.id
@@ -464,7 +464,7 @@ SELECT
     p.title AS project_title,
     p.cnpj AS project_cnpj,
     p.activity AS project_activity
-FROM public.phyto_analyses pa
+FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
 WHERE pa.project_id = $1
 ORDER BY pa.initial_date DESC, pa.created_at DESC
@@ -526,7 +526,7 @@ func (q *Queries) ListPhytoAnalysesByProject(ctx context.Context, projectID stri
 }
 
 const updatePhytoAnalysis = `-- name: UpdatePhytoAnalysis :exec
-UPDATE public.phyto_analyses
+UPDATE public.phyto_analysis
 SET
     title = $2,
     initial_date = $3,

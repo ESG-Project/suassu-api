@@ -16,23 +16,31 @@ CREATE TYPE "OriginType" AS ENUM (
 );
 
 CREATE TYPE "LawScope" AS ENUM (
-  'Federal',
-  'State',
-  'Municipal'
+  'FEDERAL',
+  'STATE',
+  'MUNICIPAL'
 );
 
--- Tabela SpeciesLegislation (species_details)
-CREATE TABLE species_details (
-  id varchar(36) PRIMARY KEY,
-  law_scope "LawScope" NOT NULL,
-  law_id varchar(100) NOT NULL,
-  is_law_active boolean NOT NULL DEFAULT true,
-  species_form_factor numeric NOT NULL,
-  is_species_protected boolean NOT NULL DEFAULT false,
-  species_threat_status "ThreatStatus" NOT NULL,
-  successional_ecology "OriginType" NOT NULL,
-  created_at timestamp NOT NULL DEFAULT now(),
-  updated_at timestamp NOT NULL
+CREATE TYPE "SpeciesSuccessionalEcology" AS ENUM (
+  'P',
+  'IS',
+  'S',
+  'C',
+  'LS',
+  'MS',
+  'AS'
+);
+
+CREATE TYPE "SpeciesHabit" AS ENUM (
+  'ARB',
+  'ANF',
+  'ARV',
+  'EME FIX',
+  'FLU FIX',
+  'FLU LIV',
+  'HERB',
+  'PAL',
+  'TREP'
 );
 
 -- Tabela Species
@@ -41,11 +49,27 @@ CREATE TABLE species (
   scientific_name varchar(255) NOT NULL UNIQUE,
   family varchar(255) NOT NULL,
   popular_name varchar(255),
-  species_detail_id varchar(36) NOT NULL UNIQUE,
+  habit "SpeciesHabit",
   created_at timestamp NOT NULL DEFAULT now(),
-  updated_at timestamp NOT NULL,
-  FOREIGN KEY (species_detail_id) REFERENCES species_details (id)
+  updated_at timestamp NOT NULL
 );
 
-CREATE INDEX idx_species_species_detail_id ON species (species_detail_id);
+-- Tabela SpeciesLegislation (species_legislations)
+CREATE TABLE species_legislations (
+  id varchar(36) PRIMARY KEY,
+  law_scope "LawScope" NOT NULL,
+  law_id varchar(100),
+  is_law_active boolean NOT NULL DEFAULT true,
+  species_form_factor numeric NOT NULL,
+  is_species_protected boolean NOT NULL DEFAULT false,
+  species_threat_status "ThreatStatus" NOT NULL,
+  species_origin "OriginType" NOT NULL,
+  successional_ecology "SpeciesSuccessionalEcology" NOT NULL,
+  species_id varchar(36),
+  created_at timestamp NOT NULL DEFAULT now(),
+  updated_at timestamp NOT NULL,
+  FOREIGN KEY (species_id) REFERENCES species (id)
+);
+
+CREATE INDEX idx_species_legislations_species_id ON species_legislations (species_id);
 

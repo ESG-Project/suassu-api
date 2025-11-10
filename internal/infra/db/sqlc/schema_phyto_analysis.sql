@@ -1,5 +1,5 @@
 -- Apenas para o sqlc entender tipos (não roda no banco).
-CREATE TABLE phyto_analyses (
+CREATE TABLE phyto_analysis (
   id varchar(36) PRIMARY KEY,
   title varchar(255) NOT NULL,
   initial_date timestamp NOT NULL,
@@ -14,5 +14,5 @@ CREATE TABLE phyto_analyses (
   FOREIGN KEY (project_id) REFERENCES "Project" (id)
 );
 
-CREATE INDEX idx_phyto_analyses_project_id ON phyto_analyses (project_id);
+CREATE INDEX idx_phyto_analysis_project_id ON phyto_analysis (project_id);
 
