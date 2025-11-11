@@ -99,15 +99,25 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 		return apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 
+	// Buscar o specimen existente para pegar o phytoAnalysisID e CreatedAt (não podem ser alterados)
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return apperr.Wrap(err, apperr.CodeNotFound, "specimen not found")
+	}
+
 	specimen := domainspecimen.NewSpecimen(
 		id,
 		in.Portion,
 		in.Height,
 		in.Cap1,
 		in.RegisterDate,
-		"", // phytoAnalysisID não é alterado
+		existing.PhytoAnalysisID,
 		in.SpecieID,
 	)
+
+	// Manter o CreatedAt original e atualizar apenas o UpdatedAt
+	specimen.CreatedAt = existing.CreatedAt
+	specimen.UpdatedAt = time.Now()
 
 	specimen.SetOptionalCaps(in.Cap2, in.Cap3, in.Cap4, in.Cap5, in.Cap6)
 

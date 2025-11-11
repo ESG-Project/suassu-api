@@ -195,42 +195,39 @@ func Routes(svc Service) chi.Router {
 		response.JSON(w, http.StatusOK, map[string]string{"message": "deleted"}, nil)
 	})
 
-	// Rotas para specimens
-	r.Route("/{phytoId}/specimens", func(r chi.Router) {
-		// GET /phyto-analyses/:phytoId/specimens - Listar specimens
-		r.Get("/", func(w http.ResponseWriter, req *http.Request) {
-			phytoID := chi.URLParam(req, "phytoId")
+	// GET /phyto-analyses/:id/specimens - Listar specimens de uma análise
+	r.Get("/{id}/specimens", func(w http.ResponseWriter, req *http.Request) {
+		phytoID := chi.URLParam(req, "id")
 
-			// Buscar análise completa
-			phyto, err := svc.GetWithSpecimens(req.Context(), phytoID)
-			if err != nil {
-				httperr.Handle(w, req, err)
-				return
-			}
+		// Buscar análise completa
+		phyto, err := svc.GetWithSpecimens(req.Context(), phytoID)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
 
-			// Converter specimens
-			specimens := make([]phytodto.SpecimenResponse, 0, len(phyto.Specimens))
-			for _, s := range phyto.Specimens {
-				specimens = append(specimens, phytodto.SpecimenResponse{
-					ID:             s.ID,
-					Portion:        s.Portion,
-					Height:         s.Height,
-					Cap1:           s.Cap1,
-					Cap2:           s.Cap2,
-					Cap3:           s.Cap3,
-					Cap4:           s.Cap4,
-					Cap5:           s.Cap5,
-					Cap6:           s.Cap6,
-					RegisterDate:   s.RegisterDate,
-					SpecieID:       s.SpecieID,
-					ScientificName: s.ScientificName,
-					Family:         s.Family,
-					PopularName:    s.PopularName,
-				})
-			}
+		// Converter specimens
+		specimens := make([]phytodto.SpecimenResponse, 0, len(phyto.Specimens))
+		for _, s := range phyto.Specimens {
+			specimens = append(specimens, phytodto.SpecimenResponse{
+				ID:             s.ID,
+				Portion:        s.Portion,
+				Height:         s.Height,
+				Cap1:           s.Cap1,
+				Cap2:           s.Cap2,
+				Cap3:           s.Cap3,
+				Cap4:           s.Cap4,
+				Cap5:           s.Cap5,
+				Cap6:           s.Cap6,
+				RegisterDate:   s.RegisterDate,
+				SpecieID:       s.SpecieID,
+				ScientificName: s.ScientificName,
+				Family:         s.Family,
+				PopularName:    s.PopularName,
+			})
+		}
 
-			response.JSON(w, http.StatusOK, specimens, nil)
-		})
+		response.JSON(w, http.StatusOK, specimens, nil)
 	})
 
 	return r
