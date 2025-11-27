@@ -40,6 +40,16 @@ type PhytoAnalysisComplete struct {
 	ProjectCNPJ     *string
 	ProjectActivity string
 	ProjectClientID string
+	// Endereço do projeto
+	ProjectZipCode      *string
+	ProjectState        *string
+	ProjectCity         *string
+	ProjectNeighborhood *string
+	ProjectStreet       *string
+	ProjectNum          *string
+	ProjectLatitude     *string
+	ProjectLongitude    *string
+	ProjectAddInfo      *string
 	// Lista de espécimes
 	Specimens []*SpecimenWithSpecies
 }

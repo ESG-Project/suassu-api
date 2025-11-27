@@ -138,6 +138,15 @@ SELECT
     p.cnpj AS project_cnpj,
     p.activity AS project_activity,
     p."clientId" AS project_client_id,
+    a."zipCode" AS project_zip_code,
+    a.state AS project_state,
+    a.city AS project_city,
+    a.neighborhood AS project_neighborhood,
+    a.street AS project_street,
+    a.num AS project_num,
+    a.latitude AS project_latitude,
+    a.longitude AS project_longitude,
+    a."addInfo" AS project_add_info,
     sp.id AS specimen_id,
     sp.portion,
     sp.height,
@@ -154,6 +163,7 @@ SELECT
     s.popular_name
 FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
+LEFT JOIN public."Address" a ON p."addressId" = a.id
 LEFT JOIN public.specimen sp ON sp.phyto_analysis_id = pa.id
 LEFT JOIN public.species s ON sp.specie_id = s.id
 WHERE pa.id = $1

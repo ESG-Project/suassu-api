@@ -229,7 +229,17 @@ func (r *PhytoAnalysisRepo) GetWithSpecimens(ctx context.Context, id string) (*t
 		ProjectCNPJ:     utils.FromNullString(firstRow.ProjectCnpj),
 		ProjectActivity: firstRow.ProjectActivity,
 		ProjectClientID: firstRow.ProjectClientID,
-		Specimens:       make([]*types.SpecimenWithSpecies, 0),
+		// Endereço do projeto
+		ProjectZipCode:      utils.FromNullString(firstRow.ProjectZipCode),
+		ProjectState:        utils.FromNullString(firstRow.ProjectState),
+		ProjectCity:         utils.FromNullString(firstRow.ProjectCity),
+		ProjectNeighborhood: utils.FromNullString(firstRow.ProjectNeighborhood),
+		ProjectStreet:       utils.FromNullString(firstRow.ProjectStreet),
+		ProjectNum:          utils.FromNullString(firstRow.ProjectNum),
+		ProjectLatitude:     utils.FromNullString(firstRow.ProjectLatitude),
+		ProjectLongitude:    utils.FromNullString(firstRow.ProjectLongitude),
+		ProjectAddInfo:      utils.FromNullString(firstRow.ProjectAddInfo),
+		Specimens:           make([]*types.SpecimenWithSpecies, 0),
 	}
 
 	// Agregar specimens

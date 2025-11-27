@@ -135,8 +135,9 @@ func (s *Service) GetOrCreate(ctx context.Context, in CreateInput) (*types.Speci
 }
 
 func (s *Service) List(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error) {
-	if limit <= 0 || limit > 1000 {
-		limit = 50
+	// Sem limite ou limite muito alto significa retornar todas
+	if limit <= 0 {
+		limit = 999999
 	}
 
 	return s.repo.List(ctx, limit, offset)

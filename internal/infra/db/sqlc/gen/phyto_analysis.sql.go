@@ -165,6 +165,15 @@ SELECT
     p.cnpj AS project_cnpj,
     p.activity AS project_activity,
     p."clientId" AS project_client_id,
+    a."zipCode" AS project_zip_code,
+    a.state AS project_state,
+    a.city AS project_city,
+    a.neighborhood AS project_neighborhood,
+    a.street AS project_street,
+    a.num AS project_num,
+    a.latitude AS project_latitude,
+    a.longitude AS project_longitude,
+    a."addInfo" AS project_add_info,
     sp.id AS specimen_id,
     sp.portion,
     sp.height,
@@ -181,6 +190,7 @@ SELECT
     s.popular_name
 FROM public.phyto_analysis pa
 INNER JOIN public."Project" p ON pa.project_id = p.id
+LEFT JOIN public."Address" a ON p."addressId" = a.id
 LEFT JOIN public.specimen sp ON sp.phyto_analysis_id = pa.id
 LEFT JOIN public.species s ON sp.specie_id = s.id
 WHERE pa.id = $1
@@ -188,35 +198,44 @@ ORDER BY sp.portion ASC, sp.created_at ASC
 `
 
 type GetPhytoAnalysisWithSpecimensRow struct {
-	PhytoID          string         `json:"phyto_id"`
-	PhytoTitle       string         `json:"phyto_title"`
-	InitialDate      time.Time      `json:"initial_date"`
-	PortionQuantity  int32          `json:"portion_quantity"`
-	PortionArea      string         `json:"portion_area"`
-	TotalArea        string         `json:"total_area"`
-	SampledArea      string         `json:"sampled_area"`
-	PhytoDescription sql.NullString `json:"phyto_description"`
-	ProjectID        string         `json:"project_id"`
-	PhytoCreatedAt   time.Time      `json:"phyto_created_at"`
-	PhytoUpdatedAt   time.Time      `json:"phyto_updated_at"`
-	ProjectTitle     string         `json:"project_title"`
-	ProjectCnpj      sql.NullString `json:"project_cnpj"`
-	ProjectActivity  string         `json:"project_activity"`
-	ProjectClientID  string         `json:"project_client_id"`
-	SpecimenID       sql.NullString `json:"specimen_id"`
-	Portion          sql.NullString `json:"portion"`
-	Height           sql.NullString `json:"height"`
-	Cap1             sql.NullString `json:"cap1"`
-	Cap2             sql.NullString `json:"cap2"`
-	Cap3             sql.NullString `json:"cap3"`
-	Cap4             sql.NullString `json:"cap4"`
-	Cap5             sql.NullString `json:"cap5"`
-	Cap6             sql.NullString `json:"cap6"`
-	RegisterDate     sql.NullTime   `json:"register_date"`
-	SpecieID         sql.NullString `json:"specie_id"`
-	ScientificName   sql.NullString `json:"scientific_name"`
-	Family           sql.NullString `json:"family"`
-	PopularName      sql.NullString `json:"popular_name"`
+	PhytoID             string         `json:"phyto_id"`
+	PhytoTitle          string         `json:"phyto_title"`
+	InitialDate         time.Time      `json:"initial_date"`
+	PortionQuantity     int32          `json:"portion_quantity"`
+	PortionArea         string         `json:"portion_area"`
+	TotalArea           string         `json:"total_area"`
+	SampledArea         string         `json:"sampled_area"`
+	PhytoDescription    sql.NullString `json:"phyto_description"`
+	ProjectID           string         `json:"project_id"`
+	PhytoCreatedAt      time.Time      `json:"phyto_created_at"`
+	PhytoUpdatedAt      time.Time      `json:"phyto_updated_at"`
+	ProjectTitle        string         `json:"project_title"`
+	ProjectCnpj         sql.NullString `json:"project_cnpj"`
+	ProjectActivity     string         `json:"project_activity"`
+	ProjectClientID     string         `json:"project_client_id"`
+	ProjectZipCode      sql.NullString `json:"project_zip_code"`
+	ProjectState        sql.NullString `json:"project_state"`
+	ProjectCity         sql.NullString `json:"project_city"`
+	ProjectNeighborhood sql.NullString `json:"project_neighborhood"`
+	ProjectStreet       sql.NullString `json:"project_street"`
+	ProjectNum          sql.NullString `json:"project_num"`
+	ProjectLatitude     sql.NullString `json:"project_latitude"`
+	ProjectLongitude    sql.NullString `json:"project_longitude"`
+	ProjectAddInfo      sql.NullString `json:"project_add_info"`
+	SpecimenID          sql.NullString `json:"specimen_id"`
+	Portion             sql.NullString `json:"portion"`
+	Height              sql.NullString `json:"height"`
+	Cap1                sql.NullString `json:"cap1"`
+	Cap2                sql.NullString `json:"cap2"`
+	Cap3                sql.NullString `json:"cap3"`
+	Cap4                sql.NullString `json:"cap4"`
+	Cap5                sql.NullString `json:"cap5"`
+	Cap6                sql.NullString `json:"cap6"`
+	RegisterDate        sql.NullTime   `json:"register_date"`
+	SpecieID            sql.NullString `json:"specie_id"`
+	ScientificName      sql.NullString `json:"scientific_name"`
+	Family              sql.NullString `json:"family"`
+	PopularName         sql.NullString `json:"popular_name"`
 }
 
 func (q *Queries) GetPhytoAnalysisWithSpecimens(ctx context.Context, id string) ([]GetPhytoAnalysisWithSpecimensRow, error) {
@@ -244,6 +263,15 @@ func (q *Queries) GetPhytoAnalysisWithSpecimens(ctx context.Context, id string) 
 			&i.ProjectCnpj,
 			&i.ProjectActivity,
 			&i.ProjectClientID,
+			&i.ProjectZipCode,
+			&i.ProjectState,
+			&i.ProjectCity,
+			&i.ProjectNeighborhood,
+			&i.ProjectStreet,
+			&i.ProjectNum,
+			&i.ProjectLatitude,
+			&i.ProjectLongitude,
+			&i.ProjectAddInfo,
 			&i.SpecimenID,
 			&i.Portion,
 			&i.Height,
