@@ -1,6 +1,7 @@
 package phytoanalysisdto
 
 import (
+	"math"
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -61,6 +62,12 @@ type PhytoAnalysisResponse struct {
 	Specimens        []SpecimenResponse `json:"specimens,omitempty"`
 	IndividualsCount int                `json:"individualsCount"` // Número de indivíduos (total de specimens)
 	SpeciesCount     int                `json:"speciesCount"`     // Número de espécies (scientific names únicos)
+	MeanDBHCm        float64            `json:"meanDbhCm"`        // DAP médio (cm)
+	MeanHeightM      float64            `json:"meanHeightM"`      // Altura média (m)
+	DensityIndHa     float64            `json:"densityIndHa"`     // Densidade (ind/ha)
+	VolumeTotalM3    float64            `json:"volumeTotalM3"`    // Volume total (m³ ou mst)
+	VolumePerHa      float64            `json:"volumePerHa"`      // Volume (m³/ha)
+	BasalAreaPerHa   float64            `json:"basalAreaPerHa"`   // Área basal (m²/ha)
 }
 
 type ProjectInfo struct {
@@ -130,6 +137,13 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 	specimens := make([]SpecimenResponse, 0, len(p.Specimens))
 	uniqueSpecies := make(map[string]bool) // Para contar espécies únicas
 
+	var (
+		sumDbhCm  float64 // soma dos DAPs (cm)
+		sumHeight float64 // soma das alturas (m)
+		sumBasal  float64 // soma das áreas basais (m²)
+		sumVolume float64 // soma dos volumes individuais (m³) – por enquanto 0 se não houver campo
+	)
+
 	for _, s := range p.Specimens {
 		specimens = append(specimens, SpecimenResponse{
 			ID:             s.ID,
@@ -152,6 +166,43 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 		if s.ScientificName != "" {
 			uniqueSpecies[s.ScientificName] = true
 		}
+
+		if s.Cap1 > 0 {
+			dapCm := s.Cap1 / math.Pi
+			sumDbhCm += dapCm
+
+			// Área basal individual (m²): π * (DAP_m / 2)²
+			dapM := dapCm / 100.0
+			basal := math.Pi * math.Pow(dapM/2, 2)
+			sumBasal += basal
+		}
+
+		// 🔹 Altura
+		if s.Height > 0 {
+			sumHeight += s.Height
+		}
+	}
+
+	n := len(p.Specimens)
+	sampledAreaHa := p.SampledArea
+
+	var (
+		meanDbhCm    float64
+		meanHeightM  float64
+		densityIndHa float64
+		volumePerHa  float64
+		basalPerHa   float64
+	)
+
+	if n > 0 {
+		meanDbhCm = sumDbhCm / float64(n)
+		meanHeightM = sumHeight / float64(n)
+	}
+
+	if sampledAreaHa > 0 {
+		densityIndHa = float64(n) / sampledAreaHa
+		volumePerHa = sumVolume / sampledAreaHa
+		basalPerHa = sumBasal / sampledAreaHa
 	}
 
 	// Montar endereço do projeto se houver dados
@@ -193,5 +244,11 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 		Specimens:        specimens,
 		IndividualsCount: len(p.Specimens),   // Total de specimens
 		SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
+		MeanDBHCm:        meanDbhCm,
+		MeanHeightM:      meanHeightM,
+		DensityIndHa:     densityIndHa,
+		VolumeTotalM3:    sumVolume,
+		VolumePerHa:      volumePerHa,
+		BasalAreaPerHa:   basalPerHa,
 	}
 }
