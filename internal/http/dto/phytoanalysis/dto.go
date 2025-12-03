@@ -65,7 +65,7 @@ type PhytoAnalysisResponse struct {
 	MeanDBHCm        float64            `json:"meanDbhCm"`        // DAP médio (cm)
 	MeanHeightM      float64            `json:"meanHeightM"`      // Altura média (m)
 	DensityIndHa     float64            `json:"densityIndHa"`     // Densidade (ind/ha)
-	VolumeTotalM3    float64            `json:"volumeTotalM3"`    // Volume total (m³ ou mst)
+	VolumeTotalM3    float64            `json:"volumeTotalM3"`    // Volume total (m³)
 	VolumePerHa      float64            `json:"volumePerHa"`      // Volume (m³/ha)
 	BasalAreaPerHa   float64            `json:"basalAreaPerHa"`   // Área basal (m²/ha)
 }
@@ -106,6 +106,10 @@ type SpecimenResponse struct {
 	ScientificName string    `json:"scientificName"`
 	Family         string    `json:"family"`
 	PopularName    *string   `json:"popularName,omitempty"`
+	VolumeM3       float64   `json:"volumeM3"`    // volume individual (m³)
+	DbhCm          float64   `json:"dbhCm"`       // DAP individual (cm)
+	BasalAreaM2    float64   `json:"basalAreaM2"` // área basal individual (m²)
+	StdDevDbhCm    float64   `json:"stdDevDbhCm"` // desvio padrão do DAP da espécie (cm)
 }
 
 // ToPhytoAnalysisResponse converte tipos internos para resposta HTTP
@@ -132,6 +136,59 @@ func ToPhytoAnalysisResponse(p *types.PhytoAnalysisWithProject) *PhytoAnalysisRe
 	}
 }
 
+// calcula ABI em cm² a partir dos CAPs do SpecimenWithSpecies
+func calcABIFromSpecimen(s *types.SpecimenWithSpecies) float64 {
+	caps := []float64{s.Cap1}
+
+	if s.Cap2 != nil {
+		caps = append(caps, *s.Cap2)
+	}
+	if s.Cap3 != nil {
+		caps = append(caps, *s.Cap3)
+	}
+	if s.Cap4 != nil {
+		caps = append(caps, *s.Cap4)
+	}
+	if s.Cap5 != nil {
+		caps = append(caps, *s.Cap5)
+	}
+	if s.Cap6 != nil {
+		caps = append(caps, *s.Cap6)
+	}
+
+	abi := 0.0
+	for _, cap := range caps {
+		// CR11.1: ABI = Σ (CAPi² / 4π)
+		abi += (cap * cap) / (4 * math.Pi)
+	}
+	return abi
+}
+
+// volume em m³ a partir de ABI (cm²) e altura (m)
+func calcVolumeFromABI(abiCm2, heightM float64) float64 {
+	if abiCm2 <= 0 || heightM <= 0 {
+		return 0
+	}
+	// CR11.4: G(m²) = ABI / 10.000
+	g := abiCm2 / 10000.0
+	// CR11.5: Volume = G(m²) × Height(m)
+	return g * heightM
+}
+
+// DAP (cm) e área basal (m²) a partir da ABI em cm²
+func calcDbhAndBasalFromABI(abiCm2 float64) (dbhCm, basalM2 float64) {
+	if abiCm2 <= 0 {
+		return 0, 0
+	}
+	// CR11.2 – CAP_mean = √( ABI × 4π )
+	capMean := math.Sqrt(abiCm2 * 4 * math.Pi) // cm
+	// CR11.3 – DBH(cm) = CAP_mean / π
+	dbhCm = capMean / math.Pi // cm
+	// CR11.4 – G(m²) = ABI / 10.000
+	basalM2 = abiCm2 / 10000.0 // m²
+	return dbhCm, basalM2
+}
+
 // ToPhytoAnalysisCompleteResponse converte análise completa para resposta HTTP
 func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnalysisResponse {
 	specimens := make([]SpecimenResponse, 0, len(p.Specimens))
@@ -141,10 +198,102 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 		sumDbhCm  float64 // soma dos DAPs (cm)
 		sumHeight float64 // soma das alturas (m)
 		sumBasal  float64 // soma das áreas basais (m²)
-		sumVolume float64 // soma dos volumes individuais (m³) – por enquanto 0 se não houver campo
+		sumVolume float64 // soma dos volumes individuais (m³)
 	)
 
+	// Estrutura auxiliar para guardar métricas por espécime
+	type specMetrics struct {
+		s        *types.SpecimenWithSpecies
+		abiCm2   float64
+		dbhCm    float64
+		basalM2  float64
+		volumeM3 float64
+	}
+
+	metrics := make([]specMetrics, 0, len(p.Specimens))
+	dapBySpecies := make(map[string][]float64)
+
+	// Primeira passada: calcula métricas individuais e acumula para agregados
 	for _, s := range p.Specimens {
+		abi := calcABIFromSpecimen(s) // cm²
+
+		var (
+			dbhCm    float64
+			basalM2  float64
+			volumeM3 float64
+		)
+
+		if abi > 0 {
+			dbhCm, basalM2 = calcDbhAndBasalFromABI(abi)
+			volumeM3 = calcVolumeFromABI(abi, s.Height)
+
+			sumDbhCm += dbhCm
+			sumBasal += basalM2
+			sumVolume += volumeM3
+		}
+
+		metrics = append(metrics, specMetrics{
+			s:        s,
+			abiCm2:   abi,
+			dbhCm:    dbhCm,
+			basalM2:  basalM2,
+			volumeM3: volumeM3,
+		})
+
+		// chave para agrupar por espécie (preferência por nome científico)
+		key := s.ScientificName
+		if key == "" {
+			key = s.SpecieID
+		}
+		if key != "" && dbhCm > 0 {
+			dapBySpecies[key] = append(dapBySpecies[key], dbhCm)
+		}
+
+		// mapa de espécies únicas
+		if s.ScientificName != "" {
+			uniqueSpecies[s.ScientificName] = true
+		}
+
+		// alturas para média
+		if s.Height > 0 {
+			sumHeight += s.Height
+		}
+	}
+
+	// Segunda passada: desvio padrão do DAP por espécie
+	stdDevBySpecies := make(map[string]float64)
+	for key, daps := range dapBySpecies {
+		if len(daps) <= 1 {
+			stdDevBySpecies[key] = 0
+			continue
+		}
+
+		var sum float64
+		for _, v := range daps {
+			sum += v
+		}
+		mean := sum / float64(len(daps))
+
+		var sq float64
+		for _, v := range daps {
+			diff := v - mean
+			sq += diff * diff
+		}
+
+		// desvio padrão amostral: / (n-1)
+		stdDevBySpecies[key] = math.Sqrt(sq / float64(len(daps)-1))
+	}
+
+	// Monta SpecimenResponse com DAP, área basal, volume e desvio padrão
+	for _, m := range metrics {
+		s := m.s
+
+		key := s.ScientificName
+		if key == "" {
+			key = s.SpecieID
+		}
+		stdDev := stdDevBySpecies[key]
+
 		specimens = append(specimens, SpecimenResponse{
 			ID:             s.ID,
 			Portion:        s.Portion,
@@ -160,27 +309,11 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 			ScientificName: s.ScientificName,
 			Family:         s.Family,
 			PopularName:    s.PopularName,
+			VolumeM3:       m.volumeM3,
+			DbhCm:          m.dbhCm,
+			BasalAreaM2:    m.basalM2,
+			StdDevDbhCm:    stdDev,
 		})
-
-		// Adicionar nome científico ao mapa para contar espécies únicas
-		if s.ScientificName != "" {
-			uniqueSpecies[s.ScientificName] = true
-		}
-
-		if s.Cap1 > 0 {
-			dapCm := s.Cap1 / math.Pi
-			sumDbhCm += dapCm
-
-			// Área basal individual (m²): π * (DAP_m / 2)²
-			dapM := dapCm / 100.0
-			basal := math.Pi * math.Pow(dapM/2, 2)
-			sumBasal += basal
-		}
-
-		// 🔹 Altura
-		if s.Height > 0 {
-			sumHeight += s.Height
-		}
 	}
 
 	n := len(p.Specimens)
@@ -242,8 +375,8 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 			Address:  projectAddress,
 		},
 		Specimens:        specimens,
-		IndividualsCount: len(p.Specimens),   // Total de specimens
-		SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
+		IndividualsCount: len(p.Specimens),
+		SpeciesCount:     len(uniqueSpecies),
 		MeanDBHCm:        meanDbhCm,
 		MeanHeightM:      meanHeightM,
 		DensityIndHa:     densityIndHa,
