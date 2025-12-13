@@ -8,6 +8,8 @@ sql:
       - "internal/infra/db/sqlc/schema_roles.sql"
       - "internal/infra/db/sqlc/schema_feature.sql"
       - "internal/infra/db/sqlc/schema_permission.sql"
+      - "internal/infra/db/sqlc/schema_product.sql"
+      - "internal/infra/db/sqlc/schema_parameter.sql"
     queries: "internal/infra/db/sqlc/queries"
     gen:
       go:

@@ -38,3 +38,4 @@ func ToEnterpriseOut(e *enterprise.Enterprise) *EnterpriseOut {
 		Address:     addrOut,
 	}
 }
+
