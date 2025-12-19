@@ -50,7 +50,6 @@ func Routes(svc Service) chi.Router {
 			PortionQuantity: in.PortionQuantity,
 			PortionArea:     in.PortionArea,
 			TotalArea:       in.TotalArea,
-			SampledArea:     in.SampledArea,
 			Description:     in.Description,
 			ProjectID:       in.ProjectID,
 			Specimens:       specimens,
@@ -171,7 +170,6 @@ func Routes(svc Service) chi.Router {
 			PortionQuantity: in.PortionQuantity,
 			PortionArea:     in.PortionArea,
 			TotalArea:       in.TotalArea,
-			SampledArea:     in.SampledArea,
 			Description:     in.Description,
 		}
 

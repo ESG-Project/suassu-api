@@ -109,7 +109,6 @@ func TestPhytoAnalysisService_Create_NeedsTxManager(t *testing.T) {
 			PortionQuantity: 10,
 			PortionArea:     100.5,
 			TotalArea:       1000.0,
-			SampledArea:     900.0,
 			ProjectID:       "proj-1",
 		})
 
@@ -269,7 +268,6 @@ func TestPhytoAnalysisService_Update(t *testing.T) {
 			PortionQuantity: 15,
 			PortionArea:     200.5,
 			TotalArea:       2000.0,
-			SampledArea:     1900.0,
 		})
 
 		// Update não valida projectID pois ele não é alterado

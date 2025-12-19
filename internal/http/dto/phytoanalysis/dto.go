@@ -14,7 +14,6 @@ type CreatePhytoAnalysisRequest struct {
 	PortionQuantity int             `json:"portionQuantity"`
 	PortionArea     float64         `json:"portionArea"`
 	TotalArea       float64         `json:"totalArea"`
-	SampledArea     float64         `json:"sampledArea"`
 	Description     *string         `json:"description,omitempty"`
 	ProjectID       string          `json:"projectId"`
 	Specimens       []SpecimenInput `json:"specimens,omitempty"`
@@ -41,7 +40,6 @@ type UpdatePhytoAnalysisRequest struct {
 	PortionQuantity int       `json:"portionQuantity"`
 	PortionArea     float64   `json:"portionArea"`
 	TotalArea       float64   `json:"totalArea"`
-	SampledArea     float64   `json:"sampledArea"`
 	Description     *string   `json:"description,omitempty"`
 }
 
@@ -71,6 +69,7 @@ type PhytoAnalysisResponse struct {
 	MeanHeightM    float64 `json:"meanHeightM"`    // Altura média (m)
 	DensityIndHa   float64 `json:"densityIndHa"`   // Densidade (ind/ha)
 	VolumeTotalM3  float64 `json:"volumeTotalM3"`  // Volume total (m³)
+	VolumeTotalMst float64 `json:"volumeTotalMst"` // Volume total (mst)
 	VolumePerHa    float64 `json:"volumePerHa"`    // Volume (m³/ha)
 	BasalAreaPerHa float64 `json:"basalAreaPerHa"` // Área basal (m²/ha)
 
@@ -149,14 +148,15 @@ type PhytosociologicalIndicators struct {
 	PlotsArea        float64 `json:"plotsArea"`        // Área de parcelas (m²)
 
 	// Campos calculados
-	Density             *float64 `json:"density,omitempty"`             // Densidade Geral (ind/ha)
-	BasalArea           *float64 `json:"basalArea,omitempty"`           // Área basal (m²/ha)
-	Volume              *float64 `json:"volume,omitempty"`              // Volume (m³/ha)
-	ReplacementVolume   *float64 `json:"replacementVolume,omitempty"`   // Volume de reposição (m³)
-	SampledAreaHa       *float64 `json:"sampledAreaHa,omitempty"`       // Área amostrada (ha)
-	ShannonIndex        *float64 `json:"shannonIndex,omitempty"`        // Índice de Shannon (H')
-	SimpsonIndex        *float64 `json:"simpsonIndex,omitempty"`        // Índice de Simpson (D)
-	PielouEvennessIndex *float64 `json:"pielouEvennessIndex,omitempty"` // Índice de Equabilidade de Pielou (J')
+	Density              *float64 `json:"density,omitempty"`              // Densidade Geral (ind/ha)
+	BasalArea            *float64 `json:"basalArea,omitempty"`            // Área basal (m²/ha)
+	Volume               *float64 `json:"volume,omitempty"`               // Volume (m³/ha)
+	ReplacementVolume    *float64 `json:"replacementVolume,omitempty"`    // Volume de reposição (m³)
+	ReplacementVolumeMst *float64 `json:"replacementVolumeMst,omitempty"` // Volume de reposição (mst)
+	SampledAreaHa        *float64 `json:"sampledAreaHa,omitempty"`        // Área amostrada (ha)
+	ShannonIndex         *float64 `json:"shannonIndex,omitempty"`         // Índice de Shannon (H')
+	SimpsonIndex         *float64 `json:"simpsonIndex,omitempty"`         // Índice de Simpson (D)
+	PielouEvennessIndex  *float64 `json:"pielouEvennessIndex,omitempty"`  // Índice de Equabilidade de Pielou (J')
 
 	// Dados para gráficos
 	SpeciesData    []SpeciesPhytosociologicalData `json:"speciesData,omitempty"`    // DA, DR, FA por espécie
@@ -164,7 +164,8 @@ type PhytosociologicalIndicators struct {
 }
 
 const (
-	pi = 3.14159265358979323846
+	pi             = 3.14159265358979323846
+	stackingFactor = 0.7
 )
 
 // calculateABI calcula a Área Basal Individual (cm²)
@@ -389,6 +390,12 @@ func calculatePhytosociologicalIndicators(p *types.PhytoAnalysisComplete) *Phyto
 	// Volume de reposição (m³) - valor agregado, não dividido por ha
 	replacementVolume := totalVolume
 
+	var replacementVolumeMst *float64
+	if stackingFactor > 0 {
+		mst := replacementVolume / stackingFactor
+		replacementVolumeMst = &mst
+	}
+
 	// Calcular índices de diversidade
 	var shannonIndex *float64
 	var simpsonIndex *float64
@@ -466,6 +473,7 @@ func calculatePhytosociologicalIndicators(p *types.PhytoAnalysisComplete) *Phyto
 		BasalArea:           basalArea,
 		Volume:              volume,
 		ReplacementVolume:   &replacementVolume,
+		ReplacementVolumeMst:  replacementVolumeMst,
 		SampledAreaHa:       &sampledAreaHa,
 		ShannonIndex:        shannonIndex,
 		SimpsonIndex:        simpsonIndex,
@@ -701,6 +709,11 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 		basalPerHa = sumBasal / sampledAreaHa
 	}
 
+	var volumeTotalMst float64
+	if stackingFactor > 0 {
+		volumeTotalMst = sumVolume / stackingFactor
+	}
+
 	// Montar endereço do projeto se houver dados
 	var projectAddress *ProjectAddress
 	if p.ProjectZipCode != nil || p.ProjectState != nil || p.ProjectCity != nil {
@@ -750,6 +763,7 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 	MeanHeightM:    meanHeightM,
 	DensityIndHa:   densityIndHa,
 	VolumeTotalM3:  sumVolume,
+	VolumeTotalMst: volumeTotalMst,
 	VolumePerHa:    volumePerHa,
 	BasalAreaPerHa: basalPerHa,
 

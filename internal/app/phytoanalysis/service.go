@@ -42,7 +42,6 @@ type CreateInput struct {
 	PortionQuantity int
 	PortionArea     float64
 	TotalArea       float64
-	SampledArea     float64
 	Description     *string
 	ProjectID       string
 	Specimens       []SpecimenInput
@@ -68,8 +67,15 @@ type UpdateInput struct {
 	PortionQuantity int
 	PortionArea     float64
 	TotalArea       float64
-	SampledArea     float64
 	Description     *string
+}
+
+func calcSampledAreaHa(portionArea float64, portionQuantity int) float64 {
+	if portionArea <= 0 || portionQuantity <= 0 {
+		return 0
+	}
+	plotsAreaM2 := portionArea * float64(portionQuantity)
+	return plotsAreaM2 / 10000.0
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
@@ -85,6 +91,10 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 	}
 
 	err := s.txm.RunInTx(ctx, func(repos postgres.Repos) error {
+		sampledAreaHa := calcSampledAreaHa(in.PortionArea, in.PortionQuantity)
+		if sampledAreaHa <= 0 {
+			return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
+		}
 		// 1. Criar PhytoAnalysis
 		phyto := domainphyto.NewPhytoAnalysis(
 			phytoID,
@@ -93,7 +103,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			in.PortionQuantity,
 			in.PortionArea,
 			in.TotalArea,
-			in.SampledArea,
+			sampledAreaHa,
 			in.ProjectID,
 		)
 
@@ -187,6 +197,7 @@ func (s *Service) ListAll(ctx context.Context, limit, offset int32) ([]*types.Ph
 }
 
 func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
+	sampledAreaHa := calcSampledAreaHa(in.PortionArea, in.PortionQuantity)
 	if in.Title == "" {
 		return apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
@@ -200,7 +211,7 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 		in.PortionQuantity,
 		in.PortionArea,
 		in.TotalArea,
-		in.SampledArea,
+		sampledAreaHa,
 		"dummy-project-id", // projectID não é alterado no update
 	)
 
@@ -218,7 +229,7 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 	if in.TotalArea <= 0 {
 		return apperr.New(apperr.CodeInvalid, "total area must be positive")
 	}
-	if in.SampledArea <= 0 {
+	if sampledAreaHa <= 0 {
 		return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
 	}
 
