@@ -100,6 +100,20 @@ func Routes(svc Service) chi.Router {
 		response.JSON(w, http.StatusOK, phytoList, nil)
 	})
 
+	// GET /phyto-analyses/import-template - Download template XLSX
+	r.Get("/import-template", func(w http.ResponseWriter, req *http.Request) {
+		data, err := phytoTemplatesFS.ReadFile("templates/specimens_import_template.xlsx")
+		if err != nil {
+			httperr.Handle(w, req, apperr.New(apperr.CodeNotFound, "import template not found"))
+			return
+		}
+
+		w.Header().Set("Content-Disposition", "attachment; filename=specimens_import_template.xlsx")
+		w.Header().Set("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(data)
+	})
+
 	// GET /phyto-analyses/:id - Buscar análise por ID
 	r.Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "id")
