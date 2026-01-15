@@ -155,6 +155,39 @@ func (r *UserRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return user, nil
 }
 
+// GetByIDForRefresh - busca usuário por ID sem filtro de tenant (para refresh token)
+func (r *UserRepo) GetByIDForRefresh(ctx context.Context, userID string) (*domainuser.User, error) {
+	row, err := r.q.GetUserByIDForRefresh(ctx, userID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "user not found")
+		}
+		return nil, err
+	}
+
+	user := domainuser.NewUser(
+		row.ID,
+		row.Name,
+		row.Email,
+		row.PasswordHash,
+		row.Document,
+		row.EnterpriseID,
+	)
+
+	// Set optional fields
+	if row.Phone.Valid {
+		user.SetPhone(&row.Phone.String)
+	}
+	if row.AddressID.Valid {
+		user.SetAddressID(&row.AddressID.String)
+	}
+	if row.RoleID.Valid {
+		user.SetRoleID(&row.RoleID.String)
+	}
+
+	return user, nil
+}
+
 // GetByEmailInTenant - para operações de negócio (com filtro de tenant)
 func (r *UserRepo) GetByEmailInTenant(ctx context.Context, email, enterpriseID string) (*domainuser.User, error) {
 	// Usar a query GetUserByID com filtro de email
