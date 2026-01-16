@@ -28,6 +28,7 @@ import (
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/http/cookie"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	openapi "github.com/ESG-Project/suassu-api/internal/http/openapi"
@@ -81,10 +82,19 @@ func main() {
 	specimenRepo := postgres.NewSpecimenRepo(db)
 	specimenSvc := appspecimen.NewService(specimenRepo)
 
+	// Refresh Tokens
+	refreshTokenRepo := postgres.NewRefreshTokenRepo(db)
+
+	// Cookie Manager
+	cookieMgr := cookie.NewManager(cookie.Config{
+		Domain: cfg.CookieDomain,
+		Secure: cfg.CookieSecure,
+	})
+
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
-	authSvc := appauth.NewService(userRepo, userSvc, hasher, jwtIssuer)
-	authH := authhttp.NewHandler(authSvc)
+	authSvc := appauth.NewServiceWithRefresh(userRepo, userSvc, hasher, jwtIssuer, refreshTokenRepo)
+	authH := authhttp.NewHandler(authSvc, cookieMgr)
 
 	// 4) HTTP router
 	r := chi.NewRouter()
