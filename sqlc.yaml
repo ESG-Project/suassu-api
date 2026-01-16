@@ -14,6 +14,7 @@ sql:
       - "internal/infra/db/sqlc/schema_phyto_analysis.sql"
       - "internal/infra/db/sqlc/schema_specimen.sql"
       - "internal/infra/db/sqlc/schema_species_change.sql"
+      - "internal/infra/db/sqlc/schema_refresh_token.sql"
     queries: "internal/infra/db/sqlc/queries"
     gen:
       go:

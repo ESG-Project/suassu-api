@@ -57,6 +57,15 @@ func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return nil, errors.New("user not found")
 }
 
+func (f *fakeRepo) GetByIDForRefresh(ctx context.Context, userID string) (*domain.User, error) {
+	for _, u := range f.users {
+		if u.ID == userID {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
 func (f *fakeRepo) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return &types.UserPermissions{ID: userID, Name: "Ana", RoleTitle: "Admin"}, nil
 }
@@ -108,8 +117,23 @@ func (f *fakeTokenIssuer) NewAccessToken(u *domain.User) (string, error) {
 	return "token-ok", nil
 }
 
+func (f *fakeTokenIssuer) NewRefreshToken() (token string, hash string, expiresAt time.Time, err error) {
+	if f.shouldFail {
+		return "", "", time.Time{}, errors.New("refresh token generation failed")
+	}
+	return "refresh-token-ok", "hash-ok", time.Now().Add(7 * 24 * time.Hour), nil
+}
+
 func (f *fakeTokenIssuer) Parse(token string) (appauth.Claims, error) {
 	return appauth.Claims{}, errors.New("not implemented in fake")
+}
+
+func (f *fakeTokenIssuer) GetAccessTTL() int64 {
+	return 900 // 15 min
+}
+
+func (f *fakeTokenIssuer) GetRefreshTTL() time.Duration {
+	return 7 * 24 * time.Hour
 }
 
 func TestService_SignIn(t *testing.T) {

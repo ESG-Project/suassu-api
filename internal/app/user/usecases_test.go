@@ -34,6 +34,10 @@ func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain
 	return nil, nil
 }
 
+func (f *fakeRepo) GetByIDForRefresh(ctx context.Context, userID string) (*domainuser.User, error) {
+	return nil, nil
+}
+
 func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error) {
 	if f.err != nil {
 		return nil, domainuser.PageInfo{}, f.err
