@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -12,15 +14,16 @@ import (
 )
 
 type SpeciesRepo struct {
-	q *sqlc.Queries
+	q  *sqlc.Queries
+	db dbtx
 }
 
 func NewSpeciesRepoFrom(d dbtx) *SpeciesRepo {
-	return &SpeciesRepo{q: sqlc.New(d)}
+	return &SpeciesRepo{q: sqlc.New(d), db: d}
 }
 
 func NewSpeciesRepo(db *sql.DB) *SpeciesRepo {
-	return &SpeciesRepo{q: sqlc.New(db)}
+	return &SpeciesRepo{q: sqlc.New(db), db: db}
 }
 
 func (r *SpeciesRepo) CreateSpecies(ctx context.Context, s *domainspecies.Species) error {
@@ -99,6 +102,50 @@ func (r *SpeciesRepo) GetByID(ctx context.Context, id string) (*types.SpeciesWit
 		UpdatedAt:      row.UpdatedAt,
 		Legislations:   legislationData,
 	}, nil
+}
+
+// GetMapByScientificNames busca várias espécies de uma vez e retorna
+// um mapa scientificName -> speciesID. Uma única query SQL.
+func (r *SpeciesRepo) GetMapByScientificNames(ctx context.Context, names []string) (map[string]string, error) {
+	if len(names) == 0 {
+		return make(map[string]string), nil
+	}
+
+	unique := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		unique[strings.TrimSpace(n)] = struct{}{}
+	}
+
+	placeholders := make([]string, 0, len(unique))
+	args := make([]interface{}, 0, len(unique))
+	i := 1
+	for name := range unique {
+		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
+		args = append(args, name)
+		i++
+	}
+
+	query := fmt.Sprintf(
+		"SELECT id, scientific_name FROM public.species WHERE scientific_name IN (%s)",
+		strings.Join(placeholders, ", "),
+	)
+
+	rows, err := r.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	result := make(map[string]string, len(unique))
+	for rows.Next() {
+		var id, scientificName string
+		if err := rows.Scan(&id, &scientificName); err != nil {
+			return nil, err
+		}
+		result[scientificName] = id
+	}
+
+	return result, rows.Err()
 }
 
 func (r *SpeciesRepo) GetByScientificName(ctx context.Context, scientificName string) (*types.SpeciesWithLegislation, error) {

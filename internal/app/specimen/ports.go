@@ -10,6 +10,7 @@ import (
 // Repo define a interface do repositório de Specimen
 type Repo interface {
 	Create(ctx context.Context, s *domainspecimen.Specimen) error
+	CreateBatch(ctx context.Context, specimens []*domainspecimen.Specimen) error
 	GetByID(ctx context.Context, id string) (*types.SpecimenWithSpecies, error)
 	ListByPhytoAnalysis(ctx context.Context, phytoAnalysisID string) ([]*types.SpecimenWithSpecies, error)
 	Update(ctx context.Context, s *domainspecimen.Specimen) error
