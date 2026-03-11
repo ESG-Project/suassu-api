@@ -4,11 +4,10 @@ import (
 	"context"
 	"time"
 
-	"github.com/ESG-Project/suassu-api/internal/app/species"
-	"github.com/ESG-Project/suassu-api/internal/app/specimen"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainphyto "github.com/ESG-Project/suassu-api/internal/domain/phytoanalysis"
+	domainspecimen "github.com/ESG-Project/suassu-api/internal/domain/specimen"
 	postgres "github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/google/uuid"
 )
@@ -83,7 +82,6 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		return "", apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 
-	// Criar PhytoAnalysis e Specimens em uma transação
 	phytoID := uuid.NewString()
 
 	if s.txm == nil {
@@ -95,7 +93,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		if sampledAreaHa <= 0 {
 			return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
 		}
-		// 1. Criar PhytoAnalysis
+
 		phyto := domainphyto.NewPhytoAnalysis(
 			phytoID,
 			in.Title,
@@ -119,39 +117,57 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return err
 		}
 
-		// 2. Criar services com repos transacionais
-		speciesRepo := repos.Species()
-		specimenRepo := repos.Specimens()
+		if len(in.Specimens) == 0 {
+			return nil
+		}
 
-		speciesSvc := species.NewService(speciesRepo)
-		specimenSvc := specimen.NewService(specimenRepo)
+		// Batch: coletar nomes científicos únicos e buscar todos de uma vez
+		uniqueNames := make([]string, 0, len(in.Specimens))
+		seen := make(map[string]bool, len(in.Specimens))
+		for _, sp := range in.Specimens {
+			if !seen[sp.ScientificName] {
+				seen[sp.ScientificName] = true
+				uniqueNames = append(uniqueNames, sp.ScientificName)
+			}
+		}
 
-		// 3. Criar specimens
-		for _, specimenIn := range in.Specimens {
-			// Buscar espécie pelo nome científico
-			speciesData, err := speciesSvc.GetByScientificName(ctx, specimenIn.ScientificName)
-			if err != nil {
-				return apperr.Wrap(err, apperr.CodeNotFound, "species not found with scientific name: "+specimenIn.ScientificName)
+		speciesMap, err := repos.Species().GetMapByScientificNames(ctx, uniqueNames)
+		if err != nil {
+			return apperr.Wrap(err, apperr.CodeInternal, "failed to fetch species")
+		}
+
+		// Verificar se todas as espécies foram encontradas
+		for _, name := range uniqueNames {
+			if _, ok := speciesMap[name]; !ok {
+				return apperr.New(apperr.CodeNotFound, "species not found with scientific name: "+name)
+			}
+		}
+
+		// Batch: construir todas as entidades de specimen e inserir de uma vez
+		domainSpecimens := make([]*domainspecimen.Specimen, 0, len(in.Specimens))
+		for _, sp := range in.Specimens {
+			specieID := speciesMap[sp.ScientificName]
+
+			s := domainspecimen.NewSpecimen(
+				uuid.NewString(),
+				sp.Portion,
+				sp.Height,
+				sp.Cap1,
+				sp.RegisterDate,
+				phytoID,
+				specieID,
+			)
+			s.SetOptionalCaps(sp.Cap2, sp.Cap3, sp.Cap4, sp.Cap5, sp.Cap6)
+
+			if err := s.Validate(); err != nil {
+				return apperr.Wrap(err, apperr.CodeInvalid, "invalid specimen data")
 			}
 
-			// Criar specimen
-			specimenInput := specimen.CreateInput{
-				Portion:         specimenIn.Portion,
-				Height:          specimenIn.Height,
-				Cap1:            specimenIn.Cap1,
-				Cap2:            specimenIn.Cap2,
-				Cap3:            specimenIn.Cap3,
-				Cap4:            specimenIn.Cap4,
-				Cap5:            specimenIn.Cap5,
-				Cap6:            specimenIn.Cap6,
-				RegisterDate:    specimenIn.RegisterDate,
-				PhytoAnalysisID: phytoID,
-				SpecieID:        speciesData.ID,
-			}
+			domainSpecimens = append(domainSpecimens, s)
+		}
 
-			if _, err := specimenSvc.Create(ctx, specimenInput); err != nil {
-				return apperr.Wrap(err, apperr.CodeInvalid, "failed to create specimen")
-			}
+		if err := repos.Specimens().CreateBatch(ctx, domainSpecimens); err != nil {
+			return apperr.Wrap(err, apperr.CodeInvalid, "failed to create specimens")
 		}
 
 		return nil

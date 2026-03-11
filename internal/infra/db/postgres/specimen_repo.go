@@ -3,6 +3,8 @@ package postgres
 import (
 	"context"
 	"database/sql"
+	"fmt"
+	"strings"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -12,15 +14,16 @@ import (
 )
 
 type SpecimenRepo struct {
-	q *sqlc.Queries
+	q  *sqlc.Queries
+	db dbtx
 }
 
 func NewSpecimenRepoFrom(d dbtx) *SpecimenRepo {
-	return &SpecimenRepo{q: sqlc.New(d)}
+	return &SpecimenRepo{q: sqlc.New(d), db: d}
 }
 
 func NewSpecimenRepo(db *sql.DB) *SpecimenRepo {
-	return &SpecimenRepo{q: sqlc.New(db)}
+	return &SpecimenRepo{q: sqlc.New(db), db: db}
 }
 
 func (r *SpecimenRepo) Create(ctx context.Context, s *domainspecimen.Specimen) error {
@@ -138,4 +141,48 @@ func (r *SpecimenRepo) CountByPhytoAnalysis(ctx context.Context, phytoAnalysisID
 		return 0, err
 	}
 	return count, nil
+}
+
+// CreateBatch insere múltiplos specimens em uma única query multi-row INSERT.
+func (r *SpecimenRepo) CreateBatch(ctx context.Context, specimens []*domainspecimen.Specimen) error {
+	if len(specimens) == 0 {
+		return nil
+	}
+
+	const colsPerRow = 14
+	valueGroups := make([]string, 0, len(specimens))
+	args := make([]interface{}, 0, len(specimens)*colsPerRow)
+
+	for i, s := range specimens {
+		base := i * colsPerRow
+		valueGroups = append(valueGroups, fmt.Sprintf(
+			"($%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d,$%d)",
+			base+1, base+2, base+3, base+4, base+5, base+6, base+7,
+			base+8, base+9, base+10, base+11, base+12, base+13, base+14,
+		))
+		args = append(args,
+			s.ID,
+			s.Portion,
+			utils.Float64ToString(s.Height),
+			utils.Float64ToString(s.Cap1),
+			utils.Float64PtrToString(s.Cap2),
+			utils.Float64PtrToString(s.Cap3),
+			utils.Float64PtrToString(s.Cap4),
+			utils.Float64PtrToString(s.Cap5),
+			utils.Float64PtrToString(s.Cap6),
+			s.RegisterDate,
+			s.PhytoAnalysisID,
+			s.SpecieID,
+			s.CreatedAt,
+			s.UpdatedAt,
+		)
+	}
+
+	query := `INSERT INTO public.specimen (
+		id, portion, height, cap1, cap2, cap3, cap4, cap5, cap6,
+		register_date, phyto_analysis_id, specie_id, created_at, updated_at
+	) VALUES ` + strings.Join(valueGroups, ", ")
+
+	_, err := r.db.ExecContext(ctx, query, args...)
+	return err
 }
