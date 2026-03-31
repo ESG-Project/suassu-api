@@ -333,7 +333,8 @@ UPDATE "User"
 SET name = $3,
   email = $4,
   phone = $5,
-  "addressId" = $6
+  "addressId" = $6,
+  password = $7
 WHERE id = $1
   AND "enterpriseId" = $2
 `
@@ -345,6 +346,7 @@ type UpdateUserEditableParams struct {
 	Email        string         `json:"email"`
 	Phone        sql.NullString `json:"phone"`
 	AddressId    sql.NullString `json:"addressId"`
+	Password     string         `json:"password"`
 }
 
 func (q *Queries) UpdateUserEditable(ctx context.Context, arg UpdateUserEditableParams) error {
@@ -355,6 +357,7 @@ func (q *Queries) UpdateUserEditable(ctx context.Context, arg UpdateUserEditable
 		arg.Email,
 		arg.Phone,
 		arg.AddressId,
+		arg.Password,
 	)
 	return err
 }

@@ -55,6 +55,7 @@ func (r *UserRepo) Update(ctx context.Context, u *domainuser.User) error {
 		Email:        u.Email,
 		Phone:        utils.ToNullString(u.Phone),
 		AddressId:    utils.ToNullString(u.AddressID),
+		Password:     u.PasswordHash,
 	})
 }
 

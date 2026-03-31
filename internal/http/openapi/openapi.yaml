@@ -23,7 +23,7 @@ paths:
       tags:
         - System
       responses:
-        '200':
+        "200":
           description: API está funcionando
           content:
             text/plain:
@@ -43,32 +43,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SignInInput'
+              $ref: "#/components/schemas/SignInInput"
       responses:
-        '200':
+        "200":
           description: Login realizado com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/SignInOutput'
-        '400':
+                $ref: "#/components/schemas/SignInOutput"
+        "400":
           description: Dados inválidos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Credenciais inválidas
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/validate-token:
     get:
@@ -86,9 +86,9 @@ paths:
             description: Token JWT para validação no formato "Bearer <token>"
             example: "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
       responses:
-        '204':
+        "204":
           description: Token válido
-        '200':
+        "200":
           description: Token inválido
           content:
             application/json:
@@ -98,18 +98,18 @@ paths:
                   valid:
                     type: boolean
                     example: false
-        '400':
+        "400":
           description: Dados inválidos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /auth/me:
     get:
@@ -121,24 +121,24 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        '200':
+        "200":
           description: Informações do usuário retornadas com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/UserMeResponse'
-        '401':
+                $ref: "#/components/schemas/UserMeResponse"
+        "401":
           description: Token inválido ou expirado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
     put:
       summary: Atualizar usuário autenticado
       description: Atualiza os dados editáveis do usuário autenticado
@@ -152,9 +152,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/UpdateMeInput'
+              $ref: "#/components/schemas/UpdateMeInput"
       responses:
-        '200':
+        "200":
           description: Informações atualizadas com sucesso
           content:
             application/json:
@@ -164,24 +164,24 @@ paths:
                   message:
                     type: string
                     example: "updated"
-        '401':
+        "401":
           description: Token inválido ou expirado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
           description: Dados inválidos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
   /users:
     post:
@@ -197,32 +197,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateUserInput'
+              $ref: "#/components/schemas/CreateUserInput"
       responses:
-        '201':
+        "201":
           description: Usuário criado com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/CreateUserResponse'
-        '400':
+                $ref: "#/components/schemas/CreateUserResponse"
+        "400":
           description: Dados inválidos
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '401':
+                $ref: "#/components/schemas/ErrorResponse"
+        "401":
           description: Não autorizado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
     get:
       summary: Listar usuários
@@ -250,30 +250,30 @@ paths:
             type: string
             example: "eyJlbWFpbCI6InVzdWFyaW9AZW1wcmVzYS5jb20iLCJpZCI6IjU1MGU4NDAwLWUyOWItNDFkNC1hNzE2LTQ0NjY1NTQ0MDAwMCJ9"
       responses:
-        '200':
+        "200":
           description: Lista de usuários retornada com sucesso
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Envelope'
-        '401':
+                $ref: "#/components/schemas/Envelope"
+        "401":
           description: Não autorizado
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '422':
+                $ref: "#/components/schemas/ErrorResponse"
+        "422":
           description: Cursor inválido
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
-        '500':
+                $ref: "#/components/schemas/ErrorResponse"
+        "500":
           description: Erro interno do servidor
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ErrorResponse'
+                $ref: "#/components/schemas/ErrorResponse"
 
 components:
   securitySchemes:
@@ -311,9 +311,6 @@ components:
           type: string
           description: Token JWT para autenticação
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
-
-
-
 
     UserMeResponse:
       type: object
@@ -399,6 +396,24 @@ components:
             addInfo:
               type: string
               nullable: true
+        currentPassword:
+          type: string
+          format: password
+          nullable: true
+          description: Senha atual do usuário (necessária para alterar a senha)
+          example: "senhaAnterior123!"
+        newPassword:
+          type: string
+          format: password
+          nullable: true
+          description: Nova senha do usuário (deve ser igual a newPasswordConfirmation)
+          example: "novaSenha123!"
+        newPasswordConfirmation:
+          type: string
+          format: password
+          nullable: true
+          description: Confirmação da nova senha (deve ser igual a newPassword)
+          example: "novaSenha123!"
 
     CreateUserInput:
       type: object
@@ -548,7 +563,16 @@ components:
           properties:
             code:
               type: string
-              enum: [invalid, not_found, conflict, unauthorized, forbidden, rate_limited, internal]
+              enum:
+                [
+                  invalid,
+                  not_found,
+                  conflict,
+                  unauthorized,
+                  forbidden,
+                  rate_limited,
+                  internal,
+                ]
             message:
               type: string
             details:
@@ -569,7 +593,7 @@ components:
         data:
           description: Dados da resposta
         meta:
-          $ref: '#/components/schemas/MetaCursor'
+          $ref: "#/components/schemas/MetaCursor"
 
     MetaCursor:
       type: object

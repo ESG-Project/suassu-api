@@ -195,23 +195,31 @@ func (h *Handler) updateMe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var in struct {
-		Name      *string                 `json:"name"`
-		Email     *string                 `json:"email"`
-		Phone     *string                 `json:"phone"`
-		AddressID *string                 `json:"addressId"`
-		Address   *appaddress.CreateInput `json:"address"`
+		Name                    *string                 `json:"name"`
+		Email                   *string                 `json:"email"`
+		Phone                   *string                 `json:"phone"`
+		AddressID               *string                 `json:"addressId"`
+		Address                 *appaddress.CreateInput `json:"address"`
+		CurrentPassword         *string                 `json:"currentPassword"`
+		NewPassword             *string                 `json:"newPassword"`
+		NewPasswordConfirmation *string                 `json:"newPasswordConfirmation"`
 	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
 		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "invalid request body"))
 		return
 	}
 
 	err := h.svc.UpdateMe(r.Context(), claims.Subject, enterpriseID, appauth.UpdateMeInput{
-		Name:      in.Name,
-		Email:     in.Email,
-		Phone:     in.Phone,
-		AddressID: in.AddressID,
-		Address:   in.Address,
+		Name:                    in.Name,
+		Email:                   in.Email,
+		Phone:                   in.Phone,
+		AddressID:               in.AddressID,
+		Address:                 in.Address,
+		CurrentPassword:         in.CurrentPassword,
+		NewPassword:             in.NewPassword,
+		NewPasswordConfirmation: in.NewPasswordConfirmation,
 	})
 	if err != nil {
 		httperr.Handle(w, r, err)

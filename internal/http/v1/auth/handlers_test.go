@@ -305,6 +305,36 @@ func TestAuth_UpdateMe_OK(t *testing.T) {
 	require.Equal(t, "updated", resp["message"])
 }
 
+func TestAuth_UpdateMe_InvalidBody_UnknownField(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{
+			Subject:      "u1",
+			Email:        "ana@ex.com",
+			Name:         "Ana",
+			EnterpriseID: "ent-1",
+			RoleID:       nil,
+		},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	// Campo desconhecido deve ser rejeitado para evitar sucesso parcial silencioso.
+	body := map[string]any{
+		"name":               "Test Enterprise",
+		"confirmNewPassword": "NovaSenha123!",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/me", bytes.NewReader(b))
+	req.Header.Set("Authorization", "Bearer good-token")
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
+}
+
 func TestAuth_ValidateToken_OK(t *testing.T) {
 	svc := &fakeAuthService{
 		validateTokenResult: true,

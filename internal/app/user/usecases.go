@@ -40,12 +40,15 @@ type CreateInput struct {
 }
 
 type UpdateInput struct {
-	ID        string
-	Name      *string
-	Email     *string
-	Phone     *string
-	AddressID *string
-	Address   *address.CreateInput
+	ID                      string
+	Name                    *string
+	Email                   *string
+	Phone                   *string
+	AddressID               *string
+	Address                 *address.CreateInput
+	CurrentPassword         *string
+	NewPassword             *string
+	NewPasswordConfirmation *string
 }
 
 func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInput) (string, error) {
@@ -132,13 +135,44 @@ func (s *Service) Update(ctx context.Context, enterpriseID string, in UpdateInpu
 		return apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
 
-	if in.Name == nil && in.Email == nil && in.Phone == nil && in.AddressID == nil && in.Address == nil {
+	if in.Name == nil && in.Email == nil && in.Phone == nil && in.AddressID == nil && in.Address == nil &&
+		in.CurrentPassword == nil && in.NewPassword == nil && in.NewPasswordConfirmation == nil {
 		return apperr.New(apperr.CodeInvalid, "no editable fields provided")
 	}
 
 	u, err := s.repo.GetByID(ctx, in.ID, enterpriseID)
 	if err != nil {
 		return apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	// Validação de alteração de senha
+	if in.NewPassword != nil || in.NewPasswordConfirmation != nil {
+		// Se quer alterar senha, ambos os campos devem ser fornecidos
+		if in.NewPassword == nil || in.NewPasswordConfirmation == nil {
+			return apperr.New(apperr.CodeInvalid, "newPassword and newPasswordConfirmation are required together")
+		}
+
+		// A troca de senha exige validação da senha atual.
+		if in.CurrentPassword == nil || strings.TrimSpace(*in.CurrentPassword) == "" {
+			return apperr.New(apperr.CodeInvalid, "currentPassword is required to change password")
+		}
+
+		// Validar que as senhas são iguais
+		if *in.NewPassword != *in.NewPasswordConfirmation {
+			return apperr.New(apperr.CodeInvalid, "passwords do not match")
+		}
+
+		if err := s.hasher.Compare(u.PasswordHash, *in.CurrentPassword); err != nil {
+			return apperr.New(apperr.CodeUnauthorized, "invalid current password")
+		}
+
+		// Hash da nova senha
+		newPasswordHash, err := s.hasher.Hash(*in.NewPassword)
+		if err != nil {
+			return apperr.Wrap(err, apperr.CodeInternal, "failed to hash password")
+		}
+
+		u.PasswordHash = newPasswordHash
 	}
 
 	if in.Name != nil {

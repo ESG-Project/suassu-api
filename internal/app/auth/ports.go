@@ -72,7 +72,7 @@ type SignInInput struct {
 type SignInOutput struct {
 	AccessToken      string     `json:"accessToken"`
 	RefreshToken     string     `json:"refreshToken,omitempty"`
-	RefreshExpiresAt *time.Time `json:"-"` // não serializado, usado internamente para cookie
+	RefreshExpiresAt *time.Time `json:"-"`         // não serializado, usado internamente para cookie
 	ExpiresIn        int        `json:"expiresIn"` // segundos até o access token expirar
 }
 
@@ -85,16 +85,19 @@ type RefreshInput struct {
 type RefreshOutput struct {
 	AccessToken      string     `json:"accessToken"`
 	RefreshToken     string     `json:"refreshToken"`
-	RefreshExpiresAt *time.Time `json:"-"` // não serializado, usado internamente para cookie
+	RefreshExpiresAt *time.Time `json:"-"`         // não serializado, usado internamente para cookie
 	ExpiresIn        int        `json:"expiresIn"` // segundos até o access token expirar
 }
 
 type UpdateMeInput struct {
-	Name      *string
-	Email     *string
-	Phone     *string
-	AddressID *string
-	Address   *address.CreateInput
+	Name                    *string
+	Email                   *string
+	Phone                   *string
+	AddressID               *string
+	Address                 *address.CreateInput
+	CurrentPassword         *string
+	NewPassword             *string
+	NewPasswordConfirmation *string
 }
 
 // SignIn realiza o login do usuário.
@@ -205,12 +208,15 @@ func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpris
 
 func (s *Service) UpdateMe(ctx context.Context, userID string, enterpriseID string, in UpdateMeInput) error {
 	return s.userSvc.Update(ctx, enterpriseID, appuser.UpdateInput{
-		ID:        userID,
-		Name:      in.Name,
-		Email:     in.Email,
-		Phone:     in.Phone,
-		AddressID: in.AddressID,
-		Address:   in.Address,
+		ID:                      userID,
+		Name:                    in.Name,
+		Email:                   in.Email,
+		Phone:                   in.Phone,
+		AddressID:               in.AddressID,
+		Address:                 in.Address,
+		CurrentPassword:         in.CurrentPassword,
+		NewPassword:             in.NewPassword,
+		NewPasswordConfirmation: in.NewPasswordConfirmation,
 	})
 }
 
