@@ -72,7 +72,7 @@ type SignInInput struct {
 type SignInOutput struct {
 	AccessToken      string     `json:"accessToken"`
 	RefreshToken     string     `json:"refreshToken,omitempty"`
-	RefreshExpiresAt *time.Time `json:"-"`         // não serializado, usado internamente para cookie
+	RefreshExpiresAt *time.Time `json:"-"` // não serializado, usado internamente para cookie
 	ExpiresIn        int        `json:"expiresIn"` // segundos até o access token expirar
 }
 
@@ -85,7 +85,7 @@ type RefreshInput struct {
 type RefreshOutput struct {
 	AccessToken      string     `json:"accessToken"`
 	RefreshToken     string     `json:"refreshToken"`
-	RefreshExpiresAt *time.Time `json:"-"`         // não serializado, usado internamente para cookie
+	RefreshExpiresAt *time.Time `json:"-"` // não serializado, usado internamente para cookie
 	ExpiresIn        int        `json:"expiresIn"` // segundos até o access token expirar
 }
 
