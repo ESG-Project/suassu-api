@@ -95,3 +95,11 @@ SELECT id,
 FROM "User"
 WHERE id = $1
 LIMIT 1;
+-- name: UpdateUser :exec
+UPDATE "User"
+SET name = $3,
+  email = $4,
+  phone = $5,
+  "addressId" = $6
+WHERE id = $1
+  AND "enterpriseId" = $2;

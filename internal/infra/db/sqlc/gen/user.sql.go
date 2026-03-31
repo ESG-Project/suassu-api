@@ -327,3 +327,34 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 	}
 	return items, nil
 }
+
+const updateUserEditable = `-- name: UpdateUserEditable :exec
+UPDATE "User"
+SET name = $3,
+  email = $4,
+  phone = $5,
+  "addressId" = $6
+WHERE id = $1
+  AND "enterpriseId" = $2
+`
+
+type UpdateUserEditableParams struct {
+	ID           string         `json:"id"`
+	EnterpriseId string         `json:"enterpriseId"`
+	Name         string         `json:"name"`
+	Email        string         `json:"email"`
+	Phone        sql.NullString `json:"phone"`
+	AddressId    sql.NullString `json:"addressId"`
+}
+
+func (q *Queries) UpdateUserEditable(ctx context.Context, arg UpdateUserEditableParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserEditable,
+		arg.ID,
+		arg.EnterpriseId,
+		arg.Name,
+		arg.Email,
+		arg.Phone,
+		arg.AddressId,
+	)
+	return err
+}

@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -36,6 +37,15 @@ type CreateInput struct {
 	Address      *address.CreateInput
 	RoleID       *string
 	EnterpriseID string
+}
+
+type UpdateInput struct {
+	ID        string
+	Name      *string
+	Email     *string
+	Phone     *string
+	AddressID *string
+	Address   *address.CreateInput
 }
 
 func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInput) (string, error) {
@@ -115,6 +125,51 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 		result[i] = *user
 	}
 	return result, &pageInfo, nil
+}
+
+func (s *Service) Update(ctx context.Context, enterpriseID string, in UpdateInput) error {
+	if in.ID == "" || enterpriseID == "" {
+		return apperr.New(apperr.CodeInvalid, "missing required fields")
+	}
+
+	if in.Name == nil && in.Email == nil && in.Phone == nil && in.AddressID == nil && in.Address == nil {
+		return apperr.New(apperr.CodeInvalid, "no editable fields provided")
+	}
+
+	u, err := s.repo.GetByID(ctx, in.ID, enterpriseID)
+	if err != nil {
+		return apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	if in.Name != nil {
+		u.Name = *in.Name
+	}
+	if in.Email != nil {
+		u.Email = *in.Email
+	}
+	if in.Phone != nil {
+		if strings.TrimSpace(*in.Phone) == "" {
+			u.SetPhone(nil)
+		} else {
+			u.SetPhone(in.Phone)
+		}
+	}
+
+	if in.Address != nil {
+		addressID, err := s.addressService.HandleAddress(ctx, in.Address)
+		if err != nil {
+			return err
+		}
+		u.SetAddressID(&addressID)
+	} else if in.AddressID != nil {
+		u.SetAddressID(in.AddressID)
+	}
+
+	if err := u.Validate(); err != nil {
+		return apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
+	}
+
+	return s.repo.Update(ctx, u)
 }
 
 func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {

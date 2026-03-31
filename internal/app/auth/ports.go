@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"time"
 
+	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -86,6 +87,14 @@ type RefreshOutput struct {
 	RefreshToken     string     `json:"refreshToken"`
 	RefreshExpiresAt *time.Time `json:"-"` // não serializado, usado internamente para cookie
 	ExpiresIn        int        `json:"expiresIn"` // segundos até o access token expirar
+}
+
+type UpdateMeInput struct {
+	Name      *string
+	Email     *string
+	Phone     *string
+	AddressID *string
+	Address   *address.CreateInput
 }
 
 // SignIn realiza o login do usuário.
@@ -192,6 +201,17 @@ func (s *Service) GetMe(ctx context.Context, userID string, enterpriseID string)
 // GetMyPermissions retorna as permissões do usuário logado.
 func (s *Service) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
 	return s.userSvc.GetUserPermissionsWithRole(ctx, userID, enterpriseID)
+}
+
+func (s *Service) UpdateMe(ctx context.Context, userID string, enterpriseID string, in UpdateMeInput) error {
+	return s.userSvc.Update(ctx, enterpriseID, appuser.UpdateInput{
+		ID:        userID,
+		Name:      in.Name,
+		Email:     in.Email,
+		Phone:     in.Phone,
+		AddressID: in.AddressID,
+		Address:   in.Address,
+	})
 }
 
 // ValidateToken valida um token JWT.

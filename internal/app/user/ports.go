@@ -9,6 +9,8 @@ import (
 
 type Repo interface {
 	Create(ctx context.Context, u *domainuser.User) error
+	Update(ctx context.Context, u *domainuser.User) error
+	GetByID(ctx context.Context, userID string, enterpriseID string) (*domainuser.User, error)
 	List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error)
 	GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error)    // Para autenticação (sem filtro de tenant)
 	GetByIDForRefresh(ctx context.Context, userID string) (*domainuser.User, error)   // Para refresh token (sem filtro de tenant)
