@@ -2,6 +2,7 @@ package phytoanalysis
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -121,13 +122,17 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return nil
 		}
 
-		// Batch: coletar nomes científicos únicos e buscar todos de uma vez
+		// Batch: coletar nomes científicos únicos (trim) e buscar todos de uma vez
 		uniqueNames := make([]string, 0, len(in.Specimens))
 		seen := make(map[string]bool, len(in.Specimens))
 		for _, sp := range in.Specimens {
-			if !seen[sp.ScientificName] {
-				seen[sp.ScientificName] = true
-				uniqueNames = append(uniqueNames, sp.ScientificName)
+			name := strings.TrimSpace(sp.ScientificName)
+			if name == "" {
+				continue
+			}
+			if !seen[name] {
+				seen[name] = true
+				uniqueNames = append(uniqueNames, name)
 			}
 		}
 
@@ -146,7 +151,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 		// Batch: construir todas as entidades de specimen e inserir de uma vez
 		domainSpecimens := make([]*domainspecimen.Specimen, 0, len(in.Specimens))
 		for _, sp := range in.Specimens {
-			specieID := speciesMap[sp.ScientificName]
+			specieID := speciesMap[strings.TrimSpace(sp.ScientificName)]
 
 			s := domainspecimen.NewSpecimen(
 				uuid.NewString(),

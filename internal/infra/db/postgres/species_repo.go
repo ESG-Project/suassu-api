@@ -112,21 +112,33 @@ func (r *SpeciesRepo) GetMapByScientificNames(ctx context.Context, names []strin
 	}
 
 	unique := make(map[string]struct{}, len(names))
+	trimmed := make([]string, 0, len(names))
 	for _, n := range names {
-		unique[strings.TrimSpace(n)] = struct{}{}
+		t := strings.TrimSpace(n)
+		if t == "" {
+			continue
+		}
+		if _, ok := unique[t]; !ok {
+			unique[t] = struct{}{}
+			trimmed = append(trimmed, t)
+		}
+	}
+	if len(trimmed) == 0 {
+		return make(map[string]string), nil
 	}
 
-	placeholders := make([]string, 0, len(unique))
-	args := make([]interface{}, 0, len(unique))
+	placeholders := make([]string, 0, len(trimmed))
+	args := make([]interface{}, 0, len(trimmed))
 	i := 1
-	for name := range unique {
+	for _, name := range trimmed {
 		placeholders = append(placeholders, fmt.Sprintf("$%d", i))
 		args = append(args, name)
 		i++
 	}
 
+	// Compara pelo nome sem espaços à esquerda/direita para casar com dados legados no banco.
 	query := fmt.Sprintf(
-		"SELECT id, scientific_name FROM public.species WHERE scientific_name IN (%s)",
+		`SELECT id, scientific_name FROM public.species WHERE trim(both from scientific_name) IN (%s)`,
 		strings.Join(placeholders, ", "),
 	)
 
@@ -136,13 +148,13 @@ func (r *SpeciesRepo) GetMapByScientificNames(ctx context.Context, names []strin
 	}
 	defer rows.Close()
 
-	result := make(map[string]string, len(unique))
+	result := make(map[string]string, len(trimmed))
 	for rows.Next() {
 		var id, scientificName string
 		if err := rows.Scan(&id, &scientificName); err != nil {
 			return nil, err
 		}
-		result[scientificName] = id
+		result[strings.TrimSpace(scientificName)] = id
 	}
 
 	return result, rows.Err()
