@@ -135,6 +135,11 @@ func (r *SpecimenRepo) Delete(ctx context.Context, id string) error {
 	return r.q.DeleteSpecimen(ctx, id)
 }
 
+func (r *SpecimenRepo) DeleteByPhytoAnalysis(ctx context.Context, phytoAnalysisID string) error {
+	_, err := r.db.ExecContext(ctx, `DELETE FROM public.specimen WHERE phyto_analysis_id = $1`, phytoAnalysisID)
+	return err
+}
+
 func (r *SpecimenRepo) CountByPhytoAnalysis(ctx context.Context, phytoAnalysisID string) (int64, error) {
 	count, err := r.q.CountSpecimensByPhytoAnalysis(ctx, phytoAnalysisID)
 	if err != nil {
