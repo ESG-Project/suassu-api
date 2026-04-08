@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 
+	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -20,6 +21,7 @@ type Service interface {
 	Refresh(ctx context.Context, in appauth.RefreshInput) (appauth.RefreshOutput, error)
 	Logout(ctx context.Context, userID string) error
 	GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error)
+	UpdateMe(ctx context.Context, userID string, enterpriseID string, in appauth.UpdateMeInput) error
 	GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error)
 	ValidateToken(ctx context.Context, token string) (bool, error)
 }
@@ -45,6 +47,7 @@ func (h *Handler) RegisterPublic(r chi.Router) {
 // RegisterPrivate registra rotas privadas de /auth (com JWT)
 func (h *Handler) RegisterPrivate(r chi.Router) {
 	r.Get("/me", h.me)
+	r.Put("/me", h.updateMe)
 	r.Get("/my-permissions", h.myPermissions)
 	r.Post("/logout", h.logout)
 }
@@ -176,6 +179,54 @@ func (h *Handler) me(w http.ResponseWriter, r *http.Request) {
 	// Converter para DTO HTTP
 	meOut := userdto.ToMeOut(me)
 	writeJSON(w, http.StatusOK, meOut)
+}
+
+func (h *Handler) updateMe(w http.ResponseWriter, r *http.Request) {
+	claims, ok := httpmw.ClaimsFromCtx(r.Context())
+	if !ok {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
+		return
+	}
+
+	enterpriseID := httpmw.EnterpriseID(r.Context())
+	if enterpriseID == "" {
+		httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "enterprise ID required"))
+		return
+	}
+
+	var in struct {
+		Name                    *string                 `json:"name"`
+		Email                   *string                 `json:"email"`
+		Phone                   *string                 `json:"phone"`
+		AddressID               *string                 `json:"addressId"`
+		Address                 *appaddress.CreateInput `json:"address"`
+		CurrentPassword         *string                 `json:"currentPassword"`
+		NewPassword             *string                 `json:"newPassword"`
+		NewPasswordConfirmation *string                 `json:"newPasswordConfirmation"`
+	}
+	dec := json.NewDecoder(r.Body)
+	dec.DisallowUnknownFields()
+	if err := dec.Decode(&in); err != nil {
+		httperr.Handle(w, r, apperr.New(apperr.CodeInvalid, "invalid request body"))
+		return
+	}
+
+	err := h.svc.UpdateMe(r.Context(), claims.Subject, enterpriseID, appauth.UpdateMeInput{
+		Name:                    in.Name,
+		Email:                   in.Email,
+		Phone:                   in.Phone,
+		AddressID:               in.AddressID,
+		Address:                 in.Address,
+		CurrentPassword:         in.CurrentPassword,
+		NewPassword:             in.NewPassword,
+		NewPasswordConfirmation: in.NewPasswordConfirmation,
+	})
+	if err != nil {
+		httperr.Handle(w, r, err)
+		return
+	}
+
+	writeJSON(w, http.StatusOK, map[string]string{"message": "updated"})
 }
 
 func (h *Handler) myPermissions(w http.ResponseWriter, r *http.Request) {

@@ -39,6 +39,20 @@ func (f *fakeRepo) Create(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
+func (f *fakeRepo) Update(ctx context.Context, u *domain.User) error {
+	f.users[u.Email] = u
+	return nil
+}
+
+func (f *fakeRepo) GetByID(ctx context.Context, userID string, enterpriseID string) (*domain.User, error) {
+	for _, u := range f.users {
+		if u.ID == userID && u.EnterpriseID == enterpriseID {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
 func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
 	if f.err != nil {
 		return nil, domain.PageInfo{}, f.err
@@ -92,6 +106,10 @@ type fakeUserService struct{}
 
 func (f *fakeUserService) Create(ctx context.Context, enterpriseID string, in appuser.CreateInput) (string, error) {
 	return "", errors.New("not implemented in fake")
+}
+
+func (f *fakeUserService) Update(ctx context.Context, enterpriseID string, in appuser.UpdateInput) error {
+	return errors.New("not implemented in fake")
 }
 
 func (f *fakeUserService) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]domain.User, *domain.PageInfo, error) {

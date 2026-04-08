@@ -18,6 +18,7 @@ import (
 
 type fakeRepo struct {
 	saved *domainuser.User
+	got   *domainuser.User
 	err   error
 	users []*domainuser.User
 }
@@ -28,6 +29,24 @@ func (f *fakeRepo) Create(ctx context.Context, u *domainuser.User) error {
 	}
 	f.saved = u
 	return nil
+}
+
+func (f *fakeRepo) Update(ctx context.Context, u *domainuser.User) error {
+	if f.err != nil {
+		return f.err
+	}
+	f.saved = u
+	return nil
+}
+
+func (f *fakeRepo) GetByID(ctx context.Context, userID string, enterpriseID string) (*domainuser.User, error) {
+	if f.err != nil {
+		return nil, f.err
+	}
+	if f.got != nil {
+		return f.got, nil
+	}
+	return domainuser.NewUser(userID, "Ana", "ana@ex.com", "HASH_123", "999", enterpriseID), nil
 }
 
 func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domainuser.User, error) {
@@ -60,7 +79,10 @@ func (f *fakeRepo) GetUserWithDetails(ctx context.Context, userID string, enterp
 	return &types.UserWithDetails{ID: userID, Name: "", Email: "", EnterpriseID: enterpriseID}, nil
 }
 
-type fakeHasher struct{ err error }
+type fakeHasher struct {
+	err        error
+	compareErr error
+}
 
 func (f fakeHasher) Hash(pw string) (string, error) {
 	if f.err != nil {
@@ -69,7 +91,12 @@ func (f fakeHasher) Hash(pw string) (string, error) {
 	return "HASH_" + pw, nil
 }
 
-func (f fakeHasher) Compare(hash, plain string) error { return nil }
+func (f fakeHasher) Compare(hash, plain string) error {
+	if f.compareErr != nil {
+		return f.compareErr
+	}
+	return nil
+}
 
 // Mock TxManager para testes unitários
 type mockTxManager struct {
@@ -282,6 +309,111 @@ func TestService_NewServiceWithTx(t *testing.T) {
 		svc := user.NewService(repo, &address.Service{}, hasher)
 		require.NotNil(t, svc)
 		// Note: campo txm é privado, mas podemos testar o comportamento
+	})
+}
+
+func TestService_Update(t *testing.T) {
+	t.Parallel()
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	t.Run("success", func(t *testing.T) {
+		repo := &fakeRepo{
+			got: domainuser.NewUser("user-1", "Old Name", "old@ex.com", "HASH_123", "999", "ent-1"),
+		}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		name := "Test Enterprise"
+		email := "testenterprise@domain.cc"
+		phone := "(00) 0 0000-0000"
+
+		err := svc.Update(ctx, "ent-1", user.UpdateInput{
+			ID:    "user-1",
+			Name:  &name,
+			Email: &email,
+			Phone: &phone,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, repo.saved)
+		require.Equal(t, name, repo.saved.Name)
+		require.Equal(t, email, repo.saved.Email)
+		require.NotNil(t, repo.saved.Phone)
+		require.Equal(t, phone, *repo.saved.Phone)
+	})
+
+	t.Run("no editable fields", func(t *testing.T) {
+		repo := &fakeRepo{}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		err := svc.Update(ctx, "ent-1", user.UpdateInput{ID: "user-1"})
+		require.Error(t, err)
+		require.Equal(t, apperr.CodeInvalid, apperr.CodeOf(err))
+	})
+
+	t.Run("password change requires current password", func(t *testing.T) {
+		repo := &fakeRepo{
+			got: domainuser.NewUser("user-1", "Ana", "ana@ex.com", "HASH_123", "999", "ent-1"),
+		}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		newPassword := "NovaSenha123!"
+		confirm := "NovaSenha123!"
+
+		err := svc.Update(ctx, "ent-1", user.UpdateInput{
+			ID:                      "user-1",
+			NewPassword:             &newPassword,
+			NewPasswordConfirmation: &confirm,
+		})
+		require.Error(t, err)
+		require.Equal(t, apperr.CodeInvalid, apperr.CodeOf(err))
+		require.Contains(t, err.Error(), "currentPassword is required")
+	})
+
+	t.Run("password change with invalid current password", func(t *testing.T) {
+		repo := &fakeRepo{
+			got: domainuser.NewUser("user-1", "Ana", "ana@ex.com", "HASH_123", "999", "ent-1"),
+		}
+		hasher := fakeHasher{compareErr: errors.New("mismatch")}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		current := "SenhaErrada123!"
+		newPassword := "NovaSenha123!"
+		confirm := "NovaSenha123!"
+
+		err := svc.Update(ctx, "ent-1", user.UpdateInput{
+			ID:                      "user-1",
+			CurrentPassword:         &current,
+			NewPassword:             &newPassword,
+			NewPasswordConfirmation: &confirm,
+		})
+		require.Error(t, err)
+		require.Equal(t, apperr.CodeUnauthorized, apperr.CodeOf(err))
+		require.Contains(t, err.Error(), "invalid current password")
+	})
+
+	t.Run("password change success", func(t *testing.T) {
+		repo := &fakeRepo{
+			got: domainuser.NewUser("user-1", "Ana", "ana@ex.com", "HASH_OLD", "999", "ent-1"),
+		}
+		hasher := fakeHasher{}
+		svc := user.NewService(repo, &address.Service{}, hasher)
+
+		current := "SenhaAtual123!"
+		newPassword := "NovaSenha123!"
+		confirm := "NovaSenha123!"
+
+		err := svc.Update(ctx, "ent-1", user.UpdateInput{
+			ID:                      "user-1",
+			CurrentPassword:         &current,
+			NewPassword:             &newPassword,
+			NewPasswordConfirmation: &confirm,
+		})
+		require.NoError(t, err)
+		require.NotNil(t, repo.saved)
+		require.Equal(t, "HASH_"+newPassword, repo.saved.PasswordHash)
 	})
 }
 
