@@ -70,6 +70,74 @@ type UpdateInput struct {
 	Description     *string
 }
 
+type specimenRow struct {
+	RowNumber int
+	Specimen  SpecimenInput
+}
+
+type invalidSpecimenRow struct {
+	RowNumber int      `json:"rowNumber"`
+	Errors    []string `json:"errors"`
+}
+
+func isBlankSpecimenInput(sp SpecimenInput) bool {
+	return strings.TrimSpace(sp.Portion) == "" &&
+		strings.TrimSpace(sp.ScientificName) == "" &&
+		sp.Height == 0 &&
+		sp.Cap1 == 0 &&
+		sp.RegisterDate.IsZero() &&
+		sp.Cap2 == nil &&
+		sp.Cap3 == nil &&
+		sp.Cap4 == nil &&
+		sp.Cap5 == nil &&
+		sp.Cap6 == nil
+}
+
+func normalizeAndValidateSpecimens(specimens []SpecimenInput) ([]specimenRow, []invalidSpecimenRow) {
+	rows := make([]specimenRow, 0, len(specimens))
+	invalidRows := make([]invalidSpecimenRow, 0)
+
+	for i, sp := range specimens {
+		rowNumber := i + 1
+		if isBlankSpecimenInput(sp) {
+			continue
+		}
+
+		normalized := sp
+		normalized.Portion = strings.TrimSpace(sp.Portion)
+		normalized.ScientificName = strings.TrimSpace(sp.ScientificName)
+
+		errorsByRow := make([]string, 0, 5)
+		if normalized.Portion == "" {
+			errorsByRow = append(errorsByRow, "portion is required")
+		}
+		if normalized.Height <= 0 {
+			errorsByRow = append(errorsByRow, "height must be positive")
+		}
+		if normalized.Cap1 <= 0 {
+			errorsByRow = append(errorsByRow, "cap1 must be positive")
+		}
+		if normalized.RegisterDate.IsZero() {
+			errorsByRow = append(errorsByRow, "register date is required")
+		}
+		if normalized.ScientificName == "" {
+			errorsByRow = append(errorsByRow, "scientific name is required")
+		}
+
+		if len(errorsByRow) > 0 {
+			invalidRows = append(invalidRows, invalidSpecimenRow{
+				RowNumber: rowNumber,
+				Errors:    errorsByRow,
+			})
+			continue
+		}
+
+		rows = append(rows, specimenRow{RowNumber: rowNumber, Specimen: normalized})
+	}
+
+	return rows, invalidRows
+}
+
 func calcSampledAreaHa(portionArea float64, portionQuantity int) float64 {
 	if portionArea <= 0 || portionQuantity <= 0 {
 		return 0
@@ -95,6 +163,14 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
 		}
 
+		rows, invalidRows := normalizeAndValidateSpecimens(in.Specimens)
+		if len(invalidRows) > 0 {
+			return apperr.WithFields(
+				apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+				map[string]any{"invalidRows": invalidRows},
+			)
+		}
+
 		phyto := domainphyto.NewPhytoAnalysis(
 			phytoID,
 			in.Title,
@@ -118,18 +194,15 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return err
 		}
 
-		if len(in.Specimens) == 0 {
+		if len(rows) == 0 {
 			return nil
 		}
 
 		// Batch: coletar nomes científicos únicos (trim) e buscar todos de uma vez
-		uniqueNames := make([]string, 0, len(in.Specimens))
-		seen := make(map[string]bool, len(in.Specimens))
-		for _, sp := range in.Specimens {
-			name := strings.TrimSpace(sp.ScientificName)
-			if name == "" {
-				continue
-			}
+		uniqueNames := make([]string, 0, len(rows))
+		seen := make(map[string]bool, len(rows))
+		for _, row := range rows {
+			name := row.Specimen.ScientificName
 			if !seen[name] {
 				seen[name] = true
 				uniqueNames = append(uniqueNames, name)
@@ -141,17 +214,29 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return apperr.Wrap(err, apperr.CodeInternal, "failed to fetch species")
 		}
 
-		// Verificar se todas as espécies foram encontradas
-		for _, name := range uniqueNames {
+		missingSpeciesRows := make([]invalidSpecimenRow, 0)
+		for _, row := range rows {
+			name := row.Specimen.ScientificName
 			if _, ok := speciesMap[name]; !ok {
-				return apperr.New(apperr.CodeNotFound, "species not found with scientific name: "+name)
+				missingSpeciesRows = append(missingSpeciesRows, invalidSpecimenRow{
+					RowNumber: row.RowNumber,
+					Errors:    []string{"species not found with scientific name: " + name},
+				})
 			}
 		}
 
+		if len(missingSpeciesRows) > 0 {
+			return apperr.WithFields(
+				apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+				map[string]any{"invalidRows": missingSpeciesRows},
+			)
+		}
+
 		// Batch: construir todas as entidades de specimen e inserir de uma vez
-		domainSpecimens := make([]*domainspecimen.Specimen, 0, len(in.Specimens))
-		for _, sp := range in.Specimens {
-			specieID := speciesMap[strings.TrimSpace(sp.ScientificName)]
+		domainSpecimens := make([]*domainspecimen.Specimen, 0, len(rows))
+		for _, row := range rows {
+			sp := row.Specimen
+			specieID := speciesMap[sp.ScientificName]
 
 			s := domainspecimen.NewSpecimen(
 				uuid.NewString(),
@@ -165,7 +250,15 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			s.SetOptionalCaps(sp.Cap2, sp.Cap3, sp.Cap4, sp.Cap5, sp.Cap6)
 
 			if err := s.Validate(); err != nil {
-				return apperr.Wrap(err, apperr.CodeInvalid, "invalid specimen data")
+				return apperr.WithFields(
+					apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+					map[string]any{
+						"invalidRows": []invalidSpecimenRow{{
+							RowNumber: row.RowNumber,
+							Errors:    []string{err.Error()},
+						}},
+					},
+				)
 			}
 
 			domainSpecimens = append(domainSpecimens, s)
