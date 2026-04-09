@@ -218,29 +218,12 @@ func (s *Service) ListAll(ctx context.Context, limit, offset int32) ([]*types.Ph
 }
 
 func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
-	sampledAreaHa := calcSampledAreaHa(in.PortionArea, in.PortionQuantity)
-	if in.Title == "" {
+	if strings.TrimSpace(in.Title) == "" {
 		return apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
-
-	// Para update, usamos um projectID dummy já que ele não é alterado
-	// A validação completa seria feita no repo que não altera o projectID
-	phyto := domainphyto.NewPhytoAnalysis(
-		id,
-		in.Title,
-		in.InitialDate,
-		in.PortionQuantity,
-		in.PortionArea,
-		in.TotalArea,
-		sampledAreaHa,
-		"dummy-project-id", // projectID não é alterado no update
-	)
-
-	if in.Description != nil {
-		phyto.SetDescription(in.Description)
+	if in.InitialDate.IsZero() {
+		return apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
-
-	// Validar apenas os campos que podem ser atualizados
 	if in.PortionQuantity <= 0 {
 		return apperr.New(apperr.CodeInvalid, "portion quantity must be positive")
 	}
@@ -250,13 +233,37 @@ func (s *Service) Update(ctx context.Context, id string, in UpdateInput) error {
 	if in.TotalArea <= 0 {
 		return apperr.New(apperr.CodeInvalid, "total area must be positive")
 	}
+
+	sampledAreaHa := calcSampledAreaHa(in.PortionArea, in.PortionQuantity)
 	if sampledAreaHa <= 0 {
 		return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
+	}
+
+	phyto := &domainphyto.PhytoAnalysis{
+		ID:              id,
+		Title:           in.Title,
+		InitialDate:     in.InitialDate,
+		PortionQuantity: in.PortionQuantity,
+		PortionArea:     in.PortionArea,
+		TotalArea:       in.TotalArea,
+		SampledArea:     sampledAreaHa,
+		Description:     in.Description,
+		UpdatedAt:       time.Now(),
 	}
 
 	return s.repo.Update(ctx, phyto)
 }
 
 func (s *Service) Delete(ctx context.Context, id string) error {
-	return s.repo.Delete(ctx, id)
+	if s.txm == nil {
+		return s.repo.Delete(ctx, id)
+	}
+
+	return s.txm.RunInTx(ctx, func(repos postgres.Repos) error {
+		if err := repos.Specimens().DeleteByPhytoAnalysis(ctx, id); err != nil {
+			return err
+		}
+
+		return repos.PhytoAnalyses().Delete(ctx, id)
+	})
 }

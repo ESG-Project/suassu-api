@@ -53,8 +53,8 @@ type PhytoAnalysisResponse struct {
 	TotalArea       float64   `json:"totalArea"`
 	SampledArea     float64   `json:"sampledArea"`
 
-	Description *string `json:"description,omitempty"`
-	ProjectID   string  `json:"projectId"`
+	Description *string   `json:"description,omitempty"`
+	ProjectID   string    `json:"projectId"`
 	CreatedAt   time.Time `json:"createdAt"`
 	UpdatedAt   time.Time `json:"updatedAt"`
 
@@ -465,21 +465,21 @@ func calculatePhytosociologicalIndicators(p *types.PhytoAnalysisComplete) *Phyto
 	collectorCurve := calculateCollectorCurve(p.Specimens, p.PortionArea)
 
 	return &PhytosociologicalIndicators{
-		IndividualsCount:    N,
-		SpeciesCount:        S,
-		PlotsCount:          P,
-		PlotsArea:           plotsArea,
-		Density:             density,
-		BasalArea:           basalArea,
-		Volume:              volume,
-		ReplacementVolume:   &replacementVolume,
-		ReplacementVolumeMst:  replacementVolumeMst,
-		SampledAreaHa:       &sampledAreaHa,
-		ShannonIndex:        shannonIndex,
-		SimpsonIndex:        simpsonIndex,
-		PielouEvennessIndex: pielouIndex,
-		SpeciesData:         speciesData,
-		CollectorCurve:      collectorCurve,
+		IndividualsCount:     N,
+		SpeciesCount:         S,
+		PlotsCount:           P,
+		PlotsArea:            plotsArea,
+		Density:              density,
+		BasalArea:            basalArea,
+		Volume:               volume,
+		ReplacementVolume:    &replacementVolume,
+		ReplacementVolumeMst: replacementVolumeMst,
+		SampledAreaHa:        &sampledAreaHa,
+		ShannonIndex:         shannonIndex,
+		SimpsonIndex:         simpsonIndex,
+		PielouEvennessIndex:  pielouIndex,
+		SpeciesData:          speciesData,
+		CollectorCurve:       collectorCurve,
 	}
 }
 
@@ -734,40 +734,40 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 	indicators := calculatePhytosociologicalIndicators(p)
 
 	return &PhytoAnalysisResponse{
-	ID:              p.ID,
-	Title:           p.Title,
-	InitialDate:     p.InitialDate,
-	PortionQuantity: p.PortionQuantity,
-	PortionArea:     p.PortionArea,
-	TotalArea:       p.TotalArea,
-	SampledArea:     p.SampledArea,
-	Description:     p.Description,
-	ProjectID:       p.ProjectID,
-	CreatedAt:       p.CreatedAt,
-	UpdatedAt:       p.UpdatedAt,
-	Project: &ProjectInfo{
-		ID:       p.ProjectID,
-		Title:    p.ProjectTitle,
-		CNPJ:     p.ProjectCNPJ,
-		Activity: p.ProjectActivity,
-		ClientID: p.ProjectClientID,
-		Address:  projectAddress,
-	},
-	Specimens: specimens,
+		ID:              p.ID,
+		Title:           p.Title,
+		InitialDate:     p.InitialDate,
+		PortionQuantity: p.PortionQuantity,
+		PortionArea:     p.PortionArea,
+		TotalArea:       p.TotalArea,
+		SampledArea:     p.SampledArea,
+		Description:     p.Description,
+		ProjectID:       p.ProjectID,
+		CreatedAt:       p.CreatedAt,
+		UpdatedAt:       p.UpdatedAt,
+		Project: &ProjectInfo{
+			ID:       p.ProjectID,
+			Title:    p.ProjectTitle,
+			CNPJ:     p.ProjectCNPJ,
+			Activity: p.ProjectActivity,
+			ClientID: p.ProjectClientID,
+			Address:  projectAddress,
+		},
+		Specimens: specimens,
 
-	IndividualsCount: len(p.Specimens),   // Total de specimens
-	SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
+		IndividualsCount: len(p.Specimens),   // Total de specimens
+		SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
 
-	// Métricas agregadas (SUASSU-186)
-	MeanDBHCm:      meanDbhCm,
-	MeanHeightM:    meanHeightM,
-	DensityIndHa:   densityIndHa,
-	VolumeTotalM3:  sumVolume,
-	VolumeTotalMst: volumeTotalMst,
-	VolumePerHa:    volumePerHa,
-	BasalAreaPerHa: basalPerHa,
+		// Métricas agregadas (SUASSU-186)
+		MeanDBHCm:      meanDbhCm,
+		MeanHeightM:    meanHeightM,
+		DensityIndHa:   densityIndHa,
+		VolumeTotalM3:  sumVolume,
+		VolumeTotalMst: volumeTotalMst,
+		VolumePerHa:    volumePerHa,
+		BasalAreaPerHa: basalPerHa,
 
-	// Indicadores fitossociológicos (SUASSU-284)
-	Indicators: indicators,
-}
+		// Indicadores fitossociológicos (SUASSU-284)
+		Indicators: indicators,
+	}
 }
