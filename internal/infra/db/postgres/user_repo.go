@@ -47,6 +47,51 @@ func (r *UserRepo) Create(ctx context.Context, u *domainuser.User) error {
 	})
 }
 
+func (r *UserRepo) Update(ctx context.Context, u *domainuser.User) error {
+	return r.q.UpdateUserEditable(ctx, sqlc.UpdateUserEditableParams{
+		ID:           u.ID,
+		EnterpriseId: u.EnterpriseID,
+		Name:         u.Name,
+		Email:        u.Email,
+		Phone:        utils.ToNullString(u.Phone),
+		AddressId:    utils.ToNullString(u.AddressID),
+		Password:     u.PasswordHash,
+	})
+}
+
+func (r *UserRepo) GetByID(ctx context.Context, userID string, enterpriseID string) (*domainuser.User, error) {
+	row, err := r.q.GetUserByID(ctx, sqlc.GetUserByIDParams{
+		EnterpriseId: enterpriseID,
+		ID:           userID,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "user not found")
+		}
+		return nil, err
+	}
+
+	u := domainuser.NewUser(
+		row.ID,
+		row.Name,
+		row.Email,
+		row.PasswordHash,
+		row.Document,
+		row.EnterpriseID,
+	)
+	if row.Phone.Valid {
+		u.SetPhone(&row.Phone.String)
+	}
+	if row.AddressID.Valid {
+		u.SetAddressID(&row.AddressID.String)
+	}
+	if row.RoleID.Valid {
+		u.SetRoleID(&row.RoleID.String)
+	}
+
+	return u, nil
+}
+
 func (r *UserRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domainuser.UserCursorKey) ([]*domainuser.User, domainuser.PageInfo, error) {
 	params := sqlc.ListUsersParams{
 		EnterpriseId: enterpriseID,

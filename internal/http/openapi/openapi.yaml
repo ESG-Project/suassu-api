@@ -139,6 +139,49 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+    put:
+      summary: Atualizar usuário autenticado
+      description: Atualiza os dados editáveis do usuário autenticado
+      operationId: updateMe
+      tags:
+        - Authentication
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateMeInput'
+      responses:
+        '200':
+          description: Informações atualizadas com sucesso
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+                    example: "updated"
+        '401':
+          description: Token inválido ou expirado
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Dados inválidos
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Erro interno do servidor
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /users:
     post:
@@ -269,9 +312,6 @@ components:
           description: Token JWT para autenticação
           example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
-
-
-
     UserMeResponse:
       type: object
       required:
@@ -302,6 +342,78 @@ components:
           nullable: true
           description: ID do papel/função do usuário
           example: "admin-role"
+
+    UpdateMeInput:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Nome completo do usuário
+          example: "Test Enterprise"
+        email:
+          type: string
+          format: email
+          description: Email do usuário
+          example: "testenterprise@domain.cc"
+        phone:
+          type: string
+          nullable: true
+          description: Telefone do usuário
+          example: "(00) 0 0000-0000"
+        addressId:
+          type: string
+          nullable: true
+          description: ID de um endereço já existente
+          example: "addr-123"
+        address:
+          type: object
+          description: Dados de endereço para buscar/criar e vincular ao usuário
+          properties:
+            zipCode:
+              type: string
+              example: "97540-000"
+            state:
+              type: string
+              example: "RS"
+            city:
+              type: string
+              example: "Alegrete"
+            neighborhood:
+              type: string
+              example: "Ibirapuitã"
+            street:
+              type: string
+              example: "Avenida Tiaraju"
+            num:
+              type: string
+              example: "1"
+            latitude:
+              type: string
+              nullable: true
+            longitude:
+              type: string
+              nullable: true
+            addInfo:
+              type: string
+              nullable: true
+        currentPassword:
+          type: string
+          format: password
+          nullable: true
+          description: Senha atual do usuário (necessária para alterar a senha)
+          example: "senhaAnterior123!"
+        newPassword:
+          type: string
+          format: password
+          nullable: true
+          description: Nova senha do usuário (deve ser igual a newPasswordConfirmation)
+          example: "novaSenha123!"
+        newPasswordConfirmation:
+          type: string
+          format: password
+          nullable: true
+          description: Confirmação da nova senha (deve ser igual a newPassword)
+          example: "novaSenha123!"
 
     CreateUserInput:
       type: object

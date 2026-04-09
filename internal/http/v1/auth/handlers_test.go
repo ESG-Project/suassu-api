@@ -31,6 +31,7 @@ type fakeAuthService struct {
 	validateTokenErr    error
 	refreshErr          error
 	logoutErr           error
+	updateMeErr         error
 }
 
 func (f *fakeAuthService) SignIn(ctx context.Context, in appauth.SignInInput) (appauth.SignInOutput, error) {
@@ -65,6 +66,10 @@ func (f *fakeAuthService) Logout(ctx context.Context, userID string) error {
 
 func (f *fakeAuthService) GetMe(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	return &types.UserWithDetails{ID: userID, Name: "Ana", Email: "ana@ex.com", EnterpriseID: enterpriseID}, nil
+}
+
+func (f *fakeAuthService) UpdateMe(ctx context.Context, userID string, enterpriseID string, in appauth.UpdateMeInput) error {
+	return f.updateMeErr
 }
 
 func (f *fakeAuthService) GetMyPermissions(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {
@@ -265,6 +270,69 @@ func TestAuth_Me_Unauthorized_BadToken(t *testing.T) {
 	router.ServeHTTP(rr, req)
 
 	require.Equal(t, http.StatusUnauthorized, rr.Code)
+}
+
+func TestAuth_UpdateMe_OK(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{
+			Subject:      "u1",
+			Email:        "ana@ex.com",
+			Name:         "Ana",
+			EnterpriseID: "ent-1",
+			RoleID:       nil,
+		},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	body := map[string]any{
+		"name":  "Test Enterprise",
+		"email": "testenterprise@domain.cc",
+		"phone": "(00) 0 0000-0000",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/me", bytes.NewReader(b))
+	req.Header.Set("Authorization", "Bearer good-token")
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusOK, rr.Code)
+	var resp map[string]any
+	require.NoError(t, json.Unmarshal(rr.Body.Bytes(), &resp))
+	require.Equal(t, "updated", resp["message"])
+}
+
+func TestAuth_UpdateMe_InvalidBody_UnknownField(t *testing.T) {
+	issuer := &fakeTokenIssuer{
+		expect: "good-token",
+		claims: appauth.Claims{
+			Subject:      "u1",
+			Email:        "ana@ex.com",
+			Name:         "Ana",
+			EnterpriseID: "ent-1",
+			RoleID:       nil,
+		},
+	}
+	router := newAuthRouterPrivate(issuer)
+
+	// Campo desconhecido deve ser rejeitado para evitar sucesso parcial silencioso.
+	body := map[string]any{
+		"name":               "Test Enterprise",
+		"confirmNewPassword": "NovaSenha123!",
+	}
+	b, _ := json.Marshal(body)
+
+	req := httptest.NewRequest(http.MethodPut, "/api/v1/auth/me", bytes.NewReader(b))
+	req.Header.Set("Authorization", "Bearer good-token")
+	req.Header.Set("Content-Type", "application/json")
+	rr := httptest.NewRecorder()
+
+	router.ServeHTTP(rr, req)
+
+	require.Equal(t, http.StatusUnprocessableEntity, rr.Code)
 }
 
 func TestAuth_ValidateToken_OK(t *testing.T) {

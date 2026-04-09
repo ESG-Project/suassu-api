@@ -2,7 +2,6 @@ package phytoanalysis_test
 
 import (
 	"context"
-	"strings"
 	"testing"
 	"time"
 
@@ -262,19 +261,25 @@ func TestPhytoAnalysisService_Update(t *testing.T) {
 		repo := &fakePhytoRepo{}
 		svc := phytoanalysis.NewService(repo, nil)
 
+		now := time.Now()
+
 		err := svc.Update(ctx, "phyto-1", phytoanalysis.UpdateInput{
 			Title:           "Análise Atualizada",
-			InitialDate:     time.Now(),
+			InitialDate:     now,
 			PortionQuantity: 15,
 			PortionArea:     200.5,
 			TotalArea:       2000.0,
 		})
 
-		// Update não valida projectID pois ele não é alterado
-		// O service precisa ser ajustado para não validar projectID no update
-		if err != nil && !strings.Contains(err.Error(), "project ID is required") {
-			require.NoError(t, err)
-		}
+		require.NoError(t, err)
+		require.NotNil(t, repo.saved)
+		require.Equal(t, "phyto-1", repo.saved.ID)
+		require.Equal(t, "Análise Atualizada", repo.saved.Title)
+		require.Equal(t, now, repo.saved.InitialDate)
+		require.Equal(t, 15, repo.saved.PortionQuantity)
+		require.Equal(t, 200.5, repo.saved.PortionArea)
+		require.Equal(t, 2000.0, repo.saved.TotalArea)
+		require.InDelta(t, 0.30075, repo.saved.SampledArea, 0.000001)
 	})
 
 	t.Run("error - missing title", func(t *testing.T) {

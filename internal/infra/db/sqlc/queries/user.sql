@@ -95,3 +95,12 @@ SELECT id,
 FROM "User"
 WHERE id = $1
 LIMIT 1;
+-- name: UpdateUserEditable :exec
+UPDATE "User"
+SET name = $3,
+  email = $4,
+  phone = $5,
+  "addressId" = $6,
+  password = $7
+WHERE id = $1
+  AND "enterpriseId" = $2;
