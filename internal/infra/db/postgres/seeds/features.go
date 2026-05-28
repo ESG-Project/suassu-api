@@ -26,4 +26,5 @@ var FeatureList = []string{
 	"Financial",
 	"Bank",
 	"EnterpriseBank",
+	"PhytoAnalysis",
 }

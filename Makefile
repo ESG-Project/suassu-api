@@ -17,6 +17,13 @@ help: ## Mostra esta ajuda
 
 
 # ===========================
+# section: Setup
+# ===========================
+.PHONY: tools
+tools: ## Instala ferramentas de desenvolvimento (sqlc)
+	go install github.com/sqlc-dev/sqlc/cmd/sqlc@latest
+
+# ===========================
 # section: Executar
 # ===========================
 .PHONY: run

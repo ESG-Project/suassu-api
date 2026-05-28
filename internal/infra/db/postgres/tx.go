@@ -29,6 +29,9 @@ type Repos struct {
 	Products    func() *ProductRepo
 	Parameters  func() *ParameterRepo
 	Features    func() *FeatureRepo
+	PhytoAnalyses func() *PhytoAnalysisRepo
+	Specimens     func() *SpecimenRepo
+	Species       func() *SpeciesRepo
 }
 
 func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
@@ -46,6 +49,9 @@ func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
 		Products:    func() *ProductRepo { return NewProductRepoFrom(tx) },
 		Parameters:  func() *ParameterRepo { return NewParameterRepoFrom(tx) },
 		Features:    func() *FeatureRepo { return NewFeatureRepoFrom(tx) },
+		PhytoAnalyses: func() *PhytoAnalysisRepo { return NewPhytoAnalysisRepoFrom(tx) },
+		Specimens:     func() *SpecimenRepo { return NewSpecimenRepoFrom(tx) },
+		Species:       func() *SpeciesRepo { return NewSpeciesRepoFrom(tx) },
 	}
 
 	if err := fn(r); err != nil {

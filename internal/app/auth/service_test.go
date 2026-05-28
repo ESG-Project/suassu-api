@@ -39,6 +39,20 @@ func (f *fakeRepo) Create(ctx context.Context, u *domain.User) error {
 	return nil
 }
 
+func (f *fakeRepo) Update(ctx context.Context, u *domain.User) error {
+	f.users[u.Email] = u
+	return nil
+}
+
+func (f *fakeRepo) GetByID(ctx context.Context, userID string, enterpriseID string) (*domain.User, error) {
+	for _, u := range f.users {
+		if u.ID == userID && u.EnterpriseID == enterpriseID {
+			return u, nil
+		}
+	}
+	return nil, errors.New("user not found")
+}
+
 func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]*domain.User, domain.PageInfo, error) {
 	if f.err != nil {
 		return nil, domain.PageInfo{}, f.err
@@ -53,6 +67,15 @@ func (f *fakeRepo) List(ctx context.Context, enterpriseID string, limit int32, a
 func (f *fakeRepo) GetByEmailForAuth(ctx context.Context, email string) (*domain.User, error) {
 	if u, exists := f.users[email]; exists {
 		return u, nil
+	}
+	return nil, errors.New("user not found")
+}
+
+func (f *fakeRepo) GetByIDForRefresh(ctx context.Context, userID string) (*domain.User, error) {
+	for _, u := range f.users {
+		if u.ID == userID {
+			return u, nil
+		}
 	}
 	return nil, errors.New("user not found")
 }
@@ -85,6 +108,10 @@ func (f *fakeUserService) Create(ctx context.Context, enterpriseID string, in ap
 	return "", errors.New("not implemented in fake")
 }
 
+func (f *fakeUserService) Update(ctx context.Context, enterpriseID string, in appuser.UpdateInput) error {
+	return errors.New("not implemented in fake")
+}
+
 func (f *fakeUserService) List(ctx context.Context, enterpriseID string, limit int32, after *domain.UserCursorKey) ([]domain.User, *domain.PageInfo, error) {
 	return nil, nil, errors.New("not implemented in fake")
 }
@@ -108,8 +135,23 @@ func (f *fakeTokenIssuer) NewAccessToken(u *domain.User) (string, error) {
 	return "token-ok", nil
 }
 
+func (f *fakeTokenIssuer) NewRefreshToken() (token string, hash string, expiresAt time.Time, err error) {
+	if f.shouldFail {
+		return "", "", time.Time{}, errors.New("refresh token generation failed")
+	}
+	return "refresh-token-ok", "hash-ok", time.Now().Add(7 * 24 * time.Hour), nil
+}
+
 func (f *fakeTokenIssuer) Parse(token string) (appauth.Claims, error) {
 	return appauth.Claims{}, errors.New("not implemented in fake")
+}
+
+func (f *fakeTokenIssuer) GetAccessTTL() int64 {
+	return 900 // 15 min
+}
+
+func (f *fakeTokenIssuer) GetRefreshTTL() time.Duration {
+	return 7 * 24 * time.Hour
 }
 
 func TestService_SignIn(t *testing.T) {

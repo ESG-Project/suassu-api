@@ -2,6 +2,7 @@ package user
 
 import (
 	"context"
+	"strings"
 
 	"github.com/ESG-Project/suassu-api/internal/app/address"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -36,6 +37,18 @@ type CreateInput struct {
 	Address      *address.CreateInput
 	RoleID       *string
 	EnterpriseID string
+}
+
+type UpdateInput struct {
+	ID                      string
+	Name                    *string
+	Email                   *string
+	Phone                   *string
+	AddressID               *string
+	Address                 *address.CreateInput
+	CurrentPassword         *string
+	NewPassword             *string
+	NewPasswordConfirmation *string
 }
 
 func (s *Service) Create(ctx context.Context, enterpriseID string, in CreateInput) (string, error) {
@@ -115,6 +128,82 @@ func (s *Service) List(ctx context.Context, enterpriseID string, limit int32, af
 		result[i] = *user
 	}
 	return result, &pageInfo, nil
+}
+
+func (s *Service) Update(ctx context.Context, enterpriseID string, in UpdateInput) error {
+	if in.ID == "" || enterpriseID == "" {
+		return apperr.New(apperr.CodeInvalid, "missing required fields")
+	}
+
+	if in.Name == nil && in.Email == nil && in.Phone == nil && in.AddressID == nil && in.Address == nil &&
+		in.CurrentPassword == nil && in.NewPassword == nil && in.NewPasswordConfirmation == nil {
+		return apperr.New(apperr.CodeInvalid, "no editable fields provided")
+	}
+
+	u, err := s.repo.GetByID(ctx, in.ID, enterpriseID)
+	if err != nil {
+		return apperr.Wrap(err, apperr.CodeNotFound, "user not found")
+	}
+
+	// Validação de alteração de senha
+	if in.NewPassword != nil || in.NewPasswordConfirmation != nil {
+		// Se quer alterar senha, ambos os campos devem ser fornecidos
+		if in.NewPassword == nil || in.NewPasswordConfirmation == nil {
+			return apperr.New(apperr.CodeInvalid, "newPassword and newPasswordConfirmation are required together")
+		}
+
+		// A troca de senha exige validação da senha atual.
+		if in.CurrentPassword == nil || strings.TrimSpace(*in.CurrentPassword) == "" {
+			return apperr.New(apperr.CodeInvalid, "currentPassword is required to change password")
+		}
+
+		// Validar que as senhas são iguais
+		if *in.NewPassword != *in.NewPasswordConfirmation {
+			return apperr.New(apperr.CodeInvalid, "passwords do not match")
+		}
+
+		if err := s.hasher.Compare(u.PasswordHash, *in.CurrentPassword); err != nil {
+			return apperr.New(apperr.CodeUnauthorized, "invalid current password")
+		}
+
+		// Hash da nova senha
+		newPasswordHash, err := s.hasher.Hash(*in.NewPassword)
+		if err != nil {
+			return apperr.Wrap(err, apperr.CodeInternal, "failed to hash password")
+		}
+
+		u.PasswordHash = newPasswordHash
+	}
+
+	if in.Name != nil {
+		u.Name = *in.Name
+	}
+	if in.Email != nil {
+		u.Email = *in.Email
+	}
+	if in.Phone != nil {
+		if strings.TrimSpace(*in.Phone) == "" {
+			u.SetPhone(nil)
+		} else {
+			u.SetPhone(in.Phone)
+		}
+	}
+
+	if in.Address != nil {
+		addressID, err := s.addressService.HandleAddress(ctx, in.Address)
+		if err != nil {
+			return err
+		}
+		u.SetAddressID(&addressID)
+	} else if in.AddressID != nil {
+		u.SetAddressID(in.AddressID)
+	}
+
+	if err := u.Validate(); err != nil {
+		return apperr.Wrap(err, apperr.CodeInvalid, "invalid user data")
+	}
+
+	return s.repo.Update(ctx, u)
 }
 
 func (s *Service) GetUserPermissionsWithRole(ctx context.Context, userID string, enterpriseID string) (*types.UserPermissions, error) {

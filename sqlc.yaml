@@ -10,6 +10,13 @@ sql:
       - "internal/infra/db/sqlc/schema_permission.sql"
       - "internal/infra/db/sqlc/schema_product.sql"
       - "internal/infra/db/sqlc/schema_parameter.sql"
+      - "internal/infra/db/sqlc/schema_project.sql"
+      - "internal/infra/db/sqlc/schema_client.sql"
+      - "internal/infra/db/sqlc/schema_species.sql"
+      - "internal/infra/db/sqlc/schema_phyto_analysis.sql"
+      - "internal/infra/db/sqlc/schema_specimen.sql"
+      - "internal/infra/db/sqlc/schema_species_change.sql"
+      - "internal/infra/db/sqlc/schema_refresh_token.sql"
     queries: "internal/infra/db/sqlc/queries"
     gen:
       go:

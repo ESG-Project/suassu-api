@@ -23,11 +23,18 @@ type Config struct {
 	LogLevel string // debug|info|warn|error
 
 	// JWT
-	JWTSecret          string // HMAC secret
-	JWTIssuer          string
-	JWTAudience        string
-	JWTAccessTTLMin    int // minutos (ex: 15)
+	JWTSecret         string // HMAC secret
+	JWTIssuer         string
+	JWTAudience       string
+	JWTAccessTTLMin   int // minutos (ex: 15)
+	JWTRefreshTTLDays int // dias (ex: 7)
+
+	// CORS
 	CORSAllowedOrigins []string
+
+	// Cookie
+	CookieDomain string // domínio do cookie (ex: ".suassu.com")
+	CookieSecure bool   // true em produção (HTTPS)
 }
 
 // Load lê variáveis de ambiente e aplica defaults sensatos.
@@ -35,9 +42,11 @@ type Config struct {
 func Load() (*Config, error) {
 	corsOrigins := getenv("CORS_ALLOWED_ORIGINS", "http://localhost:3000")
 
+	appEnv := getenv("APP_ENV", "dev")
+
 	cfg := &Config{
 		AppName:         getenv("APP_NAME", "suassu-api"),
-		AppEnv:          getenv("APP_ENV", "dev"),
+		AppEnv:          appEnv,
 		HTTPPort:        getenv("HTTP_PORT", "8080"),
 		DBDSN:           getenv("DB_DSN", ""), // fallback p/ DATABASE_URL abaixo
 		DBMaxOpenConns:  getint("DB_MAX_OPEN_CONNS", 20),
@@ -46,11 +55,16 @@ func Load() (*Config, error) {
 		DBConnMaxLifeMS: getint("DB_CONN_MAX_LIFE_MS", 300000), // 5min
 		LogLevel:        strings.ToLower(getenv("LOG_LEVEL", "info")),
 
-		JWTSecret:          getenv("JWT_SECRET", "dev-secret-change-me"),
-		JWTIssuer:          getenv("JWT_ISSUER", "suassu-api"),
-		JWTAudience:        getenv("JWT_AUDIENCE", "suassu-clients"),
-		JWTAccessTTLMin:    getint("JWT_ACCESS_TTL_MIN", 15),
+		JWTSecret:         getenv("JWT_SECRET", "dev-secret-change-me"),
+		JWTIssuer:         getenv("JWT_ISSUER", "suassu-api"),
+		JWTAudience:       getenv("JWT_AUDIENCE", "suassu-clients"),
+		JWTAccessTTLMin:   getint("JWT_ACCESS_TTL_MIN", 15),
+		JWTRefreshTTLDays: getint("JWT_REFRESH_TTL_DAYS", 7),
+
 		CORSAllowedOrigins: strings.Split(corsOrigins, ","),
+
+		CookieDomain: getenv("COOKIE_DOMAIN", ""), // vazio = mesmo domínio
+		CookieSecure: appEnv == "prod",            // true apenas em produção
 	}
 
 	if cfg.DBDSN == "" {

@@ -3,11 +3,11 @@ package middleware_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"testing"
-
-	"errors"
+	"time"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
 	"github.com/ESG-Project/suassu-api/internal/domain/user"
@@ -29,11 +29,26 @@ func (m *mockTokenIssuer) NewAccessToken(u *user.User) (string, error) {
 	return "mock-token-123", nil
 }
 
+func (m *mockTokenIssuer) NewRefreshToken() (token string, hash string, expiresAt time.Time, err error) {
+	if m.shouldFail {
+		return "", "", time.Time{}, errors.New("refresh token generation failed")
+	}
+	return "mock-refresh-token", "mock-hash", time.Now().Add(7 * 24 * time.Hour), nil
+}
+
 func (m *mockTokenIssuer) Parse(token string) (appauth.Claims, error) {
 	if m.shouldFail {
 		return appauth.Claims{}, errors.New("token parsing failed")
 	}
 	return m.claims, nil
+}
+
+func (m *mockTokenIssuer) GetAccessTTL() int64 {
+	return 900 // 15 min
+}
+
+func (m *mockTokenIssuer) GetRefreshTTL() time.Duration {
+	return 7 * 24 * time.Hour
 }
 
 // Handler protegido para teste

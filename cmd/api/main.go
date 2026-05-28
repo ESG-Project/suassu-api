@@ -15,13 +15,20 @@ import (
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
 	appfeatures "github.com/ESG-Project/suassu-api/internal/app/feature"
+	appphyto "github.com/ESG-Project/suassu-api/internal/app/phytoanalysis"
+	appspecies "github.com/ESG-Project/suassu-api/internal/app/species"
+	appspecimen "github.com/ESG-Project/suassu-api/internal/app/specimen"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
 	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
+	phytohttp "github.com/ESG-Project/suassu-api/internal/http/v1/phytoanalysis"
+	specieshttp "github.com/ESG-Project/suassu-api/internal/http/v1/species"
+	specimenhttp "github.com/ESG-Project/suassu-api/internal/http/v1/specimen"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
+	"github.com/ESG-Project/suassu-api/internal/http/cookie"
 	"github.com/ESG-Project/suassu-api/internal/http/httperr"
 	httpmw "github.com/ESG-Project/suassu-api/internal/http/middleware"
 	"github.com/ESG-Project/suassu-api/internal/http/openapi"
@@ -63,10 +70,31 @@ func main() {
 	userSvc := appuser.NewServiceWithTx(userRepo, addressSvc, hasher, txm)
 	enterpriseSvc := appenterprise.NewServiceWithTx(enterpriseRepo, addressSvc, hasher, txm)
 
+	// PhytoAnalysis
+	phytoRepo := postgres.NewPhytoAnalysisRepo(db)
+	phytoSvc := appphyto.NewService(phytoRepo, txm)
+
+	// Species
+	speciesRepo := postgres.NewSpeciesRepo(db)
+	speciesSvc := appspecies.NewService(speciesRepo)
+
+	// Specimen
+	specimenRepo := postgres.NewSpecimenRepo(db)
+	specimenSvc := appspecimen.NewService(specimenRepo)
+
+	// Refresh Tokens
+	refreshTokenRepo := postgres.NewRefreshTokenRepo(db)
+
+	// Cookie Manager
+	cookieMgr := cookie.NewManager(cookie.Config{
+		Domain: cfg.CookieDomain,
+		Secure: cfg.CookieSecure,
+	})
+
 	// JWT e Auth
 	jwtIssuer := infraauth.NewJWT(cfg)
-	authSvc := appauth.NewService(userRepo, userSvc, hasher, jwtIssuer)
-	authH := authhttp.NewHandler(authSvc)
+	authSvc := appauth.NewServiceWithRefresh(userRepo, userSvc, hasher, jwtIssuer, refreshTokenRepo)
+	authH := authhttp.NewHandler(authSvc, cookieMgr)
 
 	// 4) HTTP router
 	r := chi.NewRouter()
@@ -110,6 +138,10 @@ func main() {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
+			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
+			priv.Mount("/phyto-analyses", phytohttp.Routes(phytoSvc))
+			priv.Mount("/specimens", specimenhttp.Routes(specimenSvc))
+			priv.Mount("/species", specieshttp.Routes(speciesSvc))
 		})
 
 		v1.Mount("/", openapi.Routes())

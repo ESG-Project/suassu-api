@@ -80,3 +80,27 @@ FROM "User" u
 WHERE u."enterpriseId" = $1
   AND u.id = $2
 LIMIT 1;
+
+-- name: GetUserByIDForRefresh :one
+-- Busca usuário por ID sem filtro de tenant (para refresh token)
+SELECT id,
+  name,
+  email,
+  password AS password_hash,
+  document,
+  phone,
+  "addressId" AS address_id,
+  "roleId" AS role_id,
+  "enterpriseId" AS enterprise_id
+FROM "User"
+WHERE id = $1
+LIMIT 1;
+-- name: UpdateUserEditable :exec
+UPDATE "User"
+SET name = $3,
+  email = $4,
+  phone = $5,
+  "addressId" = $6,
+  password = $7
+WHERE id = $1
+  AND "enterpriseId" = $2;

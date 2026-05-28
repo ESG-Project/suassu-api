@@ -36,6 +36,10 @@ func (f *fakeSvc) List(ctx context.Context, enterpriseID string, limit int32, af
 	return f.users, &domainuser.PageInfo{HasMore: false, Next: nil}, nil
 }
 
+func (f *fakeSvc) Update(ctx context.Context, enterpriseID string, in appuser.UpdateInput) error {
+	return nil
+}
+
 func (f *fakeSvc) GetUserWithDetails(ctx context.Context, userID string, enterpriseID string) (*types.UserWithDetails, error) {
 	return nil, nil
 }
