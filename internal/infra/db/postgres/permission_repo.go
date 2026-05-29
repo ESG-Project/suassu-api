@@ -5,6 +5,7 @@ import (
 	"database/sql"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
+	domainpermission "github.com/ESG-Project/suassu-api/internal/domain/permission"
 	sqlc "github.com/ESG-Project/suassu-api/internal/infra/db/sqlc/gen"
 )
 
@@ -16,6 +17,19 @@ func NewPermissionRepoFrom(d dbtx) *PermissionRepo {
 
 func NewPermissionRepo(db *sql.DB) *PermissionRepo {
 	return &PermissionRepo{q: sqlc.New(db)}
+}
+
+func (r *PermissionRepo) Create(ctx context.Context, permission *domainpermission.Permission) error {
+	_, err := r.q.CreatePermission(ctx, sqlc.CreatePermissionParams{
+		ID:        permission.ID,
+		FeatureId: permission.FeatureID,
+		RoleId:    permission.RoleID,
+		Create:    permission.Create,
+		Read:      permission.Read,
+		Update:    permission.Update,
+		Delete:    permission.Delete,
+	})
+	return err
 }
 
 func (r *PermissionRepo) GetByRoleID(ctx context.Context, roleID string) ([]*types.UserPermission, error) {
