@@ -342,6 +342,8 @@ type Product struct {
 	Deliverable    bool           `json:"deliverable"`
 	TypeProductId  sql.NullString `json:"typeProductId"`
 	IsDefault      bool           `json:"isDefault"`
+}
+
 type PhytoAnalysis struct {
 	ID              string         `json:"id"`
 	Title           string         `json:"title"`
