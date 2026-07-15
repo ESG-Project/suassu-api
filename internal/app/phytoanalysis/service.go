@@ -3,6 +3,7 @@ package phytoanalysis
 import (
 	"context"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -15,6 +16,8 @@ import (
 
 type ServiceInterface interface {
 	Create(ctx context.Context, in CreateInput) (string, error)
+	StartCreateImport(ctx context.Context, in CreateInput) (string, error)
+	GetCreateImportStatus(ctx context.Context, jobID string) (*CreateImportStatus, error)
 	GetByID(ctx context.Context, id string) (*types.PhytoAnalysisWithProject, error)
 	GetWithSpecimens(ctx context.Context, id string) (*types.PhytoAnalysisComplete, error)
 	ListByProject(ctx context.Context, projectID string) ([]*types.PhytoAnalysisWithProject, error)
@@ -27,13 +30,42 @@ type ServiceInterface interface {
 type Service struct {
 	repo Repo
 	txm  postgres.TxManagerInterface
+	mu   sync.RWMutex
+	jobs map[string]*CreateImportStatus
 }
 
 func NewService(r Repo, txm postgres.TxManagerInterface) *Service {
 	return &Service{
 		repo: r,
 		txm:  txm,
+		jobs: make(map[string]*CreateImportStatus),
 	}
+}
+
+type CreateImportJobStatus string
+
+const (
+	CreateImportJobPending   CreateImportJobStatus = "pending"
+	CreateImportJobRunning   CreateImportJobStatus = "running"
+	CreateImportJobCompleted CreateImportJobStatus = "completed"
+	CreateImportJobFailed    CreateImportJobStatus = "failed"
+)
+
+type CreateImportStatus struct {
+	JobID              string
+	Status             CreateImportJobStatus
+	Percentage         int
+	TotalSpecimens     int
+	ProcessedSpecimens int
+	SuccessCount       int
+	FailedCount        int
+	PhytoAnalysisID    string
+	ErrorMessage       string
+	InvalidRows        []InvalidSpecimenRow
+	CreatedAt          time.Time
+	StartedAt          *time.Time
+	UpdatedAt          time.Time
+	FinishedAt         *time.Time
 }
 
 type CreateInput struct {
@@ -75,7 +107,7 @@ type specimenRow struct {
 	Specimen  SpecimenInput
 }
 
-type invalidSpecimenRow struct {
+type InvalidSpecimenRow struct {
 	RowNumber int      `json:"rowNumber"`
 	Errors    []string `json:"errors"`
 }
@@ -93,9 +125,9 @@ func isBlankSpecimenInput(sp SpecimenInput) bool {
 		sp.Cap6 == nil
 }
 
-func normalizeAndValidateSpecimens(specimens []SpecimenInput) ([]specimenRow, []invalidSpecimenRow) {
+func normalizeAndValidateSpecimens(specimens []SpecimenInput) ([]specimenRow, []InvalidSpecimenRow) {
 	rows := make([]specimenRow, 0, len(specimens))
-	invalidRows := make([]invalidSpecimenRow, 0)
+	invalidRows := make([]InvalidSpecimenRow, 0)
 
 	for i, sp := range specimens {
 		rowNumber := i + 1
@@ -125,7 +157,7 @@ func normalizeAndValidateSpecimens(specimens []SpecimenInput) ([]specimenRow, []
 		}
 
 		if len(errorsByRow) > 0 {
-			invalidRows = append(invalidRows, invalidSpecimenRow{
+			invalidRows = append(invalidRows, InvalidSpecimenRow{
 				RowNumber: rowNumber,
 				Errors:    errorsByRow,
 			})
@@ -144,6 +176,252 @@ func calcSampledAreaHa(portionArea float64, portionQuantity int) float64 {
 	}
 	plotsAreaM2 := portionArea * float64(portionQuantity)
 	return plotsAreaM2 / 10000.0
+}
+
+func (s *Service) setImportJob(jobID string, apply func(st *CreateImportStatus)) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	st, ok := s.jobs[jobID]
+	if !ok {
+		return
+	}
+	apply(st)
+	st.UpdatedAt = time.Now()
+}
+
+func cloneInvalidRows(rows []InvalidSpecimenRow) []InvalidSpecimenRow {
+	if len(rows) == 0 {
+		return nil
+	}
+	out := make([]InvalidSpecimenRow, len(rows))
+	copy(out, rows)
+	return out
+}
+
+func (s *Service) StartCreateImport(ctx context.Context, in CreateInput) (string, error) {
+	jobID := uuid.NewString()
+	now := time.Now()
+
+	s.mu.Lock()
+	s.jobs[jobID] = &CreateImportStatus{
+		JobID:          jobID,
+		Status:         CreateImportJobPending,
+		Percentage:     0,
+		TotalSpecimens: len(in.Specimens),
+		CreatedAt:      now,
+		UpdatedAt:      now,
+	}
+	s.mu.Unlock()
+
+	go s.processCreateImport(jobID, in)
+
+	return jobID, nil
+}
+
+func (s *Service) GetCreateImportStatus(ctx context.Context, jobID string) (*CreateImportStatus, error) {
+	s.mu.RLock()
+	st, ok := s.jobs[jobID]
+	s.mu.RUnlock()
+	if !ok {
+		return nil, apperr.New(apperr.CodeNotFound, "import job not found")
+	}
+
+	copyStatus := *st
+	copyStatus.InvalidRows = cloneInvalidRows(st.InvalidRows)
+	return &copyStatus, nil
+}
+
+func (s *Service) processCreateImport(jobID string, in CreateInput) {
+	startedAt := time.Now()
+	s.setImportJob(jobID, func(st *CreateImportStatus) {
+		st.Status = CreateImportJobRunning
+		st.StartedAt = &startedAt
+	})
+
+	phytoID, invalidRows, err := s.createWithProgress(context.Background(), in, func(processed, success, failed, total int) {
+		percentage := 0
+		if total > 0 {
+			percentage = int(float64(processed) / float64(total) * 100)
+		}
+		s.setImportJob(jobID, func(st *CreateImportStatus) {
+			st.TotalSpecimens = total
+			st.ProcessedSpecimens = processed
+			st.SuccessCount = success
+			st.FailedCount = failed
+			st.Percentage = percentage
+		})
+	})
+	if err != nil {
+		finishedAt := time.Now()
+		s.setImportJob(jobID, func(st *CreateImportStatus) {
+			st.Status = CreateImportJobFailed
+			st.ErrorMessage = err.Error()
+			st.InvalidRows = cloneInvalidRows(invalidRows)
+			if len(invalidRows) > 0 {
+				st.FailedCount = len(invalidRows)
+			}
+			st.FinishedAt = &finishedAt
+		})
+		return
+	}
+
+	finishedAt := time.Now()
+	s.setImportJob(jobID, func(st *CreateImportStatus) {
+		st.Status = CreateImportJobCompleted
+		st.Percentage = 100
+		st.FailedCount = 0
+		st.PhytoAnalysisID = phytoID
+		st.FinishedAt = &finishedAt
+	})
+}
+
+func (s *Service) createWithProgress(
+	ctx context.Context,
+	in CreateInput,
+	onProgress func(processed, success, failed, total int),
+) (string, []InvalidSpecimenRow, error) {
+	if in.Title == "" || in.ProjectID == "" {
+		return "", nil, apperr.New(apperr.CodeInvalid, "missing required fields")
+	}
+
+	phytoID := uuid.NewString()
+	if s.txm == nil {
+		return "", nil, apperr.New(apperr.CodeInvalid, "transaction manager required")
+	}
+
+	var invalidRows []InvalidSpecimenRow
+	err := s.txm.RunInTx(ctx, func(repos postgres.Repos) error {
+		sampledAreaHa := calcSampledAreaHa(in.PortionArea, in.PortionQuantity)
+		if sampledAreaHa <= 0 {
+			return apperr.New(apperr.CodeInvalid, "sampled area must be positive")
+		}
+
+		rows, foundInvalidRows := normalizeAndValidateSpecimens(in.Specimens)
+		if len(foundInvalidRows) > 0 {
+			invalidRows = foundInvalidRows
+			return apperr.WithFields(
+				apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+				map[string]any{"invalidRows": foundInvalidRows},
+			)
+		}
+
+		phyto := domainphyto.NewPhytoAnalysis(
+			phytoID,
+			in.Title,
+			in.InitialDate,
+			in.PortionQuantity,
+			in.PortionArea,
+			in.TotalArea,
+			sampledAreaHa,
+			in.ProjectID,
+		)
+
+		if in.Description != nil {
+			phyto.SetDescription(in.Description)
+		}
+
+		if err := phyto.Validate(); err != nil {
+			return apperr.Wrap(err, apperr.CodeInvalid, "invalid phyto analysis data")
+		}
+
+		if err := repos.PhytoAnalyses().Create(ctx, phyto); err != nil {
+			return err
+		}
+
+		total := len(rows)
+		if onProgress != nil {
+			onProgress(0, 0, 0, total)
+		}
+		if total == 0 {
+			return nil
+		}
+
+		uniqueNames := make([]string, 0, total)
+		seen := make(map[string]bool, total)
+		for _, row := range rows {
+			name := row.Specimen.ScientificName
+			if !seen[name] {
+				seen[name] = true
+				uniqueNames = append(uniqueNames, name)
+			}
+		}
+
+		speciesMap, err := repos.Species().GetMapByScientificNames(ctx, uniqueNames)
+		if err != nil {
+			return apperr.Wrap(err, apperr.CodeInternal, "failed to fetch species")
+		}
+
+		missingSpeciesRows := make([]InvalidSpecimenRow, 0)
+		for _, row := range rows {
+			name := row.Specimen.ScientificName
+			if _, ok := speciesMap[name]; !ok {
+				missingSpeciesRows = append(missingSpeciesRows, InvalidSpecimenRow{
+					RowNumber: row.RowNumber,
+					Errors:    []string{"species not found with scientific name: " + name},
+				})
+			}
+		}
+
+		if len(missingSpeciesRows) > 0 {
+			invalidRows = missingSpeciesRows
+			return apperr.WithFields(
+				apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+				map[string]any{"invalidRows": missingSpeciesRows},
+			)
+		}
+
+		processed := 0
+		successCount := 0
+		for _, row := range rows {
+			sp := row.Specimen
+			specieID := speciesMap[sp.ScientificName]
+
+			domainSpecimen := domainspecimen.NewSpecimen(
+				uuid.NewString(),
+				sp.Portion,
+				sp.Height,
+				sp.Cap1,
+				sp.RegisterDate,
+				phytoID,
+				specieID,
+			)
+			domainSpecimen.SetOptionalCaps(sp.Cap2, sp.Cap3, sp.Cap4, sp.Cap5, sp.Cap6)
+
+			if err := domainSpecimen.Validate(); err != nil {
+				invalidRows = []InvalidSpecimenRow{{
+					RowNumber: row.RowNumber,
+					Errors:    []string{err.Error()},
+				}}
+				if onProgress != nil {
+					onProgress(processed, successCount, 1, total)
+				}
+				return apperr.WithFields(
+					apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
+					map[string]any{"invalidRows": invalidRows},
+				)
+			}
+
+			if err := repos.Specimens().Create(ctx, domainSpecimen); err != nil {
+				if onProgress != nil {
+					onProgress(processed, successCount, 1, total)
+				}
+				return apperr.Wrap(err, apperr.CodeInvalid, "failed to create specimen")
+			}
+
+			processed++
+			successCount++
+			if onProgress != nil {
+				onProgress(processed, successCount, 0, total)
+			}
+		}
+
+		return nil
+	})
+	if err != nil {
+		return "", invalidRows, err
+	}
+
+	return phytoID, nil, nil
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
@@ -214,11 +492,11 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 			return apperr.Wrap(err, apperr.CodeInternal, "failed to fetch species")
 		}
 
-		missingSpeciesRows := make([]invalidSpecimenRow, 0)
+		missingSpeciesRows := make([]InvalidSpecimenRow, 0)
 		for _, row := range rows {
 			name := row.Specimen.ScientificName
 			if _, ok := speciesMap[name]; !ok {
-				missingSpeciesRows = append(missingSpeciesRows, invalidSpecimenRow{
+				missingSpeciesRows = append(missingSpeciesRows, InvalidSpecimenRow{
 					RowNumber: row.RowNumber,
 					Errors:    []string{"species not found with scientific name: " + name},
 				})
@@ -253,7 +531,7 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 				return apperr.WithFields(
 					apperr.New(apperr.CodeInvalid, "invalid specimen rows"),
 					map[string]any{
-						"invalidRows": []invalidSpecimenRow{{
+						"invalidRows": []InvalidSpecimenRow{{
 							RowNumber: row.RowNumber,
 							Errors:    []string{err.Error()},
 						}},
