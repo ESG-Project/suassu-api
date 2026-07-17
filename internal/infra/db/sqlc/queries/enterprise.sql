@@ -34,8 +34,41 @@ SELECT e.id,
   a.num,
   a.latitude,
   a.longitude,
-  a."addInfo" AS add_info
+  a."addInfo" AS add_info,
+  -- agrega products como JSON ([] quando não houver)
+  COALESCE(
+    json_agg(
+      DISTINCT jsonb_build_object(
+        'id', p.id,
+        'name', p.name,
+        'suggestedValue', p."suggestedValue",
+        'enterpriseId', p."enterpriseId",
+        'parameterId', p."parameterId",
+        'deliverable', p.deliverable,
+        'typeProductId', p."typeProductId",
+        'isDefault', p."isDefault"
+      )
+    ) FILTER (WHERE p.id IS NOT NULL),
+    '[]'
+  ) AS products,
+  -- agrega parameters como JSON ([] quando não houver)
+  COALESCE(
+    json_agg(
+      DISTINCT jsonb_build_object(
+        'id', pr.id,
+        'title', pr.title,
+        'value', pr.value,
+        'enterpriseId', pr."enterpriseId",
+        'isDefault', pr."isDefault"
+      )
+    ) FILTER (WHERE pr.id IS NOT NULL),
+    '[]'
+  ) AS parameters
 FROM "Enterprise" e
   JOIN "Address" a ON e."addressId" = a.id
+  LEFT JOIN "Product" p ON p."enterpriseId" = e.id
+  LEFT JOIN "Parameter" pr ON pr."enterpriseId" = e.id
 WHERE e.id = $1
+GROUP BY e.id,
+  a.id
 LIMIT 1;
