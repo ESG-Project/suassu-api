@@ -64,6 +64,82 @@ func Routes(svc Service) chi.Router {
 		response.JSON(w, http.StatusCreated, map[string]string{"id": id}, nil)
 	})
 
+	// POST /phyto-analyses/imports - Inicia importação assíncrona da análise com espécimes
+	r.Post("/imports", func(w http.ResponseWriter, req *http.Request) {
+		var in phytodto.CreatePhytoAnalysisRequest
+		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
+			return
+		}
+
+		specimens := make([]appphyto.SpecimenInput, 0, len(in.Specimens))
+		for _, s := range in.Specimens {
+			specimens = append(specimens, appphyto.SpecimenInput{
+				Portion:        s.Portion,
+				Height:         s.Height,
+				Cap1:           s.Cap1,
+				Cap2:           s.Cap2,
+				Cap3:           s.Cap3,
+				Cap4:           s.Cap4,
+				Cap5:           s.Cap5,
+				Cap6:           s.Cap6,
+				RegisterDate:   s.RegisterDate,
+				ScientificName: s.ScientificName,
+			})
+		}
+
+		createInput := appphyto.CreateInput{
+			Title:           in.Title,
+			InitialDate:     in.InitialDate,
+			PortionQuantity: in.PortionQuantity,
+			PortionArea:     in.PortionArea,
+			TotalArea:       in.TotalArea,
+			Description:     in.Description,
+			ProjectID:       in.ProjectID,
+			Specimens:       specimens,
+		}
+
+		jobID, err := svc.StartCreateImport(req.Context(), createInput)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		response.JSON(w, http.StatusAccepted, phytodto.StartCreateImportResponse{JobID: jobID}, nil)
+	})
+
+	// GET /phyto-analyses/imports/:jobId - Consulta status da importação assíncrona
+	r.Get("/imports/{jobId}", func(w http.ResponseWriter, req *http.Request) {
+		jobID := chi.URLParam(req, "jobId")
+
+		status, err := svc.GetCreateImportStatus(req.Context(), jobID)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		invalidRows := make([]phytodto.ImportInvalidRow, 0, len(status.InvalidRows))
+		for _, row := range status.InvalidRows {
+			invalidRows = append(invalidRows, phytodto.ImportInvalidRow{
+				RowNumber: row.RowNumber,
+				Errors:    row.Errors,
+			})
+		}
+
+		response.JSON(w, http.StatusOK, phytodto.CreateImportStatusResponse{
+			JobID:              status.JobID,
+			Status:             string(status.Status),
+			Percentage:         status.Percentage,
+			TotalSpecimens:     status.TotalSpecimens,
+			ProcessedSpecimens: status.ProcessedSpecimens,
+			SuccessCount:       status.SuccessCount,
+			FailedCount:        status.FailedCount,
+			PhytoAnalysisID:    status.PhytoAnalysisID,
+			ErrorMessage:       status.ErrorMessage,
+			InvalidRows:        invalidRows,
+		}, nil)
+	})
+
 	// GET /phyto-analyses/project/:projectId - Listar análises por projeto
 	r.Get("/project/{projectId}", func(w http.ResponseWriter, req *http.Request) {
 		projectID := chi.URLParam(req, "projectId")

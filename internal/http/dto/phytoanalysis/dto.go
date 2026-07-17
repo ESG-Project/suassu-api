@@ -19,6 +19,28 @@ type CreatePhytoAnalysisRequest struct {
 	Specimens       []SpecimenInput `json:"specimens,omitempty"`
 }
 
+type ImportInvalidRow struct {
+	RowNumber int      `json:"rowNumber"`
+	Errors    []string `json:"errors"`
+}
+
+type StartCreateImportResponse struct {
+	JobID string `json:"jobId"`
+}
+
+type CreateImportStatusResponse struct {
+	JobID              string             `json:"jobId"`
+	Status             string             `json:"status"`
+	Percentage         int                `json:"percentage"`
+	TotalSpecimens     int                `json:"totalSpecimens"`
+	ProcessedSpecimens int                `json:"processedSpecimens"`
+	SuccessCount       int                `json:"successCount"`
+	FailedCount        int                `json:"failedCount"`
+	PhytoAnalysisID    string             `json:"phytoAnalysisId,omitempty"`
+	ErrorMessage       string             `json:"errorMessage,omitempty"`
+	InvalidRows        []ImportInvalidRow `json:"invalidRows,omitempty"`
+}
+
 type SpecimenInput struct {
 	Portion      string    `json:"portion"`
 	Height       float64   `json:"height"`

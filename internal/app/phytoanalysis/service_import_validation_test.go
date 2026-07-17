@@ -128,7 +128,7 @@ func TestCreate_ReturnsInvalidRowsDetails(t *testing.T) {
 	invalidRowsRaw, exists := appErr.Fields["invalidRows"]
 	require.True(t, exists)
 
-	invalidRows, ok := invalidRowsRaw.([]invalidSpecimenRow)
+	invalidRows, ok := invalidRowsRaw.([]InvalidSpecimenRow)
 	require.True(t, ok)
 	require.Len(t, invalidRows, 1)
 	require.Equal(t, 2, invalidRows[0].RowNumber)
