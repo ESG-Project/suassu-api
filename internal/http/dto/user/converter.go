@@ -138,9 +138,10 @@ func ToMyPermissionsOut(permissions *types.UserPermissions) *MyPermissionsOut {
 	}
 
 	return &MyPermissionsOut{
-		ID:          permissions.ID,
-		Name:        permissions.Name,
-		RoleTitle:   permissions.RoleTitle,
-		Permissions: ToPermissionOutSlice(permissions.Permissions),
+		ID:           permissions.ID,
+		Name:         permissions.Name,
+		RoleTitle:    permissions.RoleTitle,
+		IsSuperAdmin: permissions.IsSuperAdmin,
+		Permissions:  ToPermissionOutSlice(permissions.Permissions),
 	}
 }

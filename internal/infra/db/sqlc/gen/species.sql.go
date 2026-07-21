@@ -11,6 +11,42 @@ import (
 	"time"
 )
 
+const countSpeciesLineage = `-- name: CountSpeciesLineage :one
+WITH RECURSIVE up AS (
+    SELECT sp.id AS id, sp.parent_id AS parent_id
+    FROM public.species sp
+    WHERE sp.id = $1
+    UNION
+    SELECT s.id AS id, s.parent_id AS parent_id
+    FROM public.species s
+    JOIN up ON s.id = up.parent_id
+),
+root AS (
+    SELECT up.id AS id FROM up WHERE up.parent_id IS NULL LIMIT 1
+),
+down AS (
+    SELECT sp2.id AS id, sp2.parent_id AS parent_id
+    FROM public.species sp2
+    WHERE sp2.id = (SELECT root.id FROM root)
+    UNION
+    SELECT s.id AS id, s.parent_id AS parent_id
+    FROM public.species s
+    JOIN down ON s.parent_id = down.id
+)
+SELECT COUNT(*)::int AS lineage_count FROM down
+`
+
+// CountSpeciesLineage conta todas as versões da linhagem (árvore) à qual a
+// espécie $1 pertence: sobe até a raiz (parent_id IS NULL) e desce por todos os
+// descendentes. É a base do cálculo da próxima versão (count + 1), independente
+// de mudanças no nome científico.
+func (q *Queries) CountSpeciesLineage(ctx context.Context, id string) (int32, error) {
+	row := q.db.QueryRowContext(ctx, countSpeciesLineage, id)
+	var lineage_count int32
+	err := row.Scan(&lineage_count)
+	return lineage_count, err
+}
+
 const createSpecies = `-- name: CreateSpecies :one
 INSERT INTO public.species (
     id,
@@ -18,11 +54,16 @@ INSERT INTO public.species (
     family,
     popular_name,
     habit,
+    status,
+    version,
+    created_by,
+    enterprise_id,
+    parent_id,
     created_at,
     updated_at
 )
-VALUES ($1, $2, $3, $4, $5, $6, $7)
-RETURNING id, scientific_name, family, popular_name, habit, created_at, updated_at
+VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+RETURNING id, scientific_name, family, popular_name, habit, status, version, created_by, enterprise_id, parent_id, created_at, updated_at
 `
 
 type CreateSpeciesParams struct {
@@ -31,6 +72,11 @@ type CreateSpeciesParams struct {
 	Family         string           `json:"family"`
 	PopularName    sql.NullString   `json:"popular_name"`
 	Habit          NullSpeciesHabit `json:"habit"`
+	Status         SpeciesStatus    `json:"status"`
+	Version        int32            `json:"version"`
+	CreatedBy      sql.NullString   `json:"created_by"`
+	EnterpriseID   sql.NullString   `json:"enterprise_id"`
+	ParentID       sql.NullString   `json:"parent_id"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
 }
@@ -42,6 +88,11 @@ func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (S
 		arg.Family,
 		arg.PopularName,
 		arg.Habit,
+		arg.Status,
+		arg.Version,
+		arg.CreatedBy,
+		arg.EnterpriseID,
+		arg.ParentID,
 		arg.CreatedAt,
 		arg.UpdatedAt,
 	)
@@ -52,6 +103,11 @@ func (q *Queries) CreateSpecies(ctx context.Context, arg CreateSpeciesParams) (S
 		&i.Family,
 		&i.PopularName,
 		&i.Habit,
+		&i.Status,
+		&i.Version,
+		&i.CreatedBy,
+		&i.EnterpriseID,
+		&i.ParentID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -135,13 +191,33 @@ func (q *Queries) DeleteSpeciesLegislation(ctx context.Context, id string) error
 	return err
 }
 
+const getNextSpeciesVersion = `-- name: GetNextSpeciesVersion :one
+SELECT COALESCE(MAX(s.version), 0) + 1 AS next_version
+FROM public.species s
+WHERE s.scientific_name = $1
+`
+
+// GetNextSpeciesVersion retorna a próxima versão para um nome científico
+// (maior versão existente + 1), independentemente do status.
+func (q *Queries) GetNextSpeciesVersion(ctx context.Context, scientificName string) (int32, error) {
+	row := q.db.QueryRowContext(ctx, getNextSpeciesVersion, scientificName)
+	var next_version int32
+	err := row.Scan(&next_version)
+	return next_version, err
+}
+
 const getSpeciesByID = `-- name: GetSpeciesByID :one
-SELECT 
+SELECT
     s.id,
     s.scientific_name,
     s.family,
     s.popular_name,
     s.habit,
+    s.status,
+    s.version,
+    s.created_by,
+    s.enterprise_id,
+    s.parent_id,
     s.created_at,
     s.updated_at
 FROM public.species s
@@ -158,6 +234,11 @@ func (q *Queries) GetSpeciesByID(ctx context.Context, id string) (Species, error
 		&i.Family,
 		&i.PopularName,
 		&i.Habit,
+		&i.Status,
+		&i.Version,
+		&i.CreatedBy,
+		&i.EnterpriseID,
+		&i.ParentID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -165,12 +246,17 @@ func (q *Queries) GetSpeciesByID(ctx context.Context, id string) (Species, error
 }
 
 const getSpeciesByScientificName = `-- name: GetSpeciesByScientificName :one
-SELECT 
+SELECT
     s.id,
     s.scientific_name,
     s.family,
     s.popular_name,
     s.habit,
+    s.status,
+    s.version,
+    s.created_by,
+    s.enterprise_id,
+    s.parent_id,
     s.created_at,
     s.updated_at
 FROM public.species s
@@ -187,6 +273,11 @@ func (q *Queries) GetSpeciesByScientificName(ctx context.Context, scientificName
 		&i.Family,
 		&i.PopularName,
 		&i.Habit,
+		&i.Status,
+		&i.Version,
+		&i.CreatedBy,
+		&i.EnterpriseID,
+		&i.ParentID,
 		&i.CreatedAt,
 		&i.UpdatedAt,
 	)
@@ -194,7 +285,7 @@ func (q *Queries) GetSpeciesByScientificName(ctx context.Context, scientificName
 }
 
 const getSpeciesLegislationsBySpeciesID = `-- name: GetSpeciesLegislationsBySpeciesID :many
-SELECT 
+SELECT
     sl.id,
     sl.law_scope,
     sl.law_id,
@@ -248,17 +339,85 @@ func (q *Queries) GetSpeciesLegislationsBySpeciesID(ctx context.Context, species
 	return items, nil
 }
 
-const listSpecies = `-- name: ListSpecies :many
-SELECT 
+const listPendingSpecies = `-- name: ListPendingSpecies :many
+SELECT
     s.id,
     s.scientific_name,
     s.family,
     s.popular_name,
     s.habit,
+    s.status,
+    s.version,
+    s.created_by,
+    s.enterprise_id,
+    s.parent_id,
     s.created_at,
     s.updated_at
 FROM public.species s
-ORDER BY s.scientific_name ASC
+WHERE s.status = 'PENDING'
+ORDER BY s.created_at ASC
+LIMIT $1 OFFSET $2
+`
+
+type ListPendingSpeciesParams struct {
+	Limit  int32 `json:"limit"`
+	Offset int32 `json:"offset"`
+}
+
+// ListPendingSpecies retorna todas as espécies pendentes (fila do super-admin).
+func (q *Queries) ListPendingSpecies(ctx context.Context, arg ListPendingSpeciesParams) ([]Species, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingSpecies, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Species
+	for rows.Next() {
+		var i Species
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScientificName,
+			&i.Family,
+			&i.PopularName,
+			&i.Habit,
+			&i.Status,
+			&i.Version,
+			&i.CreatedBy,
+			&i.EnterpriseID,
+			&i.ParentID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listSpecies = `-- name: ListSpecies :many
+SELECT DISTINCT ON (s.scientific_name)
+    s.id,
+    s.scientific_name,
+    s.family,
+    s.popular_name,
+    s.habit,
+    s.status,
+    s.version,
+    s.created_by,
+    s.enterprise_id,
+    s.parent_id,
+    s.created_at,
+    s.updated_at
+FROM public.species s
+WHERE s.status = 'APPROVED'
+ORDER BY s.scientific_name ASC, s.version DESC
 LIMIT $1 OFFSET $2
 `
 
@@ -267,6 +426,8 @@ type ListSpeciesParams struct {
 	Offset int32 `json:"offset"`
 }
 
+// ListSpecies retorna o catálogo oficial: apenas a versão APROVADA mais
+// recente de cada nome científico (visível globalmente para todas as empresas).
 func (q *Queries) ListSpecies(ctx context.Context, arg ListSpeciesParams) ([]Species, error) {
 	rows, err := q.db.QueryContext(ctx, listSpecies, arg.Limit, arg.Offset)
 	if err != nil {
@@ -282,6 +443,75 @@ func (q *Queries) ListSpecies(ctx context.Context, arg ListSpeciesParams) ([]Spe
 			&i.Family,
 			&i.PopularName,
 			&i.Habit,
+			&i.Status,
+			&i.Version,
+			&i.CreatedBy,
+			&i.EnterpriseID,
+			&i.ParentID,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listVisibleSpecies = `-- name: ListVisibleSpecies :many
+SELECT
+    s.id,
+    s.scientific_name,
+    s.family,
+    s.popular_name,
+    s.habit,
+    s.status,
+    s.version,
+    s.created_by,
+    s.enterprise_id,
+    s.parent_id,
+    s.created_at,
+    s.updated_at
+FROM public.species s
+WHERE s.status = 'APPROVED' OR s.enterprise_id = $1
+ORDER BY s.scientific_name ASC, s.version DESC
+LIMIT $2 OFFSET $3
+`
+
+type ListVisibleSpeciesParams struct {
+	EnterpriseID sql.NullString `json:"enterprise_id"`
+	Limit        int32          `json:"limit"`
+	Offset       int32          `json:"offset"`
+}
+
+// ListVisibleSpecies retorna as espécies visíveis para uma empresa:
+// todas as APROVADAS (globais) + as próprias PENDING/REFUSED da empresa.
+func (q *Queries) ListVisibleSpecies(ctx context.Context, arg ListVisibleSpeciesParams) ([]Species, error) {
+	rows, err := q.db.QueryContext(ctx, listVisibleSpecies, arg.EnterpriseID, arg.Limit, arg.Offset)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Species
+	for rows.Next() {
+		var i Species
+		if err := rows.Scan(
+			&i.ID,
+			&i.ScientificName,
+			&i.Family,
+			&i.PopularName,
+			&i.Habit,
+			&i.Status,
+			&i.Version,
+			&i.CreatedBy,
+			&i.EnterpriseID,
+			&i.ParentID,
 			&i.CreatedAt,
 			&i.UpdatedAt,
 		); err != nil {
@@ -371,5 +601,25 @@ func (q *Queries) UpdateSpeciesLegislation(ctx context.Context, arg UpdateSpecie
 		arg.SuccessionalEcology,
 		arg.UpdatedAt,
 	)
+	return err
+}
+
+const updateSpeciesStatus = `-- name: UpdateSpeciesStatus :exec
+UPDATE public.species
+SET
+    status = $2,
+    updated_at = $3
+WHERE id = $1
+`
+
+type UpdateSpeciesStatusParams struct {
+	ID        string        `json:"id"`
+	Status    SpeciesStatus `json:"status"`
+	UpdatedAt time.Time     `json:"updated_at"`
+}
+
+// UpdateSpeciesStatus altera o status da espécie (aprovar/recusar).
+func (q *Queries) UpdateSpeciesStatus(ctx context.Context, arg UpdateSpeciesStatusParams) error {
+	_, err := q.db.ExecContext(ctx, updateSpeciesStatus, arg.ID, arg.Status, arg.UpdatedAt)
 	return err
 }

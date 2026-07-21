@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
@@ -33,6 +34,11 @@ func (r *SpeciesRepo) CreateSpecies(ctx context.Context, s *domainspecies.Specie
 		Family:         s.Family,
 		PopularName:    utils.ToNullString(s.PopularName),
 		Habit:          utils.ToNullSpeciesHabit(s.Habit),
+		Status:         sqlc.SpeciesStatus(s.Status),
+		Version:        s.Version,
+		CreatedBy:      utils.ToNullString(s.CreatedBy),
+		EnterpriseID:   utils.ToNullString(s.EnterpriseID),
+		ParentID:       utils.ToNullString(s.ParentID),
 		CreatedAt:      s.CreatedAt,
 		UpdatedAt:      s.UpdatedAt,
 	})
@@ -57,26 +63,17 @@ func (r *SpeciesRepo) CreateLegislation(ctx context.Context, sl *domainspecies.S
 	return err
 }
 
-func (r *SpeciesRepo) GetByID(ctx context.Context, id string) (*types.SpeciesWithLegislation, error) {
-	row, err := r.q.GetSpeciesByID(ctx, id)
-	if err != nil {
-		if err == sql.ErrNoRows {
-			return nil, apperr.New(apperr.CodeNotFound, "species not found")
-		}
-		return nil, err
-	}
-
-	// Buscar legislações associadas
-	legislations, err := r.q.GetSpeciesLegislationsBySpeciesID(ctx, utils.StringToNullString(id))
+// legislationsFor busca e mapeia as legislações de uma espécie.
+func (r *SpeciesRepo) legislationsFor(ctx context.Context, speciesID string) ([]types.LegislationData, error) {
+	legislations, err := r.q.GetSpeciesLegislationsBySpeciesID(ctx, utils.StringToNullString(speciesID))
 	if err != nil && err != sql.ErrNoRows {
 		return nil, err
 	}
 
-	// Converter legislações para o tipo apropriado
-	legislationData := make([]types.LegislationData, 0, len(legislations))
+	data := make([]types.LegislationData, 0, len(legislations))
 	for _, leg := range legislations {
 		formFactor, _ := utils.StringToFloat64(leg.SpeciesFormFactor)
-		legislationData = append(legislationData, types.LegislationData{
+		data = append(data, types.LegislationData{
 			ID:                  leg.ID,
 			LawScope:            string(leg.LawScope),
 			LawID:               utils.FromNullString(leg.LawID),
@@ -91,17 +88,43 @@ func (r *SpeciesRepo) GetByID(ctx context.Context, id string) (*types.SpeciesWit
 			UpdatedAt:           leg.UpdatedAt,
 		})
 	}
+	return data, nil
+}
 
+// mapSpeciesRow converte uma linha sqlc + legislações no tipo de aplicação.
+func mapSpeciesRow(row sqlc.Species, legislations []types.LegislationData) *types.SpeciesWithLegislation {
 	return &types.SpeciesWithLegislation{
 		ID:             row.ID,
 		ScientificName: row.ScientificName,
 		Family:         row.Family,
 		PopularName:    utils.FromNullString(row.PopularName),
 		Habit:          utils.FromNullSpeciesHabit(row.Habit),
+		Status:         string(row.Status),
+		Version:        row.Version,
+		CreatedBy:      utils.FromNullString(row.CreatedBy),
+		EnterpriseID:   utils.FromNullString(row.EnterpriseID),
+		ParentID:       utils.FromNullString(row.ParentID),
 		CreatedAt:      row.CreatedAt,
 		UpdatedAt:      row.UpdatedAt,
-		Legislations:   legislationData,
-	}, nil
+		Legislations:   legislations,
+	}
+}
+
+func (r *SpeciesRepo) GetByID(ctx context.Context, id string) (*types.SpeciesWithLegislation, error) {
+	row, err := r.q.GetSpeciesByID(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "species not found")
+		}
+		return nil, err
+	}
+
+	legislations, err := r.legislationsFor(ctx, row.ID)
+	if err != nil {
+		return nil, err
+	}
+
+	return mapSpeciesRow(row, legislations), nil
 }
 
 // GetMapByScientificNames busca várias espécies de uma vez e retorna
@@ -169,44 +192,39 @@ func (r *SpeciesRepo) GetByScientificName(ctx context.Context, scientificName st
 		return nil, err
 	}
 
-	// Buscar legislações associadas
-	legislations, err := r.q.GetSpeciesLegislationsBySpeciesID(ctx, utils.StringToNullString(row.ID))
-	if err != nil && err != sql.ErrNoRows {
+	legislations, err := r.legislationsFor(ctx, row.ID)
+	if err != nil {
 		return nil, err
 	}
 
-	// Converter legislações para o tipo apropriado
-	legislationData := make([]types.LegislationData, 0, len(legislations))
-	for _, leg := range legislations {
-		formFactor, _ := utils.StringToFloat64(leg.SpeciesFormFactor)
-		legislationData = append(legislationData, types.LegislationData{
-			ID:                  leg.ID,
-			LawScope:            string(leg.LawScope),
-			LawID:               utils.FromNullString(leg.LawID),
-			IsLawActive:         leg.IsLawActive,
-			SpeciesFormFactor:   formFactor,
-			IsSpeciesProtected:  leg.IsSpeciesProtected,
-			SpeciesThreatStatus: string(leg.SpeciesThreatStatus),
-			SpeciesOrigin:       string(leg.SpeciesOrigin),
-			SuccessionalEcology: string(leg.SuccessionalEcology),
-			SpeciesID:           utils.FromNullString(leg.SpeciesID),
-			CreatedAt:           leg.CreatedAt,
-			UpdatedAt:           leg.UpdatedAt,
-		})
-	}
-
-	return &types.SpeciesWithLegislation{
-		ID:             row.ID,
-		ScientificName: row.ScientificName,
-		Family:         row.Family,
-		PopularName:    utils.FromNullString(row.PopularName),
-		Habit:          utils.FromNullSpeciesHabit(row.Habit),
-		CreatedAt:      row.CreatedAt,
-		UpdatedAt:      row.UpdatedAt,
-		Legislations:   legislationData,
-	}, nil
+	return mapSpeciesRow(row, legislations), nil
 }
 
+// GetNextVersion retorna a próxima versão para um nome científico (maior + 1).
+func (r *SpeciesRepo) GetNextVersion(ctx context.Context, scientificName string) (int32, error) {
+	return r.q.GetNextSpeciesVersion(ctx, scientificName)
+}
+
+// CountLineage conta quantas versões existem na linhagem (árvore ligada por
+// parent_id) à qual a espécie informada pertence.
+func (r *SpeciesRepo) CountLineage(ctx context.Context, speciesID string) (int32, error) {
+	return r.q.CountSpeciesLineage(ctx, speciesID)
+}
+
+// mapSpeciesRows mapeia uma lista de linhas, carregando as legislações de cada uma.
+func (r *SpeciesRepo) mapSpeciesRows(ctx context.Context, rows []sqlc.Species) ([]*types.SpeciesWithLegislation, error) {
+	result := make([]*types.SpeciesWithLegislation, 0, len(rows))
+	for _, row := range rows {
+		legislations, err := r.legislationsFor(ctx, row.ID)
+		if err != nil {
+			return nil, err
+		}
+		result = append(result, mapSpeciesRow(row, legislations))
+	}
+	return result, nil
+}
+
+// List retorna o catálogo oficial (versão aprovada mais recente de cada nome).
 func (r *SpeciesRepo) List(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error) {
 	rows, err := r.q.ListSpecies(ctx, sqlc.ListSpeciesParams{
 		Limit:  limit,
@@ -215,48 +233,33 @@ func (r *SpeciesRepo) List(ctx context.Context, limit, offset int32) ([]*types.S
 	if err != nil {
 		return nil, err
 	}
+	return r.mapSpeciesRows(ctx, rows)
+}
 
-	result := make([]*types.SpeciesWithLegislation, 0, len(rows))
-	for _, row := range rows {
-		// Buscar legislações associadas a cada espécie
-		legislations, err := r.q.GetSpeciesLegislationsBySpeciesID(ctx, utils.StringToNullString(row.ID))
-		if err != nil && err != sql.ErrNoRows {
-			return nil, err
-		}
-
-		// Converter legislações para o tipo apropriado
-		legislationData := make([]types.LegislationData, 0, len(legislations))
-		for _, leg := range legislations {
-			formFactor, _ := utils.StringToFloat64(leg.SpeciesFormFactor)
-			legislationData = append(legislationData, types.LegislationData{
-				ID:                  leg.ID,
-				LawScope:            string(leg.LawScope),
-				LawID:               utils.FromNullString(leg.LawID),
-				IsLawActive:         leg.IsLawActive,
-				SpeciesFormFactor:   formFactor,
-				IsSpeciesProtected:  leg.IsSpeciesProtected,
-				SpeciesThreatStatus: string(leg.SpeciesThreatStatus),
-				SpeciesOrigin:       string(leg.SpeciesOrigin),
-				SuccessionalEcology: string(leg.SuccessionalEcology),
-				SpeciesID:           utils.FromNullString(leg.SpeciesID),
-				CreatedAt:           leg.CreatedAt,
-				UpdatedAt:           leg.UpdatedAt,
-			})
-		}
-
-		result = append(result, &types.SpeciesWithLegislation{
-			ID:             row.ID,
-			ScientificName: row.ScientificName,
-			Family:         row.Family,
-			PopularName:    utils.FromNullString(row.PopularName),
-			Habit:          utils.FromNullSpeciesHabit(row.Habit),
-			CreatedAt:      row.CreatedAt,
-			UpdatedAt:      row.UpdatedAt,
-			Legislations:   legislationData,
-		})
+// ListVisible retorna as espécies visíveis para uma empresa
+// (todas as aprovadas + as próprias pendentes/recusadas).
+func (r *SpeciesRepo) ListVisible(ctx context.Context, enterpriseID string, limit, offset int32) ([]*types.SpeciesWithLegislation, error) {
+	rows, err := r.q.ListVisibleSpecies(ctx, sqlc.ListVisibleSpeciesParams{
+		EnterpriseID: utils.StringToNullString(enterpriseID),
+		Limit:        limit,
+		Offset:       offset,
+	})
+	if err != nil {
+		return nil, err
 	}
+	return r.mapSpeciesRows(ctx, rows)
+}
 
-	return result, nil
+// ListPending retorna todas as espécies pendentes (fila do super-admin).
+func (r *SpeciesRepo) ListPending(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error) {
+	rows, err := r.q.ListPendingSpecies(ctx, sqlc.ListPendingSpeciesParams{
+		Limit:  limit,
+		Offset: offset,
+	})
+	if err != nil {
+		return nil, err
+	}
+	return r.mapSpeciesRows(ctx, rows)
 }
 
 func (r *SpeciesRepo) UpdateSpecies(ctx context.Context, s *domainspecies.Species) error {
@@ -267,6 +270,15 @@ func (r *SpeciesRepo) UpdateSpecies(ctx context.Context, s *domainspecies.Specie
 		PopularName:    utils.ToNullString(s.PopularName),
 		Habit:          utils.ToNullSpeciesHabit(s.Habit),
 		UpdatedAt:      s.UpdatedAt,
+	})
+}
+
+// UpdateStatus altera o status da espécie (aprovar/recusar).
+func (r *SpeciesRepo) UpdateStatus(ctx context.Context, id, status string) error {
+	return r.q.UpdateSpeciesStatus(ctx, sqlc.UpdateSpeciesStatusParams{
+		ID:        id,
+		Status:    sqlc.SpeciesStatus(status),
+		UpdatedAt: time.Now(),
 	})
 }
 

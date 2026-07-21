@@ -41,10 +41,11 @@ type MeOut struct {
 }
 
 type MyPermissionsOut struct {
-	ID          string           `json:"id"`
-	Name        string           `json:"name"`
-	RoleTitle   string           `json:"role"`
-	Permissions []*PermissionOut `json:"permissions"`
+	ID           string           `json:"id"`
+	Name         string           `json:"name"`
+	RoleTitle    string           `json:"role"`
+	IsSuperAdmin bool             `json:"isSuperAdmin"`
+	Permissions  []*PermissionOut `json:"permissions"`
 }
 
 // EnterpriseOut representa a empresa do usuário na resposta HTTP
