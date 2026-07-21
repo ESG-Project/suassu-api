@@ -105,6 +105,7 @@ SELECT u.id,
   u.phone,
   u."roleId" AS role_id,
   u."enterpriseId" AS enterprise_id,
+  u.is_super_admin AS is_super_admin,
   u."addressId" AS address_id,
   a."zipCode" AS zip_code,
   a.state,
@@ -136,6 +137,7 @@ type GetUserByIDRow struct {
 	Phone        sql.NullString `json:"phone"`
 	RoleID       sql.NullString `json:"role_id"`
 	EnterpriseID string         `json:"enterprise_id"`
+	IsSuperAdmin bool           `json:"is_super_admin"`
 	AddressID    sql.NullString `json:"address_id"`
 	ZipCode      sql.NullString `json:"zip_code"`
 	State        sql.NullString `json:"state"`
@@ -160,6 +162,7 @@ func (q *Queries) GetUserByID(ctx context.Context, arg GetUserByIDParams) (GetUs
 		&i.Phone,
 		&i.RoleID,
 		&i.EnterpriseID,
+		&i.IsSuperAdmin,
 		&i.AddressID,
 		&i.ZipCode,
 		&i.State,

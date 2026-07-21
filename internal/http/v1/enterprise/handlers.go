@@ -21,8 +21,10 @@ type Service interface {
 	Update(ctx context.Context, in appenterprise.UpdateInput) error
 }
 
-// Routes sets up the routes for the enterprise service
-func Routes(svc Service) chi.Router {
+// Routes sets up the routes for the enterprise service.
+// privateMW são aplicados apenas às rotas que exigem autenticação
+// (GET/{id} e PUT); a criação (POST /) permanece pública.
+func Routes(svc Service, privateMW ...func(http.Handler) http.Handler) chi.Router {
 	r := chi.NewRouter()
 
 	// POST /enterprises - creates enterprise with products, parameters, roles, permissions and admin user
@@ -105,7 +107,7 @@ func Routes(svc Service) chi.Router {
 	})
 
 	// GET /enterprises/{id}
-	r.Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
+	r.With(privateMW...).Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "id")
 		if id == "" {
 			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "enterprise id is required"))
@@ -173,7 +175,7 @@ func Routes(svc Service) chi.Router {
 	})
 
 	// PUT /enterprises
-	r.Put("/", func(w http.ResponseWriter, req *http.Request) {
+	r.With(privateMW...).Put("/", func(w http.ResponseWriter, req *http.Request) {
 		// 1. Decodificar o corpo inteiro em um struct que contém o ID
 		var in appenterprise.UpdateInput
 		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {

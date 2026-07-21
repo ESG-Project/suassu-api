@@ -43,13 +43,24 @@ CREATE TYPE "SpeciesHabit" AS ENUM (
   'TREP'
 );
 
+CREATE TYPE "SpeciesStatus" AS ENUM (
+  'PENDING',
+  'APPROVED',
+  'REFUSED'
+);
+
 -- Tabela Species
 CREATE TABLE species (
   id varchar(36) PRIMARY KEY,
-  scientific_name varchar(255) NOT NULL UNIQUE,
+  scientific_name varchar(255) NOT NULL,
   family varchar(255) NOT NULL,
   popular_name varchar(255),
   habit "SpeciesHabit",
+  status "SpeciesStatus" NOT NULL DEFAULT 'PENDING',
+  version integer NOT NULL DEFAULT 1,
+  created_by text,
+  enterprise_id text,
+  parent_id varchar(36),
   created_at timestamp NOT NULL DEFAULT now(),
   updated_at timestamp NOT NULL
 );

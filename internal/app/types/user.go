@@ -59,8 +59,9 @@ type UserPermission struct {
 
 // UserPermissions representa as permissões do usuário na camada de aplicação
 type UserPermissions struct {
-	ID          string
-	Name        string
-	RoleTitle   string
-	Permissions []*UserPermission
+	ID           string
+	Name         string
+	RoleTitle    string
+	IsSuperAdmin bool
+	Permissions  []*UserPermission
 }

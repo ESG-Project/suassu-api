@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
@@ -37,6 +38,10 @@ import (
 )
 
 func main() {
+	// 0) Carrega .env (best-effort): variáveis já definidas no ambiente têm precedência.
+	// Em produção o .env normalmente não existe e as vars vêm do ambiente — por isso o erro é ignorado.
+	_ = godotenv.Load()
+
 	// 1) Config
 	cfg, err := config.Load()
 	if err != nil {
@@ -116,8 +121,13 @@ func main() {
 	r.Route("/api/v1", func(v1 chi.Router) {
 		// Rotas públicas (sem autenticação)
 		v1.Group(func(pub chi.Router) {
-			// POST /enterprises - Criação de enterprise é pública
-			pub.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
+			// POST /enterprises é público (criação); GET/{id} e PUT exigem auth,
+			// aplicada por rota dentro do próprio router de enterprise.
+			pub.Mount("/enterprises", enterprisehttp.Routes(
+				enterpriseSvc,
+				httpmw.AuthJWT(jwtIssuer),
+				httpmw.RequireEnterprise,
+			))
 		})
 
 		v1.Route("/auth", func(auth chi.Router) {
@@ -138,10 +148,14 @@ func main() {
 			priv.Use(httpmw.AuthJWT(jwtIssuer))
 			priv.Use(httpmw.RequireEnterprise)
 			priv.Mount("/users", userhttp.Routes(userSvc))
-			priv.Mount("/enterprises", enterprisehttp.Routes(enterpriseSvc))
 			priv.Mount("/phyto-analyses", phytohttp.Routes(phytoSvc))
 			priv.Mount("/specimens", specimenhttp.Routes(specimenSvc))
-			priv.Mount("/species", specieshttp.Routes(speciesSvc))
+			priv.Mount("/species", specieshttp.Routes(
+				speciesSvc,
+				httpmw.RequirePermission(userSvc, "Species", "create"),
+				httpmw.RequirePermission(userSvc, "Species", "update"),
+				httpmw.RequireSuperAdmin(db),
+			))
 		})
 
 		v1.Mount("/", openapi.Routes())

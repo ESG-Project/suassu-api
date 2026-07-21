@@ -6,6 +6,13 @@ import (
 	"time"
 )
 
+// Status possíveis de uma espécie no fluxo de aprovação.
+const (
+	StatusPending  = "PENDING"
+	StatusApproved = "APPROVED"
+	StatusRefused  = "REFUSED"
+)
+
 // Species representa a entidade de espécie no domínio
 type Species struct {
 	ID             string
@@ -13,6 +20,11 @@ type Species struct {
 	Family         string
 	PopularName    *string
 	Habit          *string // ARB, ANF, ARV, EME FIX, FLU FIX, FLU LIV, HERB, PAL, TREP
+	Status         string  // PENDING, APPROVED, REFUSED
+	Version        int32
+	CreatedBy      *string // ID do usuário que criou o registro
+	EnterpriseID   *string // empresa criadora (nil = catálogo global/legado)
+	ParentID       *string // versão-base imediata (nil na v1)
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	Legislations   []*SpeciesLegislation
@@ -34,7 +46,7 @@ type SpeciesLegislation struct {
 	UpdatedAt           time.Time
 }
 
-// NewSpecies cria uma nova instância de Species
+// NewSpecies cria uma nova instância de Species (versão inicial, status PENDING).
 func NewSpecies(
 	id, scientificName, family string,
 ) *Species {
@@ -43,9 +55,23 @@ func NewSpecies(
 		ID:             id,
 		ScientificName: scientificName,
 		Family:         family,
+		Status:         StatusPending,
+		Version:        1,
 		CreatedAt:      now,
 		UpdatedAt:      now,
 	}
+}
+
+// SetOwnership define quem criou o registro e a empresa dona.
+func (s *Species) SetOwnership(createdBy, enterpriseID *string) {
+	s.CreatedBy = createdBy
+	s.EnterpriseID = enterpriseID
+}
+
+// SetVersioning define a versão e a versão-base (parent) da espécie.
+func (s *Species) SetVersioning(version int32, parentID *string) {
+	s.Version = version
+	s.ParentID = parentID
 }
 
 // NewSpeciesLegislation cria uma nova instância de SpeciesLegislation
