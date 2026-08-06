@@ -504,5 +504,4 @@ type User struct {
 	AddressId    sql.NullString `json:"addressId"`
 	RoleId       sql.NullString `json:"roleId"`
 	EnterpriseId string         `json:"enterpriseId"`
-	IsSuperAdmin bool           `json:"is_super_admin"`
 }

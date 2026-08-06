@@ -154,7 +154,7 @@ func main() {
 				speciesSvc,
 				httpmw.RequirePermission(userSvc, "Species", "create"),
 				httpmw.RequirePermission(userSvc, "Species", "update"),
-				httpmw.RequireSuperAdmin(db),
+				httpmw.RequirePermission(userSvc, "ManageSpecies", "update"),
 			))
 		})
 

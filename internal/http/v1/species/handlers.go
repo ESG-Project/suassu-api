@@ -24,8 +24,8 @@ type Middleware = func(http.Handler) http.Handler
 // Routes monta o roteador de espécies.
 //   - requireCreate: exige permissão Species.create (criar espécie)
 //   - requireUpdate: exige permissão Species.update (solicitar alteração)
-//   - requireSuperAdmin: exige super-admin da plataforma (aprovar/recusar/fila)
-func Routes(svc Service, requireCreate, requireUpdate, requireSuperAdmin Middleware) chi.Router {
+//   - requireManage: exige permissão ManageSpecies.update (aprovar/recusar/fila)
+func Routes(svc Service, requireCreate, requireUpdate, requireManage Middleware) chi.Router {
 	r := chi.NewRouter()
 
 	// GET /species - Catálogo oficial (apenas versões aprovadas, global)
@@ -57,7 +57,7 @@ func Routes(svc Service, requireCreate, requireUpdate, requireSuperAdmin Middlew
 	})
 
 	// GET /species/pending - Fila de aprovação (super-admin)
-	r.With(requireSuperAdmin).Get("/pending", func(w http.ResponseWriter, req *http.Request) {
+	r.With(requireManage).Get("/pending", func(w http.ResponseWriter, req *http.Request) {
 		limit, offset := parsePaging(req)
 		list, err := svc.ListPending(req.Context(), limit, offset)
 		if err != nil {
@@ -147,7 +147,7 @@ func Routes(svc Service, requireCreate, requireUpdate, requireSuperAdmin Middlew
 	})
 
 	// PATCH /species/{id}/approve - Aprovar espécie pendente (super-admin)
-	r.With(requireSuperAdmin).Patch("/{id}/approve", func(w http.ResponseWriter, req *http.Request) {
+	r.With(requireManage).Patch("/{id}/approve", func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "id")
 		if err := svc.Approve(req.Context(), id); err != nil {
 			httperr.Handle(w, req, err)
@@ -157,7 +157,7 @@ func Routes(svc Service, requireCreate, requireUpdate, requireSuperAdmin Middlew
 	})
 
 	// PATCH /species/{id}/refuse - Recusar espécie pendente (super-admin)
-	r.With(requireSuperAdmin).Patch("/{id}/refuse", func(w http.ResponseWriter, req *http.Request) {
+	r.With(requireManage).Patch("/{id}/refuse", func(w http.ResponseWriter, req *http.Request) {
 		id := chi.URLParam(req, "id")
 		if err := svc.Refuse(req.Context(), id); err != nil {
 			httperr.Handle(w, req, err)

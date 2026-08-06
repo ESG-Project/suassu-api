@@ -291,11 +291,10 @@ func (r *UserRepo) GetUserPermissionsWithRole(ctx context.Context, userID string
 		}
 
 		result = &types.UserPermissions{
-			ID:           userRow.ID,
-			Name:         userRow.Name,
-			RoleTitle:    roleTitle,
-			IsSuperAdmin: userRow.IsSuperAdmin,
-			Permissions:  permissions,
+			ID:          userRow.ID,
+			Name:        userRow.Name,
+			RoleTitle:   roleTitle,
+			Permissions: permissions,
 		}
 
 		return nil

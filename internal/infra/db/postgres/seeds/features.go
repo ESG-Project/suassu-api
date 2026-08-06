@@ -28,4 +28,5 @@ var FeatureList = []string{
 	"EnterpriseBank",
 	"PhytoAnalysis",
 	"Species",
+	"ManageSpecies",
 }
