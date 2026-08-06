@@ -9,7 +9,6 @@ CREATE TABLE "User" (
   "addressId" text,
   "roleId" text,
   "enterpriseId" text NOT NULL,
-  is_super_admin boolean NOT NULL DEFAULT false,
   FOREIGN KEY ("enterpriseId") REFERENCES "Enterprise" (id),
   FOREIGN KEY ("addressId") REFERENCES "Address" (id),
   FOREIGN KEY ("roleId") REFERENCES "Role" (id)
