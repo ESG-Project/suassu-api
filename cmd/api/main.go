@@ -10,6 +10,7 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
@@ -37,6 +38,10 @@ import (
 )
 
 func main() {
+	// 0) Carrega .env (best-effort): variáveis já definidas no ambiente têm precedência.
+	// Em produção o .env normalmente não existe e as vars vêm do ambiente — por isso o erro é ignorado.
+	_ = godotenv.Load()
+
 	// 1) Config
 	cfg, err := config.Load()
 	if err != nil {
@@ -95,7 +100,6 @@ func main() {
 	jwtIssuer := infraauth.NewJWT(cfg)
 	authSvc := appauth.NewServiceWithRefresh(userRepo, userSvc, hasher, jwtIssuer, refreshTokenRepo)
 	authH := authhttp.NewHandler(authSvc, cookieMgr)
-	enterpriseH := enterprisehttp.NewHandler(enterpriseSvc)
 
 	// 4) HTTP router
 	r := chi.NewRouter()
@@ -115,18 +119,15 @@ func main() {
 	)
 	r.Get("/healthz", func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
 	r.Route("/api/v1", func(v1 chi.Router) {
-		// /enterprises: criação é pública (signup); leitura/atualização são privadas.
-		v1.Route("/enterprises", func(ent chi.Router) {
-			// público
-			ent.Group(func(pub chi.Router) {
-				enterpriseH.RegisterPublic(pub)
-			})
-			// privado
-			ent.Group(func(priv chi.Router) {
-				priv.Use(httpmw.AuthJWT(jwtIssuer))
-				priv.Use(httpmw.RequireEnterprise)
-				enterpriseH.RegisterPrivate(priv)
-			})
+		// Rotas públicas (sem autenticação)
+		v1.Group(func(pub chi.Router) {
+			// POST /enterprises é público (criação); GET/{id} e PUT exigem auth,
+			// aplicada por rota dentro do próprio router de enterprise.
+			pub.Mount("/enterprises", enterprisehttp.Routes(
+				enterpriseSvc,
+				httpmw.AuthJWT(jwtIssuer),
+				httpmw.RequireEnterprise,
+			))
 		})
 
 		v1.Route("/auth", func(auth chi.Router) {
@@ -149,7 +150,12 @@ func main() {
 			priv.Mount("/users", userhttp.Routes(userSvc))
 			priv.Mount("/phyto-analyses", phytohttp.Routes(phytoSvc))
 			priv.Mount("/specimens", specimenhttp.Routes(specimenSvc))
-			priv.Mount("/species", specieshttp.Routes(speciesSvc))
+			priv.Mount("/species", specieshttp.Routes(
+				speciesSvc,
+				httpmw.RequirePermission(userSvc, "Species", "create"),
+				httpmw.RequirePermission(userSvc, "Species", "update"),
+				httpmw.RequirePermission(userSvc, "ManageSpecies", "update"),
+			))
 		})
 
 		v1.Mount("/", openapi.Routes())

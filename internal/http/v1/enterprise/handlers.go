@@ -21,200 +21,185 @@ type Service interface {
 	Update(ctx context.Context, in appenterprise.UpdateInput) error
 }
 
-// Handler groups the HTTP handlers for the enterprise resource.
-type Handler struct {
-	svc Service
-}
+// Routes sets up the routes for the enterprise service.
+// privateMW são aplicados apenas às rotas que exigem autenticação
+// (GET/{id} e PUT); a criação (POST /) permanece pública.
+func Routes(svc Service, privateMW ...func(http.Handler) http.Handler) chi.Router {
+	r := chi.NewRouter()
 
-// NewHandler creates a new enterprise Handler.
-func NewHandler(svc Service) *Handler {
-	return &Handler{svc: svc}
-}
-
-// --------- REGISTRADORES ---------
-
-// RegisterPublic registra rotas públicas de /enterprises (sem JWT).
-// A criação de enterprise é pública (signup).
-func (h *Handler) RegisterPublic(r chi.Router) {
-	r.Post("/", h.create)
-}
-
-// RegisterPrivate registra rotas privadas de /enterprises (com JWT).
-func (h *Handler) RegisterPrivate(r chi.Router) {
-	r.Get("/{id}", h.getByID)
-	r.Put("/", h.update)
-}
-
-// --------- HANDLERS ---------
-
-// create creates an enterprise with products, parameters, roles, permissions and admin user.
-func (h *Handler) create(w http.ResponseWriter, req *http.Request) {
-	var reqBody struct {
-		Enterprise struct {
-			Name        string  `json:"name"`
-			CNPJ        string  `json:"cnpj"`
-			Email       string  `json:"email"`
-			FantasyName *string `json:"fantasyName,omitempty"`
-			Phone       *string `json:"phone,omitempty"`
-			Address     *struct {
-				State        string  `json:"state"`
-				ZipCode      string  `json:"zipCode"`
-				City         string  `json:"city"`
-				Neighborhood string  `json:"neighborhood"`
-				Street       string  `json:"street"`
-				Num          string  `json:"num"`
-				Latitude     *string `json:"latitude,omitempty"`
-				Longitude    *string `json:"longitude,omitempty"`
-				AddInfo      *string `json:"addInfo,omitempty"`
-			} `json:"address,omitempty"`
-		} `json:"enterprise"`
-		User struct {
-			Name     string  `json:"name"`
-			Email    string  `json:"email"`
-			Password string  `json:"password"`
-			Document string  `json:"document"`
-			Phone    *string `json:"phone,omitempty"`
-		} `json:"user"`
-	}
-
-	if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
-		httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
-		return
-	}
-
-	// Convert to CreateInput
-	input := appenterprise.CreateInput{
-		Name:        reqBody.Enterprise.Name,
-		CNPJ:        reqBody.Enterprise.CNPJ,
-		Email:       reqBody.Enterprise.Email,
-		FantasyName: reqBody.Enterprise.FantasyName,
-		Phone:       reqBody.Enterprise.Phone,
-		User: appenterprise.UserInput{
-			Name:     reqBody.User.Name,
-			Email:    reqBody.User.Email,
-			Password: reqBody.User.Password,
-			Document: reqBody.User.Document,
-			Phone:    reqBody.User.Phone,
-		},
-	}
-
-	// Handle address if provided
-	if reqBody.Enterprise.Address != nil {
-		input.Address = &appaddress.CreateInput{
-			State:        reqBody.Enterprise.Address.State,
-			ZipCode:      reqBody.Enterprise.Address.ZipCode,
-			City:         reqBody.Enterprise.Address.City,
-			Neighborhood: reqBody.Enterprise.Address.Neighborhood,
-			Street:       reqBody.Enterprise.Address.Street,
-			Num:          reqBody.Enterprise.Address.Num,
-			Latitude:     reqBody.Enterprise.Address.Latitude,
-			Longitude:    reqBody.Enterprise.Address.Longitude,
-			AddInfo:      reqBody.Enterprise.Address.AddInfo,
+	// POST /enterprises - creates enterprise with products, parameters, roles, permissions and admin user
+	r.Post("/", func(w http.ResponseWriter, req *http.Request) {
+		var reqBody struct {
+			Enterprise struct {
+				Name        string  `json:"name"`
+				CNPJ        string  `json:"cnpj"`
+				Email       string  `json:"email"`
+				FantasyName *string `json:"fantasyName,omitempty"`
+				Phone       *string `json:"phone,omitempty"`
+				Address     *struct {
+					State        string  `json:"state"`
+					ZipCode      string  `json:"zipCode"`
+					City         string  `json:"city"`
+					Neighborhood string  `json:"neighborhood"`
+					Street       string  `json:"street"`
+					Num          string  `json:"num"`
+					Latitude     *string `json:"latitude,omitempty"`
+					Longitude    *string `json:"longitude,omitempty"`
+					AddInfo      *string `json:"addInfo,omitempty"`
+				} `json:"address,omitempty"`
+			} `json:"enterprise"`
+			User struct {
+				Name     string  `json:"name"`
+				Email    string  `json:"email"`
+				Password string  `json:"password"`
+				Document string  `json:"document"`
+				Phone    *string `json:"phone,omitempty"`
+			} `json:"user"`
 		}
-	}
 
-	enterpriseID, userID, err := h.svc.Create(req.Context(), input)
-	if err != nil {
-		httperr.Handle(w, req, err)
-		return
-	}
-
-	response.JSON(w, http.StatusCreated, map[string]string{
-		"enterpriseId": enterpriseID,
-		"userId":       userID,
-		"message":      "Enterprise created successfully with default configuration",
-	}, nil)
-}
-
-// getByID returns a single enterprise by its ID.
-func (h *Handler) getByID(w http.ResponseWriter, req *http.Request) {
-	id := chi.URLParam(req, "id")
-	if id == "" {
-		httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "enterprise id is required"))
-		return
-	}
-
-	enterprise, err := h.svc.GetByID(req.Context(), id)
-	if err != nil {
-		httperr.Handle(w, req, err)
-		return
-	}
-
-	type addressOut struct {
-		ID           string  `json:"id"`
-		State        string  `json:"state"`
-		ZipCode      string  `json:"zipCode"`
-		City         string  `json:"city"`
-		Neighborhood string  `json:"neighborhood"`
-		Street       string  `json:"street"`
-		Num          string  `json:"num"`
-		Latitude     *string `json:"latitude,omitempty"`
-		Longitude    *string `json:"longitude,omitempty"`
-		AddInfo      *string `json:"addInfo,omitempty"`
-	}
-
-	type enterpriseOut struct {
-		ID          string      `json:"id"`
-		CNPJ        string      `json:"cnpj"`
-		Email       string      `json:"email"`
-		Name        string      `json:"name"`
-		FantasyName *string     `json:"fantasyName,omitempty"`
-		Phone       *string     `json:"phone,omitempty"`
-		AddressID   *string     `json:"addressId,omitempty"`
-		Address     *addressOut `json:"address,omitempty"`
-	}
-
-	var aOut *addressOut
-	if enterprise.Address != nil {
-		aOut = &addressOut{
-			ID:           enterprise.Address.ID,
-			ZipCode:      enterprise.Address.ZipCode,
-			State:        enterprise.Address.State,
-			City:         enterprise.Address.City,
-			Neighborhood: enterprise.Address.Neighborhood,
-			Street:       enterprise.Address.Street,
-			Num:          enterprise.Address.Num,
-			Latitude:     enterprise.Address.Latitude,
-			Longitude:    enterprise.Address.Longitude,
-			AddInfo:      enterprise.Address.AddInfo,
+		if err := json.NewDecoder(req.Body).Decode(&reqBody); err != nil {
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
+			return
 		}
-	}
 
-	out := enterpriseOut{
-		ID:          enterprise.ID,
-		CNPJ:        enterprise.CNPJ,
-		Email:       enterprise.Email,
-		Name:        enterprise.Name,
-		FantasyName: enterprise.FantasyName,
-		Phone:       enterprise.Phone,
-		AddressID:   enterprise.AddressID,
-		Address:     aOut,
-	}
+		// Convert to CreateInput
+		input := appenterprise.CreateInput{
+			Name:        reqBody.Enterprise.Name,
+			CNPJ:        reqBody.Enterprise.CNPJ,
+			Email:       reqBody.Enterprise.Email,
+			FantasyName: reqBody.Enterprise.FantasyName,
+			Phone:       reqBody.Enterprise.Phone,
+			User: appenterprise.UserInput{
+				Name:     reqBody.User.Name,
+				Email:    reqBody.User.Email,
+				Password: reqBody.User.Password,
+				Document: reqBody.User.Document,
+				Phone:    reqBody.User.Phone,
+			},
+		}
 
-	response.JSON(w, http.StatusOK, out, nil)
-}
+		// Handle address if provided
+		if reqBody.Enterprise.Address != nil {
+			input.Address = &appaddress.CreateInput{
+				State:        reqBody.Enterprise.Address.State,
+				ZipCode:      reqBody.Enterprise.Address.ZipCode,
+				City:         reqBody.Enterprise.Address.City,
+				Neighborhood: reqBody.Enterprise.Address.Neighborhood,
+				Street:       reqBody.Enterprise.Address.Street,
+				Num:          reqBody.Enterprise.Address.Num,
+				Latitude:     reqBody.Enterprise.Address.Latitude,
+				Longitude:    reqBody.Enterprise.Address.Longitude,
+				AddInfo:      reqBody.Enterprise.Address.AddInfo,
+			}
+		}
 
-// update updates an existing enterprise. The ID is read from the request body.
-func (h *Handler) update(w http.ResponseWriter, req *http.Request) {
-	// 1. Decodificar o corpo inteiro em um struct que contém o ID
-	var in appenterprise.UpdateInput
-	if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
-		httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
-		return
-	}
+		enterpriseID, userID, err := svc.Create(req.Context(), input)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
 
-	// 2. Validar e acessar o ID a partir do struct
-	if in.ID == "" {
-		httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "enterprise id is required in body"))
-		return
-	}
+		response.JSON(w, http.StatusCreated, map[string]string{
+			"enterpriseId": enterpriseID,
+			"userId":       userID,
+			"message":      "Enterprise created successfully with default configuration",
+		}, nil)
+	})
 
-	// 3. Chamar o serviço
-	err := h.svc.Update(req.Context(), in)
-	if err != nil {
-		httperr.Handle(w, req, err)
-		return
-	}
+	// GET /enterprises/{id}
+	r.With(privateMW...).Get("/{id}", func(w http.ResponseWriter, req *http.Request) {
+		id := chi.URLParam(req, "id")
+		if id == "" {
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "enterprise id is required"))
+			return
+		}
 
-	response.JSON(w, http.StatusNoContent, domainenterprise.Enterprise{}, nil)
+		enterprise, err := svc.GetByID(req.Context(), id)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		type addressOut struct {
+			ID           string  `json:"id"`
+			State        string  `json:"state"`
+			ZipCode      string  `json:"zipCode"`
+			City         string  `json:"city"`
+			Neighborhood string  `json:"neighborhood"`
+			Street       string  `json:"street"`
+			Num          string  `json:"num"`
+			Latitude     *string `json:"latitude,omitempty"`
+			Longitude    *string `json:"longitude,omitempty"`
+			AddInfo      *string `json:"addInfo,omitempty"`
+		}
+
+		type enterpriseOut struct {
+			ID          string      `json:"id"`
+			CNPJ        string      `json:"cnpj"`
+			Email       string      `json:"email"`
+			Name        string      `json:"name"`
+			FantasyName *string     `json:"fantasyName,omitempty"`
+			Phone       *string     `json:"phone,omitempty"`
+			AddressID   *string     `json:"addressId,omitempty"`
+			Address     *addressOut `json:"address,omitempty"`
+		}
+
+		var aOut *addressOut
+		if enterprise.Address != nil {
+			aOut = &addressOut{
+				ID:           enterprise.Address.ID,
+				ZipCode:      enterprise.Address.ZipCode,
+				State:        enterprise.Address.State,
+				City:         enterprise.Address.City,
+				Neighborhood: enterprise.Address.Neighborhood,
+				Street:       enterprise.Address.Street,
+				Num:          enterprise.Address.Num,
+				Latitude:     enterprise.Address.Latitude,
+				Longitude:    enterprise.Address.Longitude,
+				AddInfo:      enterprise.Address.AddInfo,
+			}
+		}
+
+		out := enterpriseOut{
+			ID:          enterprise.ID,
+			CNPJ:        enterprise.CNPJ,
+			Email:       enterprise.Email,
+			Name:        enterprise.Name,
+			FantasyName: enterprise.FantasyName,
+			Phone:       enterprise.Phone,
+			AddressID:   enterprise.AddressID,
+			Address:     aOut,
+		}
+
+		response.JSON(w, http.StatusOK, out, nil)
+	})
+
+	// PUT /enterprises
+	r.With(privateMW...).Put("/", func(w http.ResponseWriter, req *http.Request) {
+		// 1. Decodificar o corpo inteiro em um struct que contém o ID
+		var in appenterprise.UpdateInput
+		if err := json.NewDecoder(req.Body).Decode(&in); err != nil {
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "invalid body"))
+			return
+		}
+
+		// 2. Validar e acessar o ID a partir do struct
+		// (Assumindo que UpdateInput agora tem um campo ID)
+		if in.ID == "" {
+			httperr.Handle(w, req, apperr.New(apperr.CodeInvalid, "enterprise id is required in body"))
+			return
+		}
+
+		// 3. Chamar o serviço
+		// A assinatura do serviço Update precisaria ser ajustada
+		err := svc.Update(req.Context(), in)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		response.JSON(w, http.StatusNoContent, domainenterprise.Enterprise{}, nil)
+	})
+
+	return r
 }

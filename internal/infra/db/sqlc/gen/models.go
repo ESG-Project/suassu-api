@@ -189,6 +189,49 @@ func (ns NullSpeciesHabit) Value() (driver.Value, error) {
 	return string(ns.SpeciesHabit), nil
 }
 
+type SpeciesStatus string
+
+const (
+	SpeciesStatusPENDING  SpeciesStatus = "PENDING"
+	SpeciesStatusAPPROVED SpeciesStatus = "APPROVED"
+	SpeciesStatusREFUSED  SpeciesStatus = "REFUSED"
+)
+
+func (e *SpeciesStatus) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = SpeciesStatus(s)
+	case string:
+		*e = SpeciesStatus(s)
+	default:
+		return fmt.Errorf("unsupported scan type for SpeciesStatus: %T", src)
+	}
+	return nil
+}
+
+type NullSpeciesStatus struct {
+	SpeciesStatus SpeciesStatus `json:"SpeciesStatus"`
+	Valid         bool          `json:"valid"` // Valid is true if SpeciesStatus is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullSpeciesStatus) Scan(value interface{}) error {
+	if value == nil {
+		ns.SpeciesStatus, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.SpeciesStatus.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullSpeciesStatus) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.SpeciesStatus), nil
+}
+
 type SpeciesSuccessionalEcology string
 
 const (
@@ -333,17 +376,6 @@ type Permission struct {
 	Delete    bool   `json:"delete"`
 }
 
-type Product struct {
-	ID             string         `json:"id"`
-	Name           string         `json:"name"`
-	SuggestedValue sql.NullString `json:"suggestedValue"`
-	EnterpriseId   string         `json:"enterpriseId"`
-	ParameterId    sql.NullString `json:"parameterId"`
-	Deliverable    bool           `json:"deliverable"`
-	TypeProductId  sql.NullString `json:"typeProductId"`
-	IsDefault      bool           `json:"isDefault"`
-}
-
 type PhytoAnalysis struct {
 	ID              string         `json:"id"`
 	Title           string         `json:"title"`
@@ -356,6 +388,17 @@ type PhytoAnalysis struct {
 	ProjectID       string         `json:"project_id"`
 	CreatedAt       time.Time      `json:"created_at"`
 	UpdatedAt       time.Time      `json:"updated_at"`
+}
+
+type Product struct {
+	ID             string         `json:"id"`
+	Name           string         `json:"name"`
+	SuggestedValue sql.NullString `json:"suggestedValue"`
+	EnterpriseId   string         `json:"enterpriseId"`
+	ParameterId    sql.NullString `json:"parameterId"`
+	Deliverable    bool           `json:"deliverable"`
+	TypeProductId  sql.NullString `json:"typeProductId"`
+	IsDefault      bool           `json:"isDefault"`
 }
 
 type Project struct {
@@ -395,6 +438,11 @@ type Species struct {
 	Family         string           `json:"family"`
 	PopularName    sql.NullString   `json:"popular_name"`
 	Habit          NullSpeciesHabit `json:"habit"`
+	Status         SpeciesStatus    `json:"status"`
+	Version        int32            `json:"version"`
+	CreatedBy      sql.NullString   `json:"created_by"`
+	EnterpriseID   sql.NullString   `json:"enterprise_id"`
+	ParentID       sql.NullString   `json:"parent_id"`
 	CreatedAt      time.Time        `json:"created_at"`
 	UpdatedAt      time.Time        `json:"updated_at"`
 }

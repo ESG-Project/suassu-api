@@ -45,6 +45,7 @@ Thumbs.db
 bin/
 dist/
 build/
+/CLAUDE.MD
 
 # Temporary files
 tmp/

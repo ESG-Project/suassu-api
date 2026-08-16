@@ -83,6 +83,11 @@ type SpeciesWithLegislation struct {
 	Family         string
 	PopularName    *string
 	Habit          *string
+	Status         string
+	Version        int32
+	CreatedBy      *string
+	EnterpriseID   *string
+	ParentID       *string
 	CreatedAt      time.Time
 	UpdatedAt      time.Time
 	// Lista de legislações associadas
