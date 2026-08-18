@@ -19,6 +19,7 @@ type ServiceInterface interface {
 	GetOrCreate(ctx context.Context, in CreateInput) (*types.SpeciesWithLegislation, error)
 	List(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
 	ListVisible(ctx context.Context, enterpriseID string, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
+	ListVisiblePaged(ctx context.Context, f types.SpeciesListFilter) ([]*types.SpeciesWithLegislation, int64, error)
 	ListPending(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
 }
 
@@ -257,6 +258,18 @@ func (s *Service) ListVisible(ctx context.Context, enterpriseID string, limit, o
 		limit = 999999
 	}
 	return s.repo.ListVisible(ctx, enterpriseID, limit, offset)
+}
+
+// ListVisiblePaged retorna as espécies visíveis para a empresa aplicando
+// filtros, ordenação, paginação e contagem total no banco (server-side).
+func (s *Service) ListVisiblePaged(ctx context.Context, f types.SpeciesListFilter) ([]*types.SpeciesWithLegislation, int64, error) {
+	if f.Limit <= 0 {
+		f.Limit = 50
+	}
+	if f.Offset < 0 {
+		f.Offset = 0
+	}
+	return s.repo.ListVisiblePaged(ctx, f)
 }
 
 // ListPending retorna todas as espécies pendentes (fila do super-admin).

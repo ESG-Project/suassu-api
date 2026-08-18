@@ -94,6 +94,23 @@ type SpeciesWithLegislation struct {
 	Legislations []LegislationData
 }
 
+// SpeciesListFilter reúne os parâmetros de filtro, ordenação e paginação da
+// listagem visível de espécies (/species/manage) aplicados no servidor.
+type SpeciesListFilter struct {
+	EnterpriseID   string
+	Q              string // busca rápida (nome científico, família ou nome popular)
+	ScientificName string // filtro "contains" (case-insensitive)
+	Family         string
+	PopularName    string
+	Status         string // enum exato: PENDING | APPROVED | REFUSED
+	VersionMin     *int32
+	VersionMax     *int32
+	Sort           string // whitelist: scientificName | family | popularName | version | status
+	Order          string // asc | desc
+	Limit          int32
+	Offset         int32
+}
+
 // LegislationData representa os dados de uma legislação
 type LegislationData struct {
 	ID                  string

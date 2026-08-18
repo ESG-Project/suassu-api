@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 
 	appspecies "github.com/ESG-Project/suassu-api/internal/app/species"
 	"github.com/ESG-Project/suassu-api/internal/app/types"
@@ -47,13 +48,28 @@ func Routes(svc Service, requireCreate, requireUpdate, requireManage Middleware)
 			httperr.Handle(w, req, apperr.New(apperr.CodeUnauthorized, "authentication required"))
 			return
 		}
+		q := req.URL.Query()
 		limit, offset := parsePaging(req)
-		list, err := svc.ListVisible(req.Context(), claims.EnterpriseID, limit, offset)
+		filter := types.SpeciesListFilter{
+			EnterpriseID:   claims.EnterpriseID,
+			Q:              strings.TrimSpace(q.Get("q")),
+			ScientificName: strings.TrimSpace(q.Get("scientificName")),
+			Family:         strings.TrimSpace(q.Get("family")),
+			PopularName:    strings.TrimSpace(q.Get("popularName")),
+			Status:         strings.TrimSpace(q.Get("status")),
+			VersionMin:     parseOptInt32(q.Get("versionMin")),
+			VersionMax:     parseOptInt32(q.Get("versionMax")),
+			Sort:           strings.TrimSpace(q.Get("sort")),
+			Order:          strings.TrimSpace(q.Get("order")),
+			Limit:          limit,
+			Offset:         offset,
+		}
+		list, total, err := svc.ListVisiblePaged(req.Context(), filter)
 		if err != nil {
 			httperr.Handle(w, req, err)
 			return
 		}
-		response.JSON(w, http.StatusOK, toResponses(list), nil)
+		response.JSON(w, http.StatusOK, toResponses(list), map[string]any{"total": total})
 	})
 
 	// GET /species/pending - Fila de aprovação (super-admin)
@@ -230,4 +246,18 @@ func parseInt32(s string, def int32) int32 {
 		return def
 	}
 	return int32(v)
+}
+
+// parseOptInt32 devolve *int32 quando o parâmetro está presente e é um inteiro
+// válido; caso contrário nil (filtro ausente).
+func parseOptInt32(s string) *int32 {
+	if strings.TrimSpace(s) == "" {
+		return nil
+	}
+	v, err := strconv.Atoi(s)
+	if err != nil {
+		return nil
+	}
+	n := int32(v)
+	return &n
 }
