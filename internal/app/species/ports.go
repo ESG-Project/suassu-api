@@ -18,9 +18,9 @@ type Repo interface {
 	CountLineage(ctx context.Context, speciesID string) (int32, error)
 	List(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
 	ListVisible(ctx context.Context, enterpriseID string, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
+	ListVisiblePaged(ctx context.Context, f types.SpeciesListFilter) ([]*types.SpeciesWithLegislation, int64, error)
 	ListPending(ctx context.Context, limit, offset int32) ([]*types.SpeciesWithLegislation, error)
 	UpdateSpecies(ctx context.Context, s *domainspecies.Species) error
 	UpdateStatus(ctx context.Context, id, status string) error
 	UpdateLegislation(ctx context.Context, sl *domainspecies.SpeciesLegislation) error
 }
-
