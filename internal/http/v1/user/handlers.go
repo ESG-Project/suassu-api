@@ -88,6 +88,29 @@ func Routes(svc Service) chi.Router {
 		response.JSON(w, http.StatusOK, out, meta)
 	})
 
+	// GET /users/{id}/permissions
+	//
+	// Devolve o cargo e a matriz de permissões de um usuário qualquer da mesma
+	// empresa, no mesmo formato de /auth/my-permissions. Alimenta o painel
+	// informativo de permissões na tela de detalhes do usuário.
+	//
+	// Sem RequirePermission: AuthJWT e RequireEnterprise já rodam no mount, e o
+	// repositório filtra por enterpriseID (usuário de outra empresa vira 404).
+	// Um gate extra só criaria 403 — que o front redireciona para /unauthorized,
+	// tirando a pessoa da tela por causa de um painel apenas informativo.
+	r.Get("/{id}/permissions", func(w http.ResponseWriter, req *http.Request) {
+		enterpriseID := httpmw.EnterpriseID(req.Context())
+		id := chi.URLParam(req, "id")
+
+		perms, err := svc.GetUserPermissionsWithRole(req.Context(), id, enterpriseID)
+		if err != nil {
+			httperr.Handle(w, req, err)
+			return
+		}
+
+		response.JSON(w, http.StatusOK, userdto.ToMyPermissionsOut(perms), nil)
+	})
+
 	return r
 }
 
