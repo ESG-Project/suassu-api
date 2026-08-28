@@ -146,8 +146,8 @@ func normalizeAndValidateSpecimens(specimens []SpecimenInput) ([]specimenRow, []
 		if normalized.Height <= 0 {
 			errorsByRow = append(errorsByRow, "height must be positive")
 		}
-		if normalized.Cap1 <= 0 {
-			errorsByRow = append(errorsByRow, "cap1 must be positive")
+		if normalized.Cap1 < 0 {
+			errorsByRow = append(errorsByRow, "cap1 must not be negative")
 		}
 		if normalized.RegisterDate.IsZero() {
 			errorsByRow = append(errorsByRow, "register date is required")
