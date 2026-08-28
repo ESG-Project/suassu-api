@@ -83,19 +83,33 @@ type PhytoAnalysisResponse struct {
 	Project   *ProjectInfo       `json:"project,omitempty"`
 	Specimens []SpecimenResponse `json:"specimens,omitempty"`
 
-	IndividualsCount int `json:"individualsCount"` // Número de indivíduos (total de specimens)
-	SpeciesCount     int `json:"speciesCount"`     // Número de espécies (scientific names únicos)
+	// Dados Amostrais
+	IndividualsCount int `json:"individualsCount"` // Número de indivíduos amostrados
+	SpeciesCount     int `json:"speciesCount"`     // Número de espécies amostradas
 
-	// Métricas agregadas (do SUASSU-186)
+	// Métricas Agregadas da Amostra
 	MeanDBHCm      float64 `json:"meanDbhCm"`      // DAP médio (cm)
 	MeanHeightM    float64 `json:"meanHeightM"`    // Altura média (m)
-	DensityIndHa   float64 `json:"densityIndHa"`   // Densidade (ind/ha)
-	VolumeTotalM3  float64 `json:"volumeTotalM3"`  // Volume total (m³)
-	VolumeTotalMst float64 `json:"volumeTotalMst"` // Volume total (mst)
-	VolumePerHa    float64 `json:"volumePerHa"`    // Volume (m³/ha)
-	BasalAreaPerHa float64 `json:"basalAreaPerHa"` // Área basal (m²/ha)
+	SampledVolumeM3 float64 `json:"sampledVolumeM3"` // Volume sólido amostrado (m³)
+	SampledVolumeMst float64 `json:"sampledVolumeMst"` // Volume estéreo amostrado (mst)
 
-	// Indicadores fitossociológicos (do SUASSU-284)
+	// Estimativas por Hectare
+	DensityIndHa float64 `json:"densityIndHa"` // Densidade (ind/ha)
+	BasalAreaPerHa float64 `json:"basalAreaPerHa"` // Área basal (m²/ha)
+	VolumePerHa  float64 `json:"volumePerHa"`  // Volume (m³/ha)
+	VolumeMstPerHa float64 `json:"volumeMstPerHa"` // Volume (mst/ha)
+
+	// Totais Estimados da Mata (TotalArea)
+	TotalForestIndividuals int     `json:"totalForestIndividuals"` // Número total estimado de indivíduos na mata
+	TotalForestBasalAreaM2 float64 `json:"totalForestBasalAreaM2"` // Área basal total da mata (m²)
+	TotalForestVolumeM3    float64 `json:"totalForestVolumeM3"`    // Volume total da mata sólido (m³)
+	TotalForestVolumeMst   float64 `json:"totalForestVolumeMst"`   // Volume total da mata estéreo (mst)
+
+	// Campos legados (compatibilidade com telas anteriores)
+	VolumeTotalM3  float64 `json:"volumeTotalM3"`  // Volume sólido total da mata (m³)
+	VolumeTotalMst float64 `json:"volumeTotalMst"` // Volume estéreo total da mata (mst)
+
+	// Indicadores fitossociológicos (SUASSU-284)
 	Indicators *PhytosociologicalIndicators `json:"indicators,omitempty"`
 }
 
@@ -168,17 +182,26 @@ type PhytosociologicalIndicators struct {
 	SpeciesCount     int     `json:"speciesCount"`     // Número de espécies
 	PlotsCount       int     `json:"plotsCount"`       // Número de parcelas
 	PlotsArea        float64 `json:"plotsArea"`        // Área de parcelas (m²)
+	SampledAreaHa    *float64 `json:"sampledAreaHa,omitempty"` // Área amostrada (ha)
+	SampledVolumeM3  *float64 `json:"sampledVolumeM3,omitempty"` // Volume sólido amostrado (m³)
+	SampledVolumeMst *float64 `json:"sampledVolumeMst,omitempty"` // Volume estéreo amostrado (mst)
 
-	// Campos calculados
-	Density              *float64 `json:"density,omitempty"`              // Densidade Geral (ind/ha)
-	BasalArea            *float64 `json:"basalArea,omitempty"`            // Área basal (m²/ha)
-	Volume               *float64 `json:"volume,omitempty"`               // Volume (m³/ha)
-	ReplacementVolume    *float64 `json:"replacementVolume,omitempty"`    // Volume de reposição (m³)
-	ReplacementVolumeMst *float64 `json:"replacementVolumeMst,omitempty"` // Volume de reposição (mst)
-	SampledAreaHa        *float64 `json:"sampledAreaHa,omitempty"`        // Área amostrada (ha)
-	ShannonIndex         *float64 `json:"shannonIndex,omitempty"`         // Índice de Shannon (H')
-	SimpsonIndex         *float64 `json:"simpsonIndex,omitempty"`         // Índice de Simpson (D)
-	PielouEvennessIndex  *float64 `json:"pielouEvennessIndex,omitempty"`  // Índice de Equabilidade de Pielou (J')
+	// Estimativas por Hectare
+	Density      *float64 `json:"density,omitempty"`      // Densidade Geral (ind/ha)
+	BasalArea    *float64 `json:"basalArea,omitempty"`    // Área basal (m²/ha)
+	Volume       *float64 `json:"volume,omitempty"`       // Volume (m³/ha)
+	VolumeMstPerHa *float64 `json:"volumeMstPerHa,omitempty"` // Volume (mst/ha)
+
+	// Totais Estimados da Mata / Reposição Florestal (expandido por TotalArea)
+	TotalForestIndividuals *int     `json:"totalForestIndividuals,omitempty"` // Indivíduos estimados na mata
+	TotalForestBasalArea   *float64 `json:"totalForestBasalArea,omitempty"`   // Área basal total da mata (m²)
+	ReplacementVolume      *float64 `json:"replacementVolume,omitempty"`      // Volume total / reposição (m³)
+	ReplacementVolumeMst   *float64 `json:"replacementVolumeMst,omitempty"`   // Volume total / reposição (mst)
+
+	// Índices de Diversidade e Equabilidade
+	ShannonIndex        *float64 `json:"shannonIndex,omitempty"`        // Índice de Shannon (H')
+	SimpsonIndex        *float64 `json:"simpsonIndex,omitempty"`        // Índice de Simpson (D)
+	PielouEvennessIndex *float64 `json:"pielouEvennessIndex,omitempty"` // Índice de Equabilidade de Pielou (J')
 
 	// Dados para gráficos
 	SpeciesData    []SpeciesPhytosociologicalData `json:"speciesData,omitempty"`    // DA, DR, FA por espécie
@@ -395,30 +418,56 @@ func calculatePhytosociologicalIndicators(p *types.PhytoAnalysisComplete) *Phyto
 		totalVolume += vol
 	}
 
-	// Calcular área basal por hectare (m²/ha)
-	var basalArea *float64
+	// Amostra em mst
+	sampledVolumeMst := totalVolume / stackingFactor
+
+	// Valores por Hectare
+	var basalAreaPerHa *float64
+	var volumePerHa *float64
+	var volumeMstPerHa *float64
+
 	if sampledAreaHa > 0 {
 		ba := totalBasalArea / sampledAreaHa
-		basalArea = &ba
-	}
+		basalAreaPerHa = &ba
 
-	// Calcular volume por hectare (m³/ha)
-	var volume *float64
-	if sampledAreaHa > 0 {
 		v := totalVolume / sampledAreaHa
-		volume = &v
+		volumePerHa = &v
+
+		vmst := v / stackingFactor
+		volumeMstPerHa = &vmst
 	}
 
-	// Volume de reposição (m³) - valor agregado, não dividido por ha
-	replacementVolume := totalVolume
+	// Extrapolações para a Mata Inteira (baseado em TotalArea)
+	var (
+		totalForestInd      *int
+		totalForestBasal    *float64
+		replacementVolM3    *float64
+		replacementVolMst   *float64
+	)
 
-	var replacementVolumeMst *float64
-	if stackingFactor > 0 {
-		mst := replacementVolume / stackingFactor
-		replacementVolumeMst = &mst
+	if p.TotalArea > 0 {
+		if density != nil {
+			ind := int(math.Round(*density * p.TotalArea))
+			totalForestInd = &ind
+		}
+		if basalAreaPerHa != nil {
+			ba := *basalAreaPerHa * p.TotalArea
+			totalForestBasal = &ba
+		}
+		if volumePerHa != nil {
+			v := *volumePerHa * p.TotalArea
+			replacementVolM3 = &v
+
+			vmst := v / stackingFactor
+			replacementVolMst = &vmst
+		}
+	} else {
+		// Fallback se TotalArea não tiver sido preenchida
+		replacementVolM3 = &totalVolume
+		replacementVolMst = &sampledVolumeMst
 	}
 
-	// Calcular índices de diversidade
+	// Índices de Diversidade
 	var shannonIndex *float64
 	var simpsonIndex *float64
 	var pielouIndex *float64
@@ -487,21 +536,26 @@ func calculatePhytosociologicalIndicators(p *types.PhytoAnalysisComplete) *Phyto
 	collectorCurve := calculateCollectorCurve(p.Specimens, p.PortionArea)
 
 	return &PhytosociologicalIndicators{
-		IndividualsCount:     N,
-		SpeciesCount:         S,
-		PlotsCount:           P,
-		PlotsArea:            plotsArea,
-		Density:              density,
-		BasalArea:            basalArea,
-		Volume:               volume,
-		ReplacementVolume:    &replacementVolume,
-		ReplacementVolumeMst: replacementVolumeMst,
-		SampledAreaHa:        &sampledAreaHa,
-		ShannonIndex:         shannonIndex,
-		SimpsonIndex:         simpsonIndex,
-		PielouEvennessIndex:  pielouIndex,
-		SpeciesData:          speciesData,
-		CollectorCurve:       collectorCurve,
+		IndividualsCount:       N,
+		SpeciesCount:           S,
+		PlotsCount:             P,
+		PlotsArea:              plotsArea,
+		SampledAreaHa:          &sampledAreaHa,
+		SampledVolumeM3:        &totalVolume,
+		SampledVolumeMst:       &sampledVolumeMst,
+		Density:                density,
+		BasalArea:              basalAreaPerHa,
+		Volume:                 volumePerHa,
+		VolumeMstPerHa:         volumeMstPerHa,
+		TotalForestIndividuals: totalForestInd,
+		TotalForestBasalArea:   totalForestBasal,
+		ReplacementVolume:      replacementVolM3,
+		ReplacementVolumeMst:   replacementVolMst,
+		ShannonIndex:           shannonIndex,
+		SimpsonIndex:           simpsonIndex,
+		PielouEvennessIndex:    pielouIndex,
+		SpeciesData:            speciesData,
+		CollectorCurve:         collectorCurve,
 	}
 }
 
@@ -550,9 +604,8 @@ func calcABIFromSpecimen(s *types.SpecimenWithSpecies) float64 {
 	}
 
 	abi := 0.0
-	for _, cap := range caps {
-		// CR11.1: ABI = Σ (CAPi² / 4π)
-		abi += (cap * cap) / (4 * math.Pi)
+	for _, capVal := range caps {
+		abi += (capVal * capVal) / (4 * math.Pi)
 	}
 	return abi
 }
@@ -713,11 +766,12 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 	sampledAreaHa := p.SampledArea
 
 	var (
-		meanDbhCm    float64
-		meanHeightM  float64
-		densityIndHa float64
-		volumePerHa  float64
-		basalPerHa   float64
+		meanDbhCm      float64
+		meanHeightM    float64
+		densityIndHa   float64
+		volumePerHa    float64
+		volumeMstPerHa float64
+		basalPerHa     float64
 	)
 
 	if n > 0 {
@@ -728,14 +782,30 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 	if sampledAreaHa > 0 {
 		densityIndHa = float64(n) / sampledAreaHa
 		volumePerHa = sumVolume / sampledAreaHa
+		volumeMstPerHa = volumePerHa / stackingFactor
 		basalPerHa = sumBasal / sampledAreaHa
 	}
 
-	var volumeTotalMst float64
-	if stackingFactor > 0 {
-		volumeTotalMst = sumVolume / stackingFactor
-	}
+	// Volume Amostrado
+	sampledVolMst := sumVolume / stackingFactor
 
+	// Totais Extrapolados para a Mata
+	var (
+		totalForestInd   int
+		totalForestBasal float64
+		totalForestVolM3 float64
+		totalForestVolMst float64
+	)
+
+	if p.TotalArea > 0 {
+		totalForestInd = int(math.Round(densityIndHa * p.TotalArea))
+		totalForestBasal = basalPerHa * p.TotalArea
+		totalForestVolM3 = volumePerHa * p.TotalArea
+		totalForestVolMst = totalForestVolM3 / stackingFactor
+	} else {
+		totalForestVolM3 = sumVolume
+		totalForestVolMst = sampledVolMst
+	}
 	// Montar endereço do projeto se houver dados
 	var projectAddress *ProjectAddress
 	if p.ProjectZipCode != nil || p.ProjectState != nil || p.ProjectCity != nil {
@@ -777,19 +847,27 @@ func ToPhytoAnalysisCompleteResponse(p *types.PhytoAnalysisComplete) *PhytoAnaly
 		},
 		Specimens: specimens,
 
-		IndividualsCount: len(p.Specimens),   // Total de specimens
-		SpeciesCount:     len(uniqueSpecies), // Total de espécies únicas
+		IndividualsCount: len(p.Specimens),
+		SpeciesCount:     len(uniqueSpecies),
 
-		// Métricas agregadas (SUASSU-186)
-		MeanDBHCm:      meanDbhCm,
-		MeanHeightM:    meanHeightM,
+		MeanDBHCm:       meanDbhCm,
+		MeanHeightM:     meanHeightM,
+		SampledVolumeM3: sumVolume,
+		SampledVolumeMst: sampledVolMst,
+
 		DensityIndHa:   densityIndHa,
-		VolumeTotalM3:  sumVolume,
-		VolumeTotalMst: volumeTotalMst,
-		VolumePerHa:    volumePerHa,
 		BasalAreaPerHa: basalPerHa,
+		VolumePerHa:    volumePerHa,
+		VolumeMstPerHa: volumeMstPerHa,
 
-		// Indicadores fitossociológicos (SUASSU-284)
+		TotalForestIndividuals: totalForestInd,
+		TotalForestBasalAreaM2: totalForestBasal,
+		TotalForestVolumeM3:    totalForestVolM3,
+		TotalForestVolumeMst:   totalForestVolMst,
+
+		VolumeTotalM3:  totalForestVolM3,
+		VolumeTotalMst: totalForestVolMst,
+
 		Indicators: indicators,
 	}
 }
