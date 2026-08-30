@@ -54,8 +54,8 @@ func (s *Specimen) Validate() error {
 	if s.Height <= 0 {
 		return errors.New("height must be positive")
 	}
-	if s.Cap1 <= 0 {
-		return errors.New("cap1 must be positive")
+	if s.Cap1 < 0 {
+		return errors.New("cap1 must not be negative")
 	}
 	if strings.TrimSpace(s.PhytoAnalysisID) == "" {
 		return errors.New("phyto analysis ID is required")

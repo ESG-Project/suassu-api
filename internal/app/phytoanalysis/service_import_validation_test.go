@@ -89,9 +89,24 @@ func TestNormalizeAndValidateSpecimens_ReportsPartialRows(t *testing.T) {
 	require.Len(t, invalidRows, 1)
 	require.Equal(t, 1, invalidRows[0].RowNumber)
 	require.Contains(t, invalidRows[0].Errors, "height must be positive")
-	require.Contains(t, invalidRows[0].Errors, "cap1 must be positive")
 	require.Contains(t, invalidRows[0].Errors, "register date is required")
 	require.Contains(t, invalidRows[0].Errors, "scientific name is required")
+}
+
+func TestNormalizeAndValidateSpecimens_AllowsZeroCap1(t *testing.T) {
+	t.Parallel()
+
+	rows, invalidRows := normalizeAndValidateSpecimens([]SpecimenInput{{
+		Portion:        "A1",
+		Height:         12,
+		Cap1:           0,
+		RegisterDate:   time.Now(),
+		ScientificName: "Copaifera langsdorffii",
+	}})
+
+	require.Empty(t, invalidRows)
+	require.Len(t, rows, 1)
+	require.Zero(t, rows[0].Specimen.Cap1)
 }
 
 func TestCreate_ReturnsInvalidRowsDetails(t *testing.T) {
