@@ -53,3 +53,38 @@ func (r *FeatureRepo) GetByName(ctx context.Context, name string) (*feature.Feat
 		Name: row.Name,
 	}, nil
 }
+
+// GetByID retorna uma feature pelo id. Retorna nil, nil se não encontrada.
+func (r *FeatureRepo) GetByID(ctx context.Context, id string) (*feature.Feature, error) {
+	row, err := r.q.GetFeatureByID(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	return &feature.Feature{
+		ID:   row.ID,
+		Name: row.Name,
+	}, nil
+}
+
+// Create insere uma nova feature com id explícito.
+func (r *FeatureRepo) Create(ctx context.Context, f *feature.Feature) error {
+	row, err := r.q.CreateFeature(ctx, sqlc.CreateFeatureParams{
+		ID:   f.ID,
+		Name: f.Name,
+	})
+	if err != nil {
+		return err
+	}
+	f.ID = row.ID
+	f.Name = row.Name
+	return nil
+}
+
+// Delete remove uma feature pelo id.
+func (r *FeatureRepo) Delete(ctx context.Context, id string) error {
+	return r.q.DeleteFeature(ctx, id)
+}

@@ -78,3 +78,27 @@ func CodeOf(err error) Code {
 	}
 	return CodeInternal
 }
+
+// escalationField marca, em Fields, um Forbidden como escalação de privilégio
+// (tentativa de conceder/atribuir mais do que o próprio ator possui).
+const escalationField = "escalation"
+
+// NewPrivilegeEscalation cria um erro CodeForbidden marcado como escalação de
+// privilégio. Replica PrivilegeEscalationError do user-crud: a camada HTTP
+// deve devolver um `code` de nível superior no corpo (não só em `error.code`)
+// para que o front exiba a mensagem em vez de redirecionar para
+// /unauthorized, como faz com os demais 403 — a tela em que o usuário está
+// continua legítima, só a ação foi recusada.
+func NewPrivilegeEscalation(msg string) *Error {
+	return &Error{Code: CodeForbidden, Msg: msg, Fields: map[string]any{escalationField: true}}
+}
+
+// IsPrivilegeEscalation reporta se err foi criado com NewPrivilegeEscalation.
+func IsPrivilegeEscalation(err error) bool {
+	var e *Error
+	if errors.As(err, &e) && e.Fields != nil {
+		v, _ := e.Fields[escalationField].(bool)
+		return v
+	}
+	return false
+}

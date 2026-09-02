@@ -12,6 +12,7 @@ sql:
       - "internal/infra/db/sqlc/schema_parameter.sql"
       - "internal/infra/db/sqlc/schema_project.sql"
       - "internal/infra/db/sqlc/schema_client.sql"
+      - "internal/infra/db/sqlc/schema_technician.sql"
       - "internal/infra/db/sqlc/schema_species.sql"
       - "internal/infra/db/sqlc/schema_phyto_analysis.sql"
       - "internal/infra/db/sqlc/schema_specimen.sql"

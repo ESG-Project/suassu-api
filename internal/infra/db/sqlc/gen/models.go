@@ -494,6 +494,14 @@ type Speciman struct {
 	UpdatedAt       time.Time      `json:"updated_at"`
 }
 
+type Technician struct {
+	ID          string         `json:"id"`
+	ProRegister sql.NullString `json:"proRegister"`
+	Graduation  sql.NullString `json:"graduation"`
+	Ctf         sql.NullString `json:"ctf"`
+	UserId      string         `json:"userId"`
+}
+
 type User struct {
 	ID           string         `json:"id"`
 	Name         string         `json:"name"`

@@ -66,6 +66,34 @@ func (q *Queries) GetRoleByID(ctx context.Context, arg GetRoleByIDParams) (GetRo
 	return i, err
 }
 
+const getRoleByTitle = `-- name: GetRoleByTitle :one
+SELECT "id",
+  "title",
+  "enterpriseId" as enterprise_id
+FROM "Role"
+WHERE "enterpriseId" = $1
+  AND "title" = $2
+LIMIT 1
+`
+
+type GetRoleByTitleParams struct {
+	EnterpriseId string `json:"enterpriseId"`
+	Title        string `json:"title"`
+}
+
+type GetRoleByTitleRow struct {
+	ID           string `json:"id"`
+	Title        string `json:"title"`
+	EnterpriseID string `json:"enterprise_id"`
+}
+
+func (q *Queries) GetRoleByTitle(ctx context.Context, arg GetRoleByTitleParams) (GetRoleByTitleRow, error) {
+	row := q.db.QueryRowContext(ctx, getRoleByTitle, arg.EnterpriseId, arg.Title)
+	var i GetRoleByTitleRow
+	err := row.Scan(&i.ID, &i.Title, &i.EnterpriseID)
+	return i, err
+}
+
 const listRolesByEnterprise = `-- name: ListRolesByEnterprise :many
 SELECT "id",
   "title",

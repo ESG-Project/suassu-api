@@ -66,6 +66,102 @@ func (q *Queries) DeletePermission(ctx context.Context, id string) error {
 	return err
 }
 
+const getPermissionByID = `-- name: GetPermissionByID :one
+SELECT p."id",
+  p."featureId" as feature_id,
+  p."roleId" as role_id,
+  p."create",
+  p."read",
+  p."update",
+  p."delete",
+  r."enterpriseId" as enterprise_id
+FROM "Permission" p
+  JOIN "Role" r ON p."roleId" = r."id"
+WHERE p."id" = $1
+LIMIT 1
+`
+
+type GetPermissionByIDRow struct {
+	ID           string `json:"id"`
+	FeatureID    string `json:"feature_id"`
+	RoleID       string `json:"role_id"`
+	Create       bool   `json:"create"`
+	Read         bool   `json:"read"`
+	Update       bool   `json:"update"`
+	Delete       bool   `json:"delete"`
+	EnterpriseID string `json:"enterprise_id"`
+}
+
+func (q *Queries) GetPermissionByID(ctx context.Context, id string) (GetPermissionByIDRow, error) {
+	row := q.db.QueryRowContext(ctx, getPermissionByID, id)
+	var i GetPermissionByIDRow
+	err := row.Scan(
+		&i.ID,
+		&i.FeatureID,
+		&i.RoleID,
+		&i.Create,
+		&i.Read,
+		&i.Update,
+		&i.Delete,
+		&i.EnterpriseID,
+	)
+	return i, err
+}
+
+const listPermissionsByEnterprise = `-- name: ListPermissionsByEnterprise :many
+SELECT p."id",
+  p."featureId" as feature_id,
+  p."roleId" as role_id,
+  p."create",
+  p."read",
+  p."update",
+  p."delete"
+FROM "Permission" p
+  JOIN "Role" r ON p."roleId" = r."id"
+WHERE r."enterpriseId" = $1
+`
+
+type ListPermissionsByEnterpriseRow struct {
+	ID        string `json:"id"`
+	FeatureID string `json:"feature_id"`
+	RoleID    string `json:"role_id"`
+	Create    bool   `json:"create"`
+	Read      bool   `json:"read"`
+	Update    bool   `json:"update"`
+	Delete    bool   `json:"delete"`
+}
+
+func (q *Queries) ListPermissionsByEnterprise(ctx context.Context, enterpriseid string) ([]ListPermissionsByEnterpriseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPermissionsByEnterprise, enterpriseid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPermissionsByEnterpriseRow
+	for rows.Next() {
+		var i ListPermissionsByEnterpriseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.FeatureID,
+			&i.RoleID,
+			&i.Create,
+			&i.Read,
+			&i.Update,
+			&i.Delete,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listPermissionsByRole = `-- name: ListPermissionsByRole :many
 SELECT p."id",
   p."featureId" as feature_id,
@@ -125,25 +221,31 @@ func (q *Queries) ListPermissionsByRole(ctx context.Context, roleid string) ([]L
 
 const updatePermission = `-- name: UpdatePermission :one
 UPDATE "Permission"
-SET "create" = $2,
-  "read" = $3,
-  "update" = $4,
-  "delete" = $5
+SET "featureId" = $2,
+  "roleId" = $3,
+  "create" = $4,
+  "read" = $5,
+  "update" = $6,
+  "delete" = $7
 WHERE id = $1
 RETURNING id, "featureId", "roleId", "create", read, update, delete
 `
 
 type UpdatePermissionParams struct {
-	ID     string `json:"id"`
-	Create bool   `json:"create"`
-	Read   bool   `json:"read"`
-	Update bool   `json:"update"`
-	Delete bool   `json:"delete"`
+	ID        string `json:"id"`
+	FeatureId string `json:"featureId"`
+	RoleId    string `json:"roleId"`
+	Create    bool   `json:"create"`
+	Read      bool   `json:"read"`
+	Update    bool   `json:"update"`
+	Delete    bool   `json:"delete"`
 }
 
 func (q *Queries) UpdatePermission(ctx context.Context, arg UpdatePermissionParams) (Permission, error) {
 	row := q.db.QueryRowContext(ctx, updatePermission,
 		arg.ID,
+		arg.FeatureId,
+		arg.RoleId,
 		arg.Create,
 		arg.Read,
 		arg.Update,
