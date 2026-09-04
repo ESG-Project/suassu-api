@@ -112,6 +112,29 @@ type InvalidSpecimenRow struct {
 	Errors    []string `json:"errors"`
 }
 
+const duplicateTitleMessage = "já existe uma análise fitossociológica com este título para o projeto"
+
+func ensureUniqueTitleForProject(
+	ctx context.Context,
+	repo Repo,
+	projectID string,
+	title string,
+) error {
+	analyses, err := repo.ListByProject(ctx, projectID)
+	if err != nil {
+		return apperr.Wrap(err, apperr.CodeInternal, "failed to check phyto analysis title")
+	}
+
+	normalizedTitle := strings.TrimSpace(title)
+	for _, analysis := range analyses {
+		if strings.EqualFold(strings.TrimSpace(analysis.Title), normalizedTitle) {
+			return apperr.New(apperr.CodeConflict, duplicateTitleMessage)
+		}
+	}
+
+	return nil
+}
+
 func isBlankSpecimenInput(sp SpecimenInput) bool {
 	return strings.TrimSpace(sp.Portion) == "" &&
 		strings.TrimSpace(sp.ScientificName) == "" &&
@@ -280,6 +303,7 @@ func (s *Service) createWithProgress(
 	in CreateInput,
 	onProgress func(processed, success, failed, total int),
 ) (string, []InvalidSpecimenRow, error) {
+	in.Title = strings.TrimSpace(in.Title)
 	if in.Title == "" || in.ProjectID == "" {
 		return "", nil, apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
@@ -287,6 +311,9 @@ func (s *Service) createWithProgress(
 	phytoID := uuid.NewString()
 	if s.txm == nil {
 		return "", nil, apperr.New(apperr.CodeInvalid, "transaction manager required")
+	}
+	if err := ensureUniqueTitleForProject(ctx, s.repo, in.ProjectID, in.Title); err != nil {
+		return "", nil, err
 	}
 
 	var invalidRows []InvalidSpecimenRow
@@ -425,6 +452,7 @@ func (s *Service) createWithProgress(
 }
 
 func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
+	in.Title = strings.TrimSpace(in.Title)
 	if in.Title == "" || in.ProjectID == "" {
 		return "", apperr.New(apperr.CodeInvalid, "missing required fields")
 	}
@@ -433,6 +461,9 @@ func (s *Service) Create(ctx context.Context, in CreateInput) (string, error) {
 
 	if s.txm == nil {
 		return "", apperr.New(apperr.CodeInvalid, "transaction manager required")
+	}
+	if err := ensureUniqueTitleForProject(ctx, s.repo, in.ProjectID, in.Title); err != nil {
+		return "", err
 	}
 
 	err := s.txm.RunInTx(ctx, func(repos postgres.Repos) error {
