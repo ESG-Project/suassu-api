@@ -3,9 +3,13 @@ package feature
 import (
 	"context"
 	"log"
+	"strings"
 
+	"github.com/ESG-Project/suassu-api/internal/apperr"
+	domainfeature "github.com/ESG-Project/suassu-api/internal/domain/feature"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/seeds"
+	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -37,4 +41,34 @@ func (s *Service) SeedFeatures(ctx context.Context) {
 	}
 
 	log.Println("Features table is up to date.")
+}
+
+// List retorna todas as features cadastradas.
+func (s *Service) List(ctx context.Context) ([]domainfeature.Feature, error) {
+	return s.repo.List(ctx)
+}
+
+// Create cadastra uma nova feature (uso administrativo).
+func (s *Service) Create(ctx context.Context, name string) (*domainfeature.Feature, error) {
+	if strings.TrimSpace(name) == "" {
+		return nil, apperr.New(apperr.CodeInvalid, "name is required")
+	}
+
+	f := domainfeature.NewFeature(uuid.NewString(), name)
+	if err := s.repo.Create(ctx, f); err != nil {
+		return nil, err
+	}
+	return f, nil
+}
+
+// Delete remove uma feature (uso administrativo).
+func (s *Service) Delete(ctx context.Context, id string) error {
+	existing, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return err
+	}
+	if existing == nil {
+		return apperr.New(apperr.CodeNotFound, "feature not found")
+	}
+	return s.repo.Delete(ctx, id)
 }

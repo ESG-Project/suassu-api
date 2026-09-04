@@ -52,6 +52,23 @@ func TestCodeOf(t *testing.T) {
 	})
 }
 
+func TestPrivilegeEscalation(t *testing.T) {
+	t.Run("NewPrivilegeEscalation is Forbidden and marked as escalation", func(t *testing.T) {
+		err := NewPrivilegeEscalation("cannot grant more than you have")
+		require.Equal(t, CodeForbidden, err.Code)
+		require.True(t, IsPrivilegeEscalation(err))
+	})
+
+	t.Run("a plain Forbidden is not an escalation", func(t *testing.T) {
+		err := New(CodeForbidden, "primary admin cannot be edited")
+		require.False(t, IsPrivilegeEscalation(err))
+	})
+
+	t.Run("non-apperr is not an escalation", func(t *testing.T) {
+		require.False(t, IsPrivilegeEscalation(errors.New("plain")))
+	})
+}
+
 func TestWithFields(t *testing.T) {
 	err := New(CodeInvalid, "validation failed")
 	fields := map[string]any{"field": "email"}

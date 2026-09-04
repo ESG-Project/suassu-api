@@ -56,6 +56,48 @@ func TestHandle(t *testing.T) {
 	})
 }
 
+func TestHandlePrivilegeAware(t *testing.T) {
+	t.Run("nil error returns 204", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		HandlePrivilegeAware(w, req, nil)
+
+		require.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("privilege escalation error carries a top-level code", func(t *testing.T) {
+		err := apperr.NewPrivilegeEscalation("você não pode conceder isso")
+		req := httptest.NewRequest("POST", "/test", nil)
+		w := httptest.NewRecorder()
+
+		HandlePrivilegeAware(w, req, err)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+
+		var response map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		require.Equal(t, "PRIVILEGE_ESCALATION", response["code"])
+		require.Equal(t, "você não pode conceder isso", response["message"])
+		require.Equal(t, false, response["success"])
+	})
+
+	t.Run("a plain forbidden error falls back to the standard envelope", func(t *testing.T) {
+		err := apperr.New(apperr.CodeForbidden, "não pode editar o admin primário")
+		req := httptest.NewRequest("DELETE", "/test", nil)
+		w := httptest.NewRecorder()
+
+		HandlePrivilegeAware(w, req, err)
+
+		require.Equal(t, http.StatusForbidden, w.Code)
+
+		var response map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		require.NotContains(t, response, "code")
+		require.Contains(t, response, "error")
+	})
+}
+
 func TestMapStatus(t *testing.T) {
 	tests := []struct {
 		name     string

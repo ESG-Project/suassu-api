@@ -44,6 +44,38 @@ func RequirePermission(checker PermissionChecker, feature, action string) func(h
 	}
 }
 
+// RequirePermissionAny garante que o papel do usuário possui a ação CRUD
+// indicada em ao menos uma das features informadas ("qualquer uma destas").
+// Equivalente ao suporte a array de features em permissionVerification no
+// user-crud (ex.: POST /user aceita quem pode criar Client OU Technician OU
+// User OU Financial).
+func RequirePermissionAny(checker PermissionChecker, action string, features ...string) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			claims, ok := ClaimsFromCtx(r.Context())
+			if !ok || claims.Subject == "" {
+				httperr.Handle(w, r, apperr.New(apperr.CodeUnauthorized, "authentication required"))
+				return
+			}
+
+			perms, err := checker.GetUserPermissionsWithRole(r.Context(), claims.Subject, claims.EnterpriseID)
+			if err != nil {
+				httperr.Handle(w, r, err)
+				return
+			}
+
+			for _, feature := range features {
+				if hasPermission(perms, feature, action) {
+					next.ServeHTTP(w, r)
+					return
+				}
+			}
+
+			httperr.Handle(w, r, apperr.New(apperr.CodeForbidden, "insufficient permissions"))
+		})
+	}
+}
+
 func hasPermission(perms *types.UserPermissions, feature, action string) bool {
 	if perms == nil {
 		return false

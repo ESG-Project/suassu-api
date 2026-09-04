@@ -52,6 +52,22 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteUser = `-- name: DeleteUser :exec
+DELETE FROM "User"
+WHERE id = $1
+  AND "enterpriseId" = $2
+`
+
+type DeleteUserParams struct {
+	ID           string `json:"id"`
+	EnterpriseId string `json:"enterpriseId"`
+}
+
+func (q *Queries) DeleteUser(ctx context.Context, arg DeleteUserParams) error {
+	_, err := q.db.ExecContext(ctx, deleteUser, arg.ID, arg.EnterpriseId)
+	return err
+}
+
 const findUserByEmailForAuth = `-- name: FindUserByEmailForAuth :one
 SELECT id,
   name,
@@ -92,6 +108,60 @@ func (q *Queries) FindUserByEmailForAuth(ctx context.Context, email string) (Fin
 		&i.AddressID,
 		&i.RoleID,
 		&i.EnterpriseID,
+	)
+	return i, err
+}
+
+const getPrimaryAdminUserID = `-- name: GetPrimaryAdminUserID :one
+SELECT u.id
+FROM "User" u
+  JOIN "Role" r ON r.id = u."roleId"
+  JOIN "Enterprise" e ON e.id = u."enterpriseId"
+WHERE u."enterpriseId" = $1
+  AND u.email = e.email
+  AND r.title = 'Administrador'
+LIMIT 1
+`
+
+// O usuário administrador "primário" de uma empresa: aquele criado no
+// onboarding, cujo e-mail é o mesmo da empresa e cujo papel é Administrador.
+// Não pode ser editado/deletado por outro admin (ver DeleteUserService no
+// user-crud).
+func (q *Queries) GetPrimaryAdminUserID(ctx context.Context, enterpriseid string) (string, error) {
+	row := q.db.QueryRowContext(ctx, getPrimaryAdminUserID, enterpriseid)
+	var id string
+	err := row.Scan(&id)
+	return id, err
+}
+
+const getUserByDocumentInEnterprise = `-- name: GetUserByDocumentInEnterprise :one
+SELECT id, name, email, document
+FROM "User"
+WHERE "enterpriseId" = $1
+  AND document = $2
+LIMIT 1
+`
+
+type GetUserByDocumentInEnterpriseParams struct {
+	EnterpriseId string `json:"enterpriseId"`
+	Document     string `json:"document"`
+}
+
+type GetUserByDocumentInEnterpriseRow struct {
+	ID       string `json:"id"`
+	Name     string `json:"name"`
+	Email    string `json:"email"`
+	Document string `json:"document"`
+}
+
+func (q *Queries) GetUserByDocumentInEnterprise(ctx context.Context, arg GetUserByDocumentInEnterpriseParams) (GetUserByDocumentInEnterpriseRow, error) {
+	row := q.db.QueryRowContext(ctx, getUserByDocumentInEnterprise, arg.EnterpriseId, arg.Document)
+	var i GetUserByDocumentInEnterpriseRow
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.Email,
+		&i.Document,
 	)
 	return i, err
 }
@@ -219,6 +289,106 @@ func (q *Queries) GetUserByIDForRefresh(ctx context.Context, id string) (GetUser
 	return i, err
 }
 
+const listNonClientUsersByEnterprise = `-- name: ListNonClientUsersByEnterprise :many
+SELECT u.id,
+  u.name,
+  u.email,
+  u.phone,
+  u.document,
+  u."enterpriseId" as enterprise_id,
+  a."zipCode" as zip_code,
+  a.state,
+  a.city,
+  a.neighborhood,
+  a.street,
+  a.num,
+  r.id as role_id,
+  r.title as role_title,
+  t.id as technician_id,
+  t."proRegister" as pro_register,
+  t.graduation as technician_graduation,
+  t.ctf as technician_ctf
+FROM "User" u
+  LEFT JOIN "Address" a ON a.id = u."addressId"
+  LEFT JOIN "Role" r ON r.id = u."roleId"
+  LEFT JOIN "Technician" t ON t."userId" = u.id
+  LEFT JOIN "Client" c ON c."userId" = u.id
+WHERE u."enterpriseId" = $1
+  AND c.id IS NULL
+  AND ($2::text = '' OR u.id != $2::text)
+`
+
+type ListNonClientUsersByEnterpriseParams struct {
+	EnterpriseId string `json:"enterpriseId"`
+	ExcludeID    string `json:"exclude_id"`
+}
+
+type ListNonClientUsersByEnterpriseRow struct {
+	ID                   string         `json:"id"`
+	Name                 string         `json:"name"`
+	Email                string         `json:"email"`
+	Phone                sql.NullString `json:"phone"`
+	Document             string         `json:"document"`
+	EnterpriseID         string         `json:"enterprise_id"`
+	ZipCode              sql.NullString `json:"zip_code"`
+	State                sql.NullString `json:"state"`
+	City                 sql.NullString `json:"city"`
+	Neighborhood         sql.NullString `json:"neighborhood"`
+	Street               sql.NullString `json:"street"`
+	Num                  sql.NullString `json:"num"`
+	RoleID               sql.NullString `json:"role_id"`
+	RoleTitle            sql.NullString `json:"role_title"`
+	TechnicianID         sql.NullString `json:"technician_id"`
+	ProRegister          sql.NullString `json:"pro_register"`
+	TechnicianGraduation sql.NullString `json:"technician_graduation"`
+	TechnicianCtf        sql.NullString `json:"technician_ctf"`
+}
+
+// Lista usuários da empresa que não têm registro de Client associado
+// (equivalente a manyUsers no user-crud), opcionalmente excluindo um id
+// (o admin primário). Passe excludeId = ” para não excluir ninguém.
+func (q *Queries) ListNonClientUsersByEnterprise(ctx context.Context, arg ListNonClientUsersByEnterpriseParams) ([]ListNonClientUsersByEnterpriseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listNonClientUsersByEnterprise, arg.EnterpriseId, arg.ExcludeID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListNonClientUsersByEnterpriseRow
+	for rows.Next() {
+		var i ListNonClientUsersByEnterpriseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.Email,
+			&i.Phone,
+			&i.Document,
+			&i.EnterpriseID,
+			&i.ZipCode,
+			&i.State,
+			&i.City,
+			&i.Neighborhood,
+			&i.Street,
+			&i.Num,
+			&i.RoleID,
+			&i.RoleTitle,
+			&i.TechnicianID,
+			&i.ProRegister,
+			&i.TechnicianGraduation,
+			&i.TechnicianCtf,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listUsers = `-- name: ListUsers :many
 SELECT u.id,
   u.name,
@@ -326,6 +496,45 @@ func (q *Queries) ListUsers(ctx context.Context, arg ListUsersParams) ([]ListUse
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateUserAdmin = `-- name: UpdateUserAdmin :exec
+UPDATE "User"
+SET name = $3,
+  email = $4,
+  phone = $5,
+  "addressId" = $6,
+  document = $7,
+  "roleId" = $8
+WHERE id = $1
+  AND "enterpriseId" = $2
+`
+
+type UpdateUserAdminParams struct {
+	ID           string         `json:"id"`
+	EnterpriseId string         `json:"enterpriseId"`
+	Name         string         `json:"name"`
+	Email        string         `json:"email"`
+	Phone        sql.NullString `json:"phone"`
+	AddressId    sql.NullString `json:"addressId"`
+	Document     string         `json:"document"`
+	RoleId       sql.NullString `json:"roleId"`
+}
+
+// Update administrativo: também altera document e roleId (self-service via
+// /auth/me não pode, mas um admin editando outro usuário pode).
+func (q *Queries) UpdateUserAdmin(ctx context.Context, arg UpdateUserAdminParams) error {
+	_, err := q.db.ExecContext(ctx, updateUserAdmin,
+		arg.ID,
+		arg.EnterpriseId,
+		arg.Name,
+		arg.Email,
+		arg.Phone,
+		arg.AddressId,
+		arg.Document,
+		arg.RoleId,
+	)
+	return err
 }
 
 const updateUserEditable = `-- name: UpdateUserEditable :exec

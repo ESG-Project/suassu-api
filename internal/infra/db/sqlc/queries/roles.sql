@@ -24,3 +24,11 @@ FROM "Role"
 WHERE "enterpriseId" = $1
   AND "id" = $2
 LIMIT 1;
+-- name: GetRoleByTitle :one
+SELECT "id",
+  "title",
+  "enterpriseId" as enterprise_id
+FROM "Role"
+WHERE "enterpriseId" = $1
+  AND "title" = $2
+LIMIT 1;

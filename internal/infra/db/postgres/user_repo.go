@@ -59,6 +59,118 @@ func (r *UserRepo) Update(ctx context.Context, u *domainuser.User) error {
 	})
 }
 
+// AdminUpdate atualiza um usuário com todos os campos administráveis por um
+// admin (inclui document e roleId, diferente de Update/UpdateUserEditable que
+// é usado pelo self-service em /auth/me).
+func (r *UserRepo) AdminUpdate(ctx context.Context, u *domainuser.User) error {
+	return r.q.UpdateUserAdmin(ctx, sqlc.UpdateUserAdminParams{
+		ID:           u.ID,
+		EnterpriseId: u.EnterpriseID,
+		Name:         u.Name,
+		Email:        u.Email,
+		Phone:        utils.ToNullString(u.Phone),
+		AddressId:    utils.ToNullString(u.AddressID),
+		Document:     u.Document,
+		RoleId:       utils.ToNullString(u.RoleID),
+	})
+}
+
+func (r *UserRepo) Delete(ctx context.Context, userID, enterpriseID string) error {
+	return r.q.DeleteUser(ctx, sqlc.DeleteUserParams{ID: userID, EnterpriseId: enterpriseID})
+}
+
+// GetByDocumentInEnterprise procura um usuário pelo document dentro da
+// empresa (para checar duplicidade antes de criar/editar). Retorna nil, nil
+// se não encontrado.
+func (r *UserRepo) GetByDocumentInEnterprise(ctx context.Context, enterpriseID, document string) (*domainuser.User, error) {
+	row, err := r.q.GetUserByDocumentInEnterprise(ctx, sqlc.GetUserByDocumentInEnterpriseParams{
+		EnterpriseId: enterpriseID,
+		Document:     document,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return domainuser.NewUser(row.ID, row.Name, row.Email, "", row.Document, enterpriseID), nil
+}
+
+// GetPrimaryAdminUserID retorna o ID do usuário administrador "primário" da
+// empresa (criado no onboarding: email igual ao da empresa, papel
+// Administrador). Retorna "", nil se não houver.
+func (r *UserRepo) GetPrimaryAdminUserID(ctx context.Context, enterpriseID string) (string, error) {
+	id, err := r.q.GetPrimaryAdminUserID(ctx, enterpriseID)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return "", nil
+		}
+		return "", err
+	}
+	return id, nil
+}
+
+// NonClientUserRow é uma linha de ListNonClientUsersByEnterprise: usuário +
+// endereço + papel + (opcionalmente) sub-registro de técnico.
+type NonClientUserRow struct {
+	ID                    string
+	Name                  string
+	Email                 string
+	Phone                 *string
+	Document              string
+	EnterpriseID          string
+	ZipCode               *string
+	State                 *string
+	City                  *string
+	Neighborhood          *string
+	Street                *string
+	Num                   *string
+	RoleID                *string
+	RoleTitle             *string
+	TechnicianID          *string
+	TechnicianProRegister *string
+	TechnicianGraduation  *string
+	TechnicianCTF         *string
+}
+
+// ListNonClientUsersByEnterprise lista os usuários da empresa que não têm
+// registro de Client (equivalente a manyUsers no user-crud), opcionalmente
+// excluindo um id (o admin primário — passe "" para não excluir ninguém).
+func (r *UserRepo) ListNonClientUsersByEnterprise(ctx context.Context, enterpriseID, excludeID string) ([]NonClientUserRow, error) {
+	rows, err := r.q.ListNonClientUsersByEnterprise(ctx, sqlc.ListNonClientUsersByEnterpriseParams{
+		EnterpriseId: enterpriseID,
+		ExcludeID:    excludeID,
+	})
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]NonClientUserRow, 0, len(rows))
+	for _, row := range rows {
+		out = append(out, NonClientUserRow{
+			ID:                    row.ID,
+			Name:                  row.Name,
+			Email:                 row.Email,
+			Phone:                 utils.FromNullString(row.Phone),
+			Document:              row.Document,
+			EnterpriseID:          row.EnterpriseID,
+			ZipCode:               utils.FromNullString(row.ZipCode),
+			State:                 utils.FromNullString(row.State),
+			City:                  utils.FromNullString(row.City),
+			Neighborhood:          utils.FromNullString(row.Neighborhood),
+			Street:                utils.FromNullString(row.Street),
+			Num:                   utils.FromNullString(row.Num),
+			RoleID:                utils.FromNullString(row.RoleID),
+			RoleTitle:             utils.FromNullString(row.RoleTitle),
+			TechnicianID:          utils.FromNullString(row.TechnicianID),
+			TechnicianProRegister: utils.FromNullString(row.ProRegister),
+			TechnicianGraduation:  utils.FromNullString(row.TechnicianGraduation),
+			TechnicianCTF:         utils.FromNullString(row.TechnicianCtf),
+		})
+	}
+	return out, nil
+}
+
 func (r *UserRepo) GetByID(ctx context.Context, userID string, enterpriseID string) (*domainuser.User, error) {
 	row, err := r.q.GetUserByID(ctx, sqlc.GetUserByIDParams{
 		EnterpriseId: enterpriseID,

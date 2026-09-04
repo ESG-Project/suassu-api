@@ -9,6 +9,48 @@ import (
 	"context"
 )
 
+const createFeature = `-- name: CreateFeature :one
+INSERT INTO "Feature" (id, name)
+VALUES ($1, $2)
+RETURNING id, name
+`
+
+type CreateFeatureParams struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
+}
+
+func (q *Queries) CreateFeature(ctx context.Context, arg CreateFeatureParams) (Feature, error) {
+	row := q.db.QueryRowContext(ctx, createFeature, arg.ID, arg.Name)
+	var i Feature
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
+const deleteFeature = `-- name: DeleteFeature :exec
+DELETE FROM "Feature"
+WHERE id = $1
+`
+
+func (q *Queries) DeleteFeature(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deleteFeature, id)
+	return err
+}
+
+const getFeatureByID = `-- name: GetFeatureByID :one
+SELECT id, name
+FROM "Feature"
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetFeatureByID(ctx context.Context, id string) (Feature, error) {
+	row := q.db.QueryRowContext(ctx, getFeatureByID, id)
+	var i Feature
+	err := row.Scan(&i.ID, &i.Name)
+	return i, err
+}
+
 const getFeatureByName = `-- name: GetFeatureByName :one
 SELECT id, name
 FROM "Feature"

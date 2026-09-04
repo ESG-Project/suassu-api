@@ -58,6 +58,37 @@ func Handle(w http.ResponseWriter, r *http.Request, err error) {
 	writeJSON(w, status, reqID, payload)
 }
 
+// HandlePrivilegeAware é como Handle, mas dá tratamento especial a erros
+// marcados com apperr.NewPrivilegeEscalation: escreve `code` no nível
+// superior do corpo (não só em `error.code`), replicando sendControllerError
+// do user-crud. O interceptor global do front (services/api.ts) só evita
+// redirecionar um 403 para /unauthorized quando enxerga esse `code` no topo
+// — sem isto, a tela de cadastro de usuário/permissão expulsaria o operador
+// no meio do preenchimento por causa de uma tentativa de escalação recusada.
+func HandlePrivilegeAware(w http.ResponseWriter, r *http.Request, err error) {
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+	if !apperr.IsPrivilegeEscalation(err) {
+		Handle(w, r, err)
+		return
+	}
+
+	var ae *apperr.Error
+	errors.As(err, &ae)
+	msg := publicMessage(err)
+
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(http.StatusForbidden)
+	_ = json.NewEncoder(w).Encode(map[string]any{
+		"success": false,
+		"code":    "PRIVILEGE_ESCALATION",
+		"message": msg,
+		"error":   msg,
+	})
+}
+
 func mapStatus(code apperr.Code, _ error) int {
 	switch code {
 	case apperr.CodeInvalid:

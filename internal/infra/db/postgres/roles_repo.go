@@ -47,6 +47,31 @@ func (r *RoleRepo) GetByID(ctx context.Context, roleID string, enterpriseID stri
 	}, nil
 }
 
+// GetByTitle resolve um papel pelo título dentro da empresa (ex.: "Técnico",
+// "Cliente"). Usado quando o cliente informa o título em vez do UUID do
+// papel (aceito historicamente pelo user-crud em POST/PUT /user).
+func (r *RoleRepo) GetByTitle(ctx context.Context, enterpriseID, title string) (*types.UserRole, error) {
+	row, err := r.q.GetRoleByTitle(ctx, sqlc.GetRoleByTitleParams{
+		EnterpriseId: enterpriseID,
+		Title:        title,
+	})
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, apperr.New(apperr.CodeNotFound, "role not found")
+		}
+		return nil, err
+	}
+
+	return &types.UserRole{
+		ID:    row.ID,
+		Title: row.Title,
+	}, nil
+}
+
+func (r *RoleRepo) Delete(ctx context.Context, roleID string) error {
+	return r.q.DeleteRole(ctx, roleID)
+}
+
 func (r *RoleRepo) List(ctx context.Context, enterpriseID string) ([]domainrole.Role, error) {
 	rows, err := r.q.ListRolesByEnterprise(ctx, enterpriseID)
 	if err != nil {
