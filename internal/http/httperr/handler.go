@@ -126,3 +126,33 @@ func writeJSON(w http.ResponseWriter, status int, reqID string, v any) {
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(v)
 }
+
+// HandleLegacy escreve o erro no formato herdado do user-crud —
+// `{"error": "<mensagem>"}`, com a mensagem como string no nível superior.
+//
+// É o contrato que alguns models do front leem diretamente
+// (`e.response?.data?.error`, ex.: models/bank.ts, cashFlow.ts,
+// transaction.ts); com o envelope padrão de Handle esse campo viraria um
+// objeto e o toast exibiria "[object Object]". O status continua sendo o
+// mapeado de apperr (404/403/409/...), e não o 400 uniforme do user-crud: o
+// front trata qualquer 4xx da mesma forma nesses fluxos.
+func HandleLegacy(w http.ResponseWriter, r *http.Request, err error) {
+	if err == nil {
+		w.WriteHeader(http.StatusNoContent)
+		return
+	}
+
+	reqID := chimw.GetReqID(r.Context())
+	status := mapStatus(apperr.CodeOf(err), err)
+
+	if logger != nil {
+		logger.Error("http_error",
+			zap.String("code", string(apperr.CodeOf(err))),
+			zap.Int("status", status),
+			zap.String("request_id", reqID),
+			zap.Error(err),
+		)
+	}
+
+	writeJSON(w, status, reqID, map[string]any{"error": publicMessage(err)})
+}

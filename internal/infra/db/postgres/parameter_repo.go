@@ -86,3 +86,23 @@ func (r *ParameterRepo) Delete(ctx context.Context, id, enterpriseID string) err
 		EnterpriseId: enterpriseID,
 	})
 }
+
+// GetByIDAnyEnterprise busca sem filtrar por empresa: quem chama compara o
+// enterpriseId para distinguir 404 de 403, como faz o user-crud. Devolve nil
+// (sem erro) quando não existe.
+func (r *ParameterRepo) GetByIDAnyEnterprise(ctx context.Context, id string) (*domainparameter.Parameter, error) {
+	row, err := r.q.GetParameterByIDAnyEnterprise(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &domainparameter.Parameter{
+		ID:           row.ID,
+		Title:        row.Title,
+		Value:        utils.FromNullString(row.Value),
+		EnterpriseID: row.EnterpriseId,
+		IsDefault:    row.IsDefault,
+	}, nil
+}

@@ -53,3 +53,33 @@ ORDER BY name;
 DELETE FROM "Product"
 WHERE id = $1
   AND "enterpriseId" = $2;
+
+-- name: GetProductByIDAnyEnterprise :one
+SELECT id,
+  name,
+  "suggestedValue",
+  "enterpriseId",
+  "parameterId",
+  deliverable,
+  "typeProductId",
+  "isDefault"
+FROM "Product"
+WHERE id = $1
+LIMIT 1;
+
+-- name: ListProductsDetailedByEnterprise :many
+SELECT p.id,
+  p.name,
+  p."suggestedValue",
+  p."enterpriseId",
+  p.deliverable,
+  par.id AS parameter_id,
+  par.title AS parameter_title,
+  par.value AS parameter_value,
+  tp.id AS type_product_id,
+  tp.type AS type_product_type
+FROM "Product" p
+  LEFT JOIN "Parameter" par ON par.id = p."parameterId"
+  LEFT JOIN "TypeProduct" tp ON tp.id = p."typeProductId"
+WHERE p."enterpriseId" = $1
+ORDER BY p.name;

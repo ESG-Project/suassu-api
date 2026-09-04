@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 
+	"github.com/ESG-Project/suassu-api/internal/app/types"
 	"github.com/ESG-Project/suassu-api/internal/apperr"
 	domainproduct "github.com/ESG-Project/suassu-api/internal/domain/product"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres/utils"
@@ -97,4 +98,62 @@ func (r *ProductRepo) Delete(ctx context.Context, id, enterpriseID string) error
 		ID:           id,
 		EnterpriseId: enterpriseID,
 	})
+}
+
+// GetByIDAnyEnterprise busca sem filtrar por empresa: quem chama compara o
+// enterpriseId para distinguir 404 de 403, como faz o user-crud. Devolve nil
+// (sem erro) quando não existe.
+func (r *ProductRepo) GetByIDAnyEnterprise(ctx context.Context, id string) (*domainproduct.Product, error) {
+	row, err := r.q.GetProductByIDAnyEnterprise(ctx, id)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &domainproduct.Product{
+		ID:             row.ID,
+		Name:           row.Name,
+		SuggestedValue: utils.FromNullString(row.SuggestedValue),
+		EnterpriseID:   row.EnterpriseId,
+		ParameterID:    utils.FromNullString(row.ParameterId),
+		Deliverable:    row.Deliverable,
+		TypeProductID:  utils.FromNullString(row.TypeProductId),
+		IsDefault:      row.IsDefault,
+	}, nil
+}
+
+// ListDetailedByEnterprise devolve os produtos com Parameter e TypeProduct já
+// resolvidos, no formato consumido por GET /product/enterprise.
+func (r *ProductRepo) ListDetailedByEnterprise(ctx context.Context, enterpriseID string) ([]types.ProductDetailRow, error) {
+	rows, err := r.q.ListProductsDetailedByEnterprise(ctx, enterpriseID)
+	if err != nil {
+		return nil, err
+	}
+
+	out := make([]types.ProductDetailRow, 0, len(rows))
+	for _, row := range rows {
+		item := types.ProductDetailRow{
+			ID:             row.ID,
+			Name:           row.Name,
+			SuggestedValue: utils.FromNullString(row.SuggestedValue),
+			EnterpriseID:   row.EnterpriseId,
+			Deliverable:    row.Deliverable,
+		}
+		if row.ParameterID.Valid {
+			item.Parameter = &types.ProductParameterRef{
+				ID:    row.ParameterID.String,
+				Title: row.ParameterTitle.String,
+				Value: utils.FromNullString(row.ParameterValue),
+			}
+		}
+		if row.TypeProductID.Valid {
+			item.Type = &types.ProductTypeRef{
+				ID:   row.TypeProductID.String,
+				Type: row.TypeProductType.String,
+			}
+		}
+		out = append(out, item)
+	}
+	return out, nil
 }

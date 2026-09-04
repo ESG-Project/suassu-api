@@ -101,6 +101,36 @@ func (q *Queries) GetProductByID(ctx context.Context, arg GetProductByIDParams) 
 	return i, err
 }
 
+const getProductByIDAnyEnterprise = `-- name: GetProductByIDAnyEnterprise :one
+SELECT id,
+  name,
+  "suggestedValue",
+  "enterpriseId",
+  "parameterId",
+  deliverable,
+  "typeProductId",
+  "isDefault"
+FROM "Product"
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetProductByIDAnyEnterprise(ctx context.Context, id string) (Product, error) {
+	row := q.db.QueryRowContext(ctx, getProductByIDAnyEnterprise, id)
+	var i Product
+	err := row.Scan(
+		&i.ID,
+		&i.Name,
+		&i.SuggestedValue,
+		&i.EnterpriseId,
+		&i.ParameterId,
+		&i.Deliverable,
+		&i.TypeProductId,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
 const listProductsByEnterprise = `-- name: ListProductsByEnterprise :many
 SELECT id,
   name,
@@ -133,6 +163,71 @@ func (q *Queries) ListProductsByEnterprise(ctx context.Context, enterpriseid str
 			&i.Deliverable,
 			&i.TypeProductId,
 			&i.IsDefault,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listProductsDetailedByEnterprise = `-- name: ListProductsDetailedByEnterprise :many
+SELECT p.id,
+  p.name,
+  p."suggestedValue",
+  p."enterpriseId",
+  p.deliverable,
+  par.id AS parameter_id,
+  par.title AS parameter_title,
+  par.value AS parameter_value,
+  tp.id AS type_product_id,
+  tp.type AS type_product_type
+FROM "Product" p
+  LEFT JOIN "Parameter" par ON par.id = p."parameterId"
+  LEFT JOIN "TypeProduct" tp ON tp.id = p."typeProductId"
+WHERE p."enterpriseId" = $1
+ORDER BY p.name
+`
+
+type ListProductsDetailedByEnterpriseRow struct {
+	ID              string         `json:"id"`
+	Name            string         `json:"name"`
+	SuggestedValue  sql.NullString `json:"suggestedValue"`
+	EnterpriseId    string         `json:"enterpriseId"`
+	Deliverable     bool           `json:"deliverable"`
+	ParameterID     sql.NullString `json:"parameter_id"`
+	ParameterTitle  sql.NullString `json:"parameter_title"`
+	ParameterValue  sql.NullString `json:"parameter_value"`
+	TypeProductID   sql.NullString `json:"type_product_id"`
+	TypeProductType sql.NullString `json:"type_product_type"`
+}
+
+func (q *Queries) ListProductsDetailedByEnterprise(ctx context.Context, enterpriseid string) ([]ListProductsDetailedByEnterpriseRow, error) {
+	rows, err := q.db.QueryContext(ctx, listProductsDetailedByEnterprise, enterpriseid)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListProductsDetailedByEnterpriseRow
+	for rows.Next() {
+		var i ListProductsDetailedByEnterpriseRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Name,
+			&i.SuggestedValue,
+			&i.EnterpriseId,
+			&i.Deliverable,
+			&i.ParameterID,
+			&i.ParameterTitle,
+			&i.ParameterValue,
+			&i.TypeProductID,
+			&i.TypeProductType,
 		); err != nil {
 			return nil, err
 		}

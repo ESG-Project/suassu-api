@@ -97,3 +97,15 @@ func hasPermission(perms *types.UserPermissions, feature, action string) bool {
 	}
 	return false
 }
+
+// Actor devolve o id do usuário autenticado e a empresa do contexto de uma
+// vez — o par que os handlers de escrita precisam para aplicar o escopo por
+// empresa e registrar a trilha de auditoria. ok é false quando não há claims
+// no contexto (rota sem AuthJWT).
+func Actor(ctx context.Context) (actorID, enterpriseID string, ok bool) {
+	claims, ok := ClaimsFromCtx(ctx)
+	if !ok {
+		return "", "", false
+	}
+	return claims.Subject, EnterpriseID(ctx), true
+}

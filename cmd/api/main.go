@@ -15,24 +15,34 @@ import (
 
 	appaddress "github.com/ESG-Project/suassu-api/internal/app/address"
 	appadminuser "github.com/ESG-Project/suassu-api/internal/app/adminuser"
+	appauditlog "github.com/ESG-Project/suassu-api/internal/app/auditlog"
+	appbank "github.com/ESG-Project/suassu-api/internal/app/bank"
 	appenterprise "github.com/ESG-Project/suassu-api/internal/app/enterprise"
 	appfeatures "github.com/ESG-Project/suassu-api/internal/app/feature"
+	appparameter "github.com/ESG-Project/suassu-api/internal/app/parameter"
 	appperm "github.com/ESG-Project/suassu-api/internal/app/permission"
 	appphyto "github.com/ESG-Project/suassu-api/internal/app/phytoanalysis"
+	appproduct "github.com/ESG-Project/suassu-api/internal/app/product"
 	approle "github.com/ESG-Project/suassu-api/internal/app/role"
 	appspecies "github.com/ESG-Project/suassu-api/internal/app/species"
 	appspecimen "github.com/ESG-Project/suassu-api/internal/app/specimen"
+	apptypeproduct "github.com/ESG-Project/suassu-api/internal/app/typeproduct"
 	appuser "github.com/ESG-Project/suassu-api/internal/app/user"
 	"github.com/ESG-Project/suassu-api/internal/config"
+	bankhttp "github.com/ESG-Project/suassu-api/internal/http/v1/bank"
 	enterprisehttp "github.com/ESG-Project/suassu-api/internal/http/v1/enterprise"
 	featurehttp "github.com/ESG-Project/suassu-api/internal/http/v1/feature"
 	legacyuserhttp "github.com/ESG-Project/suassu-api/internal/http/v1/legacyuser"
+	parameterhttp "github.com/ESG-Project/suassu-api/internal/http/v1/parameter"
 	permissionhttp "github.com/ESG-Project/suassu-api/internal/http/v1/permission"
 	phytohttp "github.com/ESG-Project/suassu-api/internal/http/v1/phytoanalysis"
+	producthttp "github.com/ESG-Project/suassu-api/internal/http/v1/product"
 	rolehttp "github.com/ESG-Project/suassu-api/internal/http/v1/role"
 	specieshttp "github.com/ESG-Project/suassu-api/internal/http/v1/species"
 	specimenhttp "github.com/ESG-Project/suassu-api/internal/http/v1/specimen"
+	typeproducthttp "github.com/ESG-Project/suassu-api/internal/http/v1/typeproduct"
 	userhttp "github.com/ESG-Project/suassu-api/internal/http/v1/user"
+	infrabank "github.com/ESG-Project/suassu-api/internal/infra/bank"
 	"github.com/ESG-Project/suassu-api/internal/infra/db/postgres"
 
 	appauth "github.com/ESG-Project/suassu-api/internal/app/auth"
@@ -93,6 +103,20 @@ func main() {
 	clientRepo := postgres.NewClientRepo(db)
 	technicianRepo := postgres.NewTechnicianRepo(db)
 	adminUserSvc := appadminuser.NewService(userRepo, roleRepo, permissionRepo, clientRepo, technicianRepo, userSvc, hasher, txm)
+
+	// Trilha de auditoria (tabela "Log"): a escrita migra junto com os módulos
+	// da Fase 1; a leitura (/logs) segue no user-crud até a Fase 3.
+	auditSvc := appauditlog.NewService(postgres.NewLogRepo(db))
+
+	// Catálogos isolados (Fase 1 da migração user-crud -> suassu-api)
+	bankRepo := postgres.NewBankRepo(db)
+	bankSvc := appbank.NewService(bankRepo, infrabank.NewHTTPCatalog(cfg.CoraBanksURL), auditSvc)
+	typeProductRepo := postgres.NewTypeProductRepo(db)
+	typeProductSvc := apptypeproduct.NewService(typeProductRepo, auditSvc)
+	parameterRepo := postgres.NewParameterRepo(db)
+	parameterSvc := appparameter.NewService(parameterRepo, auditSvc)
+	productRepo := postgres.NewProductRepo(db)
+	productSvc := appproduct.NewService(productRepo, auditSvc)
 
 	// PhytoAnalysis
 	phytoRepo := postgres.NewPhytoAnalysisRepo(db)
@@ -192,6 +216,37 @@ func main() {
 			// Sem permissionVerification no user-crud (gap de RBAC preexistente);
 			// preservado aqui para manter o contrato idêntico.
 			priv.Mount("/feature", featurehttp.Routes(featureSvc))
+
+			// Catálogos isolados (Fase 1). Os paths são os do user-crud —
+			// singular e sem prefixo novo — para o corte no gateway ser
+			// transparente ao front.
+			priv.Mount("/typeProduct", typeproducthttp.Routes(
+				typeProductSvc,
+				httpmw.RequirePermission(userSvc, "TypeProduct", "read"),
+				httpmw.RequirePermission(userSvc, "TypeProduct", "create"),
+				httpmw.RequirePermission(userSvc, "TypeProduct", "update"),
+				httpmw.RequirePermission(userSvc, "TypeProduct", "delete"),
+			))
+			priv.Mount("/parameter", parameterhttp.Routes(
+				parameterSvc,
+				httpmw.RequirePermission(userSvc, "Parameter", "read"),
+				httpmw.RequirePermission(userSvc, "Parameter", "update"),
+			))
+			priv.Mount("/product", producthttp.Routes(
+				productSvc,
+				httpmw.RequirePermission(userSvc, "Product", "read"),
+				httpmw.RequirePermission(userSvc, "Product", "create"),
+				httpmw.RequirePermission(userSvc, "Product", "update"),
+				httpmw.RequirePermission(userSvc, "Product", "delete"),
+			))
+			// /all-banks e /bank convivem fora de um prefixo comum, por isso o
+			// registro direto no router.
+			bankhttp.RegisterRoutes(priv, bankSvc,
+				httpmw.RequirePermission(userSvc, "Bank", "read"),
+				httpmw.RequirePermission(userSvc, "EnterpriseBank", "read"),
+				httpmw.RequirePermission(userSvc, "EnterpriseBank", "create"),
+				httpmw.RequirePermission(userSvc, "EnterpriseBank", "delete"),
+			)
 
 			// /user, /user-enterprise (legado, singular) — CRUD administrativo
 			// completo, distinto do self-service em /auth/me e da API nova em
