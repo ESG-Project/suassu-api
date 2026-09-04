@@ -12,7 +12,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-type noopRepo struct{}
+type noopRepo struct {
+	phytos []*types.PhytoAnalysisWithProject
+}
 
 func (n *noopRepo) Create(ctx context.Context, p *domainphyto.PhytoAnalysis) error {
 	return nil
@@ -23,7 +25,7 @@ func (n *noopRepo) GetByID(ctx context.Context, id string) (*types.PhytoAnalysis
 }
 
 func (n *noopRepo) ListByProject(ctx context.Context, projectID string) ([]*types.PhytoAnalysisWithProject, error) {
-	return nil, nil
+	return n.phytos, nil
 }
 
 func (n *noopRepo) ListByEnterprise(ctx context.Context, enterpriseID string) ([]*types.PhytoAnalysisWithProject, error) {
