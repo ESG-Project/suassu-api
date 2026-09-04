@@ -34,6 +34,7 @@ type Repos struct {
 	Species       func() *SpeciesRepo
 	Clients       func() *ClientRepo
 	Technicians   func() *TechnicianRepo
+	Logs          func() *LogRepo
 }
 
 func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
@@ -56,6 +57,7 @@ func (m *TxManager) RunInTx(ctx context.Context, fn func(r Repos) error) error {
 		Species:       func() *SpeciesRepo { return NewSpeciesRepoFrom(tx) },
 		Clients:       func() *ClientRepo { return NewClientRepoFrom(tx) },
 		Technicians:   func() *TechnicianRepo { return NewTechnicianRepoFrom(tx) },
+		Logs:          func() *LogRepo { return NewLogRepoFrom(tx) },
 	}
 
 	if err := fn(r); err != nil {

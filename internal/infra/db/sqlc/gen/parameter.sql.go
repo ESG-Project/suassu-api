@@ -86,6 +86,30 @@ func (q *Queries) GetParameterByID(ctx context.Context, arg GetParameterByIDPara
 	return i, err
 }
 
+const getParameterByIDAnyEnterprise = `-- name: GetParameterByIDAnyEnterprise :one
+SELECT id,
+  title,
+  value,
+  "enterpriseId",
+  "isDefault"
+FROM "Parameter"
+WHERE id = $1
+LIMIT 1
+`
+
+func (q *Queries) GetParameterByIDAnyEnterprise(ctx context.Context, id string) (Parameter, error) {
+	row := q.db.QueryRowContext(ctx, getParameterByIDAnyEnterprise, id)
+	var i Parameter
+	err := row.Scan(
+		&i.ID,
+		&i.Title,
+		&i.Value,
+		&i.EnterpriseId,
+		&i.IsDefault,
+	)
+	return i, err
+}
+
 const listParametersByEnterprise = `-- name: ListParametersByEnterprise :many
 SELECT id,
   title,

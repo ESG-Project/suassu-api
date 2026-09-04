@@ -337,6 +337,12 @@ type Address struct {
 	AddInfo      sql.NullString `json:"addInfo"`
 }
 
+type Bank struct {
+	ID   string `json:"id"`
+	Code string `json:"code"`
+	Name string `json:"name"`
+}
+
 type Client struct {
 	ID          string         `json:"id"`
 	FantasyName sql.NullString `json:"fantasyName"`
@@ -353,9 +359,23 @@ type Enterprise struct {
 	Phone       sql.NullString `json:"phone"`
 }
 
+type EnterpriseBank struct {
+	ID           string `json:"id"`
+	EnterpriseId string `json:"enterpriseId"`
+	BankId       string `json:"bankId"`
+}
+
 type Feature struct {
 	ID   string `json:"id"`
 	Name string `json:"name"`
+}
+
+type Log struct {
+	ID           string         `json:"id"`
+	Tag          sql.NullString `json:"tag"`
+	EnterpriseId string         `json:"enterpriseId"`
+	Description  string         `json:"description"`
+	CreatedAt    time.Time      `json:"createdAt"`
 }
 
 type Parameter struct {
@@ -500,6 +520,12 @@ type Technician struct {
 	Graduation  sql.NullString `json:"graduation"`
 	Ctf         sql.NullString `json:"ctf"`
 	UserId      string         `json:"userId"`
+}
+
+type TypeProduct struct {
+	ID           string `json:"id"`
+	Type         string `json:"type"`
+	EnterpriseId string `json:"enterpriseId"`
 }
 
 type User struct {

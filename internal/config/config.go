@@ -35,6 +35,11 @@ type Config struct {
 	// Cookie
 	CookieDomain string // domínio do cookie (ex: ".suassu.com")
 	CookieSecure bool   // true em produção (HTTPS)
+
+	// Integrações externas
+	// CoraBanksURL: catálogo público de bancos servido em GET /all-banks. No
+	// user-crud a URL de stage estava fixa no código; aqui vem do ambiente.
+	CoraBanksURL string
 }
 
 // Load lê variáveis de ambiente e aplica defaults sensatos.
@@ -65,6 +70,8 @@ func Load() (*Config, error) {
 
 		CookieDomain: getenv("COOKIE_DOMAIN", ""), // vazio = mesmo domínio
 		CookieSecure: appEnv == "prod",            // true apenas em produção
+
+		CoraBanksURL: getenv("CORA_BANKS_URL", "https://api.stage.cora.com.br/banks"),
 	}
 
 	if cfg.DBDSN == "" {

@@ -41,3 +41,13 @@ ORDER BY title;
 DELETE FROM "Parameter"
 WHERE id = $1
   AND "enterpriseId" = $2;
+
+-- name: GetParameterByIDAnyEnterprise :one
+SELECT id,
+  title,
+  value,
+  "enterpriseId",
+  "isDefault"
+FROM "Parameter"
+WHERE id = $1
+LIMIT 1;

@@ -169,3 +169,37 @@ func TestWriteJSON(t *testing.T) {
 		require.Equal(t, "application/json; charset=utf-8", w.Header().Get("Content-Type"))
 	})
 }
+
+func TestHandleLegacy(t *testing.T) {
+	t.Run("nil error returns 204", func(t *testing.T) {
+		req := httptest.NewRequest("GET", "/test", nil)
+		w := httptest.NewRecorder()
+
+		HandleLegacy(w, req, nil)
+
+		require.Equal(t, http.StatusNoContent, w.Code)
+	})
+
+	t.Run("error is a top-level string, as the legacy front expects", func(t *testing.T) {
+		err := apperr.New(apperr.CodeConflict, "Este banco já está vinculado a esta empresa.")
+		req := httptest.NewRequest("POST", "/bank", nil)
+		w := httptest.NewRecorder()
+
+		HandleLegacy(w, req, err)
+
+		require.Equal(t, http.StatusConflict, w.Code)
+
+		var response map[string]any
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+		require.Equal(t, "Este banco já está vinculado a esta empresa.", response["error"])
+	})
+
+	t.Run("status still comes from the apperr code", func(t *testing.T) {
+		req := httptest.NewRequest("DELETE", "/bank/1", nil)
+		w := httptest.NewRecorder()
+
+		HandleLegacy(w, req, apperr.New(apperr.CodeNotFound, "Associação banco-empresa não encontrada."))
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+	})
+}
